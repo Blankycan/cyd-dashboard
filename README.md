@@ -8,20 +8,22 @@ now-playing music, Claude AI usage, and connection status.
 ┌────────────────────────┐
 │ 14:32          Sat 12  │  ← clock + date
 ├────────────────────────┤
-│ ● Lofi Hip Hop Radio ♫ │  ← now-playing (artist scrolls)
-│   chill beats          │
+│ ● Lofi Hip Hop Radio   │  ← now-playing (artist scrolls)
+│   chill beats        ♫ │
 ├────────────────────────┤
 │ CPU  43%  ██████░░░░░  │
 │ RAM  61%  █████████░░  │  ← system stats
 │ WPM  72   ████████░░░  │
 ├────────────────────────┤
-│ ● claude 1.2k out today│
-│ ████████████░░░░░░░░░  │  ← Claude token usage
-│ in 8.4k    3 sess      │
-├────────────────────────┤
-│                        │
-│                        │  ← blank space (future widget)
-│                        │
+│ ● claude    1.2k out   │
+│             today      │  ← token counts
+│ ████████████░░░░░░░░░  │
+│ in 8.4k      3 sess    │
+│ ························│
+│ 5h  23%    resets 2h4m │  ← rate-limit bars
+│ █████░░░░░░░░░░░░░░░░  │
+│ 7d   8%    resets 4d3h │
+│ ██░░░░░░░░░░░░░░░░░░░  │
 ├────────────────────────┤
 │ ● active    192.168.1.5│  ← connection status + host IP
 └────────────────────────┘
@@ -29,9 +31,8 @@ now-playing music, Claude AI usage, and connection status.
 
 The status dot cycles between **offline** (red), **idle** (dim), and **active** (green)
 based on whether the companion app is connected and whether the keyboard is in use.
-The Claude panel rotates between token counts and rate-limit bars every 8 seconds when
-API auth is available. The display dims after 5 minutes of inactivity and shows a
-minimal clock with a zzz animation.
+Rate-limit bars show `--` when no Claude auth is configured. The display dims after
+5 minutes of inactivity and shows a minimal clock with a zzz animation.
 
 ---
 
