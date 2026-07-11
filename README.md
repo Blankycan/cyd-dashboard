@@ -229,6 +229,7 @@ the entire firmware.
 
 ```
 companion/          Host-side Python app
+  config.py         User-tunable settings (intervals, WPM tuning)
   main.py           Entry point — serial loop, packet assembly
   keyboard.py       evdev keypress monitor + WPM calculation
   media.py          playerctl MPRIS2 poller
@@ -236,16 +237,17 @@ companion/          Host-side Python app
   idle_messages.txt Rotating messages shown when no music is playing
 
 src/                ESP32 firmware (Arduino / PlatformIO)
-  main.cpp          Hardware init, sleep overlay, packet handler, setup/loop
-  layout.h          All panel size and timing constants
+  config.h          User-tunable settings (timeouts, brightness, token bar ceiling)
+  layout.h          Panel geometry and hardware wiring constants
   state.h           Shared DashState struct populated from serial packets
   theme.h           Colour palette
   ui_helpers.h/cpp  Shared LVGL widget factories and formatters
+  main.cpp          Hardware init, sleep overlay, packet handler, setup/loop
   widgets/
     topbar.*        Clock and date bar
     music.*         Now-playing panel with animated icon
     stats.*         CPU, RAM, and WPM bars
-    claude.*        Token usage and rate-limit panels (rotates)
+    claude.*        Token usage and rate-limit panels
     indicator.*     Connection status dot, label, and host IP
 ```
 

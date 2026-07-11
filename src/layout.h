@@ -1,7 +1,8 @@
 #pragma once
+#include "config.h"
 
-// Screen geometry and panel layout constants for the 240×320 CYD display.
-// Panel heights stack vertically below the top bar; tweak these to resize sections.
+// Screen geometry and hardware wiring constants for the 240×320 CYD display.
+// User-tunable settings (timeouts, brightness, limits) live in config.h.
 
 #define SCREEN_W    240
 #define SCREEN_H    320
@@ -28,12 +29,7 @@
 #define MA_X          (PANEL_W - 4 - MA_W)
 #define MUSIC_LABEL_W (MA_X - 26)
 
-#define DISCONNECT_TIMEOUT_MS 5000   // no packet → show offline state
-
-// Sleep / backlight — dims after inactivity, wakes on touch or host "active" flag
-#define SLEEP_TIMEOUT_MS  (5 * 60 * 1000)
+// Backlight PWM hardware (wiring — do not change unless rewiring the board)
 #define BL_PWM_CHANNEL    0
 #define BL_PWM_FREQ       5000
 #define BL_PWM_BITS       8
-#define BL_FULL           255
-#define BL_DIM            12

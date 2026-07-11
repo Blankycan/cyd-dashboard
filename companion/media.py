@@ -9,7 +9,7 @@ import subprocess
 import threading
 import time
 
-POLL_INTERVAL = 3.0
+from config import MEDIA_POLL_INTERVAL
 FIELD_SEP     = "|||"
 FORMAT_STR    = f"{{{{title}}}}{FIELD_SEP}{{{{artist}}}}{FIELD_SEP}{{{{status}}}}"
 
@@ -39,7 +39,7 @@ class MediaMonitor:
             info = self._poll()
             with self._lock:
                 self._info = info
-            time.sleep(POLL_INTERVAL)
+            time.sleep(MEDIA_POLL_INTERVAL)
 
     def _poll(self) -> dict | None:
         try:

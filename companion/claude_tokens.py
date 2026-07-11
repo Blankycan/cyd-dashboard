@@ -22,8 +22,7 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-SCAN_INTERVAL  = 60.0    # seconds between JSONL scans
-FETCH_INTERVAL = 300.0   # seconds between API rate-limit calls
+from config import SCAN_INTERVAL, FETCH_INTERVAL
 
 _CREDENTIALS_FILE  = Path.home() / ".claude" / ".credentials.json"
 _TOKEN_CACHE_FILE  = Path.home() / ".claude" / "proxy_oauth_token.json"

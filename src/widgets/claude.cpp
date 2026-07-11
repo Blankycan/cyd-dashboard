@@ -143,7 +143,7 @@ void update_claude_ui() {
         fmt_k(buf, sizeof(buf), state.claude_out);
         lv_label_set_text(lbl_claude_out, buf);
 
-        int32_t tok_pct = (int32_t)((float)state.claude_out / 100000.0f * 100.0f);
+        int32_t tok_pct = (int32_t)((float)state.claude_out / (float)CLAUDE_TOK_MAX * 100.0f);
         if (tok_pct > 100) tok_pct = 100;
         lv_bar_set_value(bar_claude_tok, (int)tok_pct, LV_ANIM_OFF);
 

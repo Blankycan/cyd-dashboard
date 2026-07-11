@@ -17,13 +17,12 @@ import serial
 import serial.tools.list_ports
 
 from claude_tokens import ClaudeTokenMonitor
+from config import INTERVAL, IDLE_MSG_INTERVAL
 from keyboard import KeyboardMonitor
 from media import MediaMonitor
 from theme import ansi
 
 BAUD       = 115_200
-INTERVAL   = 2.0   # seconds between stat packets
-
 ESP32_VIDS = {0x1A86, 0x10C4, 0x303A, 0x0403, 0x067B}
 
 # ---------------------------------------------------------------------------
@@ -33,7 +32,6 @@ _IDLE_FILE  = Path(__file__).parent / "idle_messages.txt"
 _IDLE_MSGS: list[str] = []
 _idle_msg   = ""
 _idle_msg_t = 0.0
-IDLE_MSG_INTERVAL = 30.0   # seconds before rotating to next message
 
 
 def _load_idle_messages() -> None:

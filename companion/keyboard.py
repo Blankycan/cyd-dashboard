@@ -10,12 +10,7 @@ import threading
 import time
 from collections import deque
 
-# Rolling window for WPM calculation (seconds)
-WPM_WINDOW = 10.0
-# Seconds without a keypress before state switches to idle
-IDLE_AFTER  = 2.5
-# EMA smoothing factor (0 = frozen, 1 = raw)
-WPM_ALPHA   = 0.35
+from config import WPM_WINDOW, IDLE_AFTER, WPM_ALPHA
 
 
 class KeyboardMonitor:
