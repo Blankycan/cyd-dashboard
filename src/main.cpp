@@ -1,6 +1,3 @@
-// CYD Dashboard — Phase 3: WPM + active/idle state
-// Parses {"type":"stats","cpu":XX,"ram":XX,"time":"HH:MM","wpm":XX,"active":bool}.
-
 #include <Arduino.h>
 #include <SPI.h>
 #include <TFT_eSPI.h>
@@ -8,6 +5,9 @@
 #include <lvgl.h>
 #include <ArduinoJson.h>
 #include "theme.h"
+#include "companions/poring.h"
+
+static const Companion *companion = &poring_companion;
 
 // ---------------------------------------------------------------------------
 // Layout constants (all sizes in pixels)
@@ -17,7 +17,7 @@
 #define BL_PIN      21
 
 #define TOPBAR_H    30      // top bar height
-#define SIDEBAR_W   96      // Hotaru column width
+#define SIDEBAR_W   96      // companion column width
 #define DIV_W       1       // divider line width
 
 // Content area (below top bar)
@@ -33,9 +33,8 @@
 #define CLAUDE_H    90
 #define STATUS_H    (CONTENT_H - MUSIC_H - DIV_W - CLAUDE_H - DIV_W)
 
-// Top bar CPU/RAM column x positions
-#define CPU_X       132
-#define RAM_X       226
+// Stats panel row layout (bottom-right panel)
+#define STATS_ROW_H  22    // pixels per stat row (text + bar)
 
 // Music panel — right-side animation area
 #define MA_W          38                   // animation area width
@@ -62,6 +61,7 @@
 // ---------------------------------------------------------------------------
 struct DashState {
     char time_str[6]     = "--:--";
+    char date_str[12]    = "";
     int  cpu             = 0;
     int  ram             = 0;
     int  wpm             = 0;
@@ -90,22 +90,22 @@ static TFT_eSPI tft;
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t lv_buf[SCREEN_W * 10];
 
-// Handles updated at runtime
-static lv_obj_t *lbl_time    = nullptr;
-static lv_obj_t *lbl_cpu_val = nullptr;
-static lv_obj_t *bar_cpu     = nullptr;
-static lv_obj_t *lbl_ram_val = nullptr;
-static lv_obj_t *bar_ram     = nullptr;
+// Top bar handles
+static lv_obj_t *lbl_time = nullptr;
+static lv_obj_t *lbl_date = nullptr;
 
-// Panel containers — populated by later phases
+// Panel containers
 lv_obj_t *panel_music  = nullptr;
 lv_obj_t *panel_claude = nullptr;
 lv_obj_t *panel_status = nullptr;
 
-// WPM panel handles
-static lv_obj_t *dot_status  = nullptr;
-static lv_obj_t *lbl_status  = nullptr;
+// Stats panel handles (CPU / RAM / WPM rows)
+static lv_obj_t *lbl_cpu_val = nullptr;
+static lv_obj_t *bar_cpu     = nullptr;
+static lv_obj_t *lbl_ram_val = nullptr;
+static lv_obj_t *bar_ram     = nullptr;
 static lv_obj_t *lbl_wpm_val = nullptr;
+static lv_obj_t *bar_wpm     = nullptr;
 
 // Music panel handles
 static lv_obj_t *dot_music        = nullptr;
@@ -152,18 +152,6 @@ static lv_obj_t  *lbl_z[3]      = {};
 static lv_timer_t *zzz_timer     = nullptr;
 static void exit_sleep();   // forward decl (defined before setup)
 
-// Hotaru animation state
-enum HotaruState { HS_IDLE, HS_TYPING_SLOW, HS_TYPING_FAST };
-static HotaruState   h_state       = HS_IDLE;
-static lv_obj_t     *h_container   = nullptr;
-static lv_obj_t     *h_cap         = nullptr;
-static lv_obj_t     *h_eye_l       = nullptr;
-static lv_obj_t     *h_eye_r       = nullptr;
-static int32_t       h_base_y      = 0;
-#define N_SPARKS 4
-static lv_obj_t     *h_sparks[N_SPARKS];
-static uint8_t       h_spark_idx   = 0;
-static lv_timer_t   *h_spark_timer = nullptr;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -251,12 +239,11 @@ static void touch_read_cb(lv_indev_drv_t *, lv_indev_data_t *data) {
         data->state   = LV_INDEV_STATE_PRESSED;
         last_active_ms = millis();
         if (sleep_state == SS_ASLEEP) exit_sleep();
+        else companion->on_touch();
     } else {
         data->state = LV_INDEV_STATE_RELEASED;
     }
 }
-
-static void hotaru_update(int wpm, bool active);  // forward decl
 
 static void fmt_k(char *buf, size_t sz, int32_t n) {
     if      (n >= 1000000) snprintf(buf, sz, "%.1fm", n / 1000000.0f);
@@ -284,24 +271,9 @@ static lv_color_t pct_col(int pct) {
 // ---------------------------------------------------------------------------
 // UI updates — called whenever state changes
 // ---------------------------------------------------------------------------
-static void update_wpm_ui() {
-    if (state.active) {
-        lv_obj_set_style_bg_color(dot_status, COL_OK, 0);
-        lv_label_set_text(lbl_status, "ACTIVE");
-        lv_obj_set_style_text_color(lbl_status, COL_OK, 0);
-    } else {
-        lv_obj_set_style_bg_color(dot_status, COL_TEXT_DIM, 0);
-        lv_label_set_text(lbl_status, "IDLE");
-        lv_obj_set_style_text_color(lbl_status, COL_TEXT_DIM, 0);
-    }
-    char buf[8];
-    snprintf(buf, sizeof(buf), "%d", state.wpm);
-    lv_label_set_text(lbl_wpm_val, buf);
-    hotaru_update(state.wpm, state.active);
-}
-
 static void update_stats_ui() {
     lv_label_set_text(lbl_time, state.time_str);
+    if (state.date_str[0]) lv_label_set_text(lbl_date, state.date_str);
 
     char buf[8];
 
@@ -318,6 +290,16 @@ static void update_stats_ui() {
     lv_obj_set_style_text_color(lbl_ram_val, cram, 0);
     lv_bar_set_value(bar_ram, state.ram, LV_ANIM_OFF);
     lv_obj_set_style_bg_color(bar_ram, cram, LV_PART_INDICATOR);
+
+    int wpm_capped = state.wpm > 100 ? 100 : state.wpm;
+    snprintf(buf, sizeof(buf), "%d", state.wpm);
+    lv_label_set_text(lbl_wpm_val, buf);
+    lv_color_t cwpm = state.active ? COL_OK : COL_TEXT_DIM;
+    lv_obj_set_style_text_color(lbl_wpm_val, cwpm, 0);
+    lv_bar_set_value(bar_wpm, wpm_capped, LV_ANIM_OFF);
+    lv_obj_set_style_bg_color(bar_wpm, cwpm, LV_PART_INDICATOR);
+
+    companion->update(state.wpm, state.active, state.music_playing, state.connected);
 }
 
 // ---------------------------------------------------------------------------
@@ -326,278 +308,26 @@ static void update_stats_ui() {
 
 static void build_topbar(lv_obj_t *scr) {
     lv_obj_t *tb = make_panel(scr, 0, 0, SCREEN_W, TOPBAR_H);
-    lv_obj_set_style_bg_color(tb, COL_PANEL, 0);  // slightly raised panel
-
-    // Thin bottom border
+    lv_obj_set_style_bg_color(tb, COL_PANEL, 0);
     make_hdiv(scr, TOPBAR_H, 0, SCREEN_W);
 
-    // Time — left, vertically centred
     lbl_time = lv_label_create(tb);
     lv_label_set_text(lbl_time, "--:--");
     lv_obj_set_style_text_color(lbl_time, COL_TEXT_PRI, 0);
     lv_obj_set_style_text_font(lbl_time, &lv_font_montserrat_20, 0);
     lv_obj_align(lbl_time, LV_ALIGN_LEFT_MID, 8, 0);
 
-    // CPU — dim key label, thin bar, colored value
-    lv_obj_t *k_cpu = lv_label_create(tb);
-    lv_label_set_text(k_cpu, "CPU");
-    lv_obj_set_style_text_color(k_cpu, COL_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(k_cpu, &lv_font_montserrat_10, 0);
-    lv_obj_set_pos(k_cpu, CPU_X, 5);
-
-    bar_cpu = make_bar(tb, CPU_X, 19, 36, 4);
-
-    lbl_cpu_val = lv_label_create(tb);
-    lv_label_set_text(lbl_cpu_val, "0%");
-    lv_obj_set_style_text_color(lbl_cpu_val, COL_OK, 0);
-    lv_obj_set_style_text_font(lbl_cpu_val, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl_cpu_val, CPU_X + 40, 6);
-
-    // RAM — same layout
-    lv_obj_t *k_ram = lv_label_create(tb);
-    lv_label_set_text(k_ram, "RAM");
-    lv_obj_set_style_text_color(k_ram, COL_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(k_ram, &lv_font_montserrat_10, 0);
-    lv_obj_set_pos(k_ram, RAM_X, 5);
-
-    bar_ram = make_bar(tb, RAM_X, 19, 36, 4);
-
-    lbl_ram_val = lv_label_create(tb);
-    lv_label_set_text(lbl_ram_val, "0%");
-    lv_obj_set_style_text_color(lbl_ram_val, COL_OK, 0);
-    lv_obj_set_style_text_font(lbl_ram_val, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl_ram_val, RAM_X + 40, 6);
+    lbl_date = lv_label_create(tb);
+    lv_label_set_text(lbl_date, "");
+    lv_obj_set_style_text_color(lbl_date, COL_TEXT_DIM, 0);
+    lv_obj_set_style_text_font(lbl_date, &lv_font_montserrat_12, 0);
+    lv_obj_align(lbl_date, LV_ALIGN_RIGHT_MID, -8, 0);
 }
 
-// ---------------------------------------------------------------------------
-// Hotaru animation system — Phase 4
-// Bob, blink, glow state, sparkles driven by WPM state machine.
-// ---------------------------------------------------------------------------
-
-static void bob_anim_cb(void *obj, int32_t val) {
-    lv_obj_set_y((lv_obj_t*)obj, val);
-}
-
-static void spark_fade_cb(void *obj, int32_t val) {
-    lv_obj_set_style_opa((lv_obj_t*)obj, (lv_opa_t)val, 0);
-}
-
-static void blink_restore_cb(lv_timer_t *t) {
-    lv_timer_del(t);
-    lv_obj_set_height(h_eye_l, 5);
-    lv_obj_set_height(h_eye_r, 5);
-    lv_obj_set_style_radius(h_eye_l, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_radius(h_eye_r, LV_RADIUS_CIRCLE, 0);
-}
-
-static void blink_timer_cb(lv_timer_t *) {
-    lv_obj_set_height(h_eye_l, 2);
-    lv_obj_set_height(h_eye_r, 2);
-    lv_obj_set_style_radius(h_eye_l, 1, 0);
-    lv_obj_set_style_radius(h_eye_r, 1, 0);
-    lv_timer_create(blink_restore_cb, 150, nullptr);
-}
-
-static void spark_tick_cb(lv_timer_t *) {
-    if (h_state == HS_IDLE) return;
-    lv_obj_t *sp = h_sparks[h_spark_idx % N_SPARKS];
-    h_spark_idx++;
-    lv_obj_set_style_opa(sp, LV_OPA_COVER, 0);
-    lv_anim_del(sp, spark_fade_cb);
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, sp);
-    lv_anim_set_exec_cb(&a, spark_fade_cb);
-    lv_anim_set_values(&a, LV_OPA_COVER, LV_OPA_TRANSP);
-    lv_anim_set_time(&a, 500);
-    lv_anim_start(&a);
-}
-
-static void hotaru_start_bob(uint32_t half_ms, int32_t range) {
-    lv_anim_del(h_container, bob_anim_cb);
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, h_container);
-    lv_anim_set_exec_cb(&a, bob_anim_cb);
-    lv_anim_set_values(&a, h_base_y - range, h_base_y + range);
-    lv_anim_set_time(&a, half_ms);
-    lv_anim_set_playback_time(&a, half_ms);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
-    lv_anim_start(&a);
-}
-
-static void hotaru_apply_state() {
-    uint32_t   half_ms;
-    int32_t    range;
-    lv_opa_t   glow_opa;
-    lv_coord_t glow_w;
-    uint32_t   spark_ms;
-
-    switch (h_state) {
-        case HS_TYPING_FAST:
-            half_ms=200; range=4; glow_opa=LV_OPA_70; glow_w=22; spark_ms=350; break;
-        case HS_TYPING_SLOW:
-            half_ms=500; range=3; glow_opa=LV_OPA_50; glow_w=16; spark_ms=650; break;
-        default:
-            half_ms=1000; range=3; glow_opa=LV_OPA_40; glow_w=14; spark_ms=0; break;
-    }
-
-    hotaru_start_bob(half_ms, range);
-    lv_obj_set_style_shadow_opa(h_cap, glow_opa, 0);
-    lv_obj_set_style_shadow_width(h_cap, glow_w, 0);
-
-    if (h_spark_timer) { lv_timer_del(h_spark_timer); h_spark_timer = nullptr; }
-    if (spark_ms > 0) {
-        h_spark_timer = lv_timer_create(spark_tick_cb, spark_ms, nullptr);
-    } else {
-        for (int i = 0; i < N_SPARKS; i++)
-            lv_obj_set_style_opa(h_sparks[i], LV_OPA_TRANSP, 0);
-    }
-}
-
-static void hotaru_update(int wpm, bool active) {
-    HotaruState ns;
-    if (!active || wpm == 0) ns = HS_IDLE;
-    else if (wpm >= 30)      ns = HS_TYPING_FAST;
-    else                     ns = HS_TYPING_SLOW;
-    if (ns == h_state) return;
-    h_state = ns;
-    hotaru_apply_state();
-}
-
-static void hotaru_build(lv_obj_t *sidebar) {
-    // Spark positions (relative to container, flanking the cap)
-    static const lv_coord_t sx[N_SPARKS] = { 6, 68,  2, 72};
-    static const lv_coord_t sy[N_SPARKS] = { 8,  6, 28, 26};
-
-    h_base_y = (CONTENT_H - 100) / 2;
-
-    h_container = lv_obj_create(sidebar);
-    lv_obj_remove_style_all(h_container);
-    lv_obj_set_size(h_container, 88, 100);
-    lv_obj_set_pos(h_container, (SIDEBAR_W - 88) / 2, h_base_y);
-    lv_obj_set_style_bg_opa(h_container, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(h_container, 0, 0);
-    lv_obj_clear_flag(h_container, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Soft glow halo
-    lv_obj_t *glow_bg = lv_obj_create(h_container);
-    lv_obj_remove_style_all(glow_bg);
-    lv_obj_set_size(glow_bg, 80, 80);
-    lv_obj_align(glow_bg, LV_ALIGN_TOP_MID, 0, 8);
-    lv_obj_set_style_bg_color(glow_bg, COL_GLOW, 0);
-    lv_obj_set_style_bg_opa(glow_bg, LV_OPA_10, 0);
-    lv_obj_set_style_radius(glow_bg, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(glow_bg, 0, 0);
-    lv_obj_clear_flag(glow_bg, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Mushroom cap — shadow intensity driven by state machine
-    h_cap = lv_obj_create(h_container);
-    lv_obj_remove_style_all(h_cap);
-    lv_obj_set_size(h_cap, 60, 34);
-    lv_obj_align(h_cap, LV_ALIGN_TOP_MID, 0, 12);
-    lv_obj_set_style_bg_color(h_cap, COL_CAP, 0);
-    lv_obj_set_style_bg_opa(h_cap, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(h_cap, 17, 0);
-    lv_obj_set_style_border_width(h_cap, 0, 0);
-    lv_obj_set_style_shadow_color(h_cap, COL_GLOW, 0);
-    lv_obj_set_style_shadow_opa(h_cap, LV_OPA_40, 0);
-    lv_obj_set_style_shadow_width(h_cap, 14, 0);
-    lv_obj_set_style_shadow_spread(h_cap, 2, 0);
-    lv_obj_clear_flag(h_cap, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Cap highlight
-    lv_obj_t *shine = lv_obj_create(h_container);
-    lv_obj_remove_style_all(shine);
-    lv_obj_set_size(shine, 16, 9);
-    lv_obj_align(shine, LV_ALIGN_TOP_MID, -8, 16);
-    lv_obj_set_style_bg_color(shine, COL_CAP_SHINE, 0);
-    lv_obj_set_style_bg_opa(shine, LV_OPA_70, 0);
-    lv_obj_set_style_radius(shine, 4, 0);
-    lv_obj_set_style_border_width(shine, 0, 0);
-    lv_obj_clear_flag(shine, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Cap spot
-    lv_obj_t *spot = lv_obj_create(h_container);
-    lv_obj_remove_style_all(spot);
-    lv_obj_set_size(spot, 7, 7);
-    lv_obj_align(spot, LV_ALIGN_TOP_MID, 16, 18);
-    lv_obj_set_style_bg_color(spot, COL_SPOTS, 0);
-    lv_obj_set_style_bg_opa(spot, LV_OPA_80, 0);
-    lv_obj_set_style_radius(spot, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(spot, 0, 0);
-    lv_obj_clear_flag(spot, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Body / face
-    lv_obj_t *body = lv_obj_create(h_container);
-    lv_obj_remove_style_all(body);
-    lv_obj_set_size(body, 30, 38);
-    lv_obj_align(body, LV_ALIGN_TOP_MID, 0, 38);
-    lv_obj_set_style_bg_color(body, COL_FACE, 0);
-    lv_obj_set_style_bg_opa(body, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(body, 10, 0);
-    lv_obj_set_style_border_color(body, COL_STEM, 0);
-    lv_obj_set_style_border_width(body, 1, 0);
-    lv_obj_set_style_border_opa(body, LV_OPA_40, 0);
-    lv_obj_clear_flag(body, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Eyes — blink by collapsing height to 2px
-    h_eye_l = lv_obj_create(h_container);
-    lv_obj_remove_style_all(h_eye_l);
-    lv_obj_set_size(h_eye_l, 5, 5);
-    lv_obj_align(h_eye_l, LV_ALIGN_TOP_MID, -7, 49);
-    lv_obj_set_style_bg_color(h_eye_l, COL_EYES, 0);
-    lv_obj_set_style_bg_opa(h_eye_l, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(h_eye_l, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(h_eye_l, 0, 0);
-    lv_obj_clear_flag(h_eye_l, LV_OBJ_FLAG_SCROLLABLE);
-
-    h_eye_r = lv_obj_create(h_container);
-    lv_obj_remove_style_all(h_eye_r);
-    lv_obj_set_size(h_eye_r, 5, 5);
-    lv_obj_align(h_eye_r, LV_ALIGN_TOP_MID, 7, 49);
-    lv_obj_set_style_bg_color(h_eye_r, COL_EYES, 0);
-    lv_obj_set_style_bg_opa(h_eye_r, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(h_eye_r, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(h_eye_r, 0, 0);
-    lv_obj_clear_flag(h_eye_r, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Stem
-    lv_obj_t *stem = lv_obj_create(h_container);
-    lv_obj_remove_style_all(stem);
-    lv_obj_set_size(stem, 22, 10);
-    lv_obj_align(stem, LV_ALIGN_TOP_MID, 0, 73);
-    lv_obj_set_style_bg_color(stem, COL_STEM, 0);
-    lv_obj_set_style_bg_opa(stem, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(stem, 5, 0);
-    lv_obj_set_style_border_width(stem, 0, 0);
-    lv_obj_clear_flag(stem, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Gold sparkle pool — faded in by spark_tick_cb during typing
-    for (int i = 0; i < N_SPARKS; i++) {
-        h_sparks[i] = lv_obj_create(h_container);
-        lv_obj_remove_style_all(h_sparks[i]);
-        lv_obj_set_size(h_sparks[i], 3, 3);
-        lv_obj_set_pos(h_sparks[i], sx[i], sy[i]);
-        lv_obj_set_style_bg_color(h_sparks[i], COL_GLOW, 0);
-        lv_obj_set_style_bg_opa(h_sparks[i], LV_OPA_COVER, 0);
-        lv_obj_set_style_radius(h_sparks[i], LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_border_width(h_sparks[i], 0, 0);
-        lv_obj_set_style_opa(h_sparks[i], LV_OPA_TRANSP, 0);
-        lv_obj_clear_flag(h_sparks[i], LV_OBJ_FLAG_SCROLLABLE);
-    }
-
-    // Blink every ~4.5 s
-    lv_timer_create(blink_timer_cb, 4500, nullptr);
-
-    // Start idle bob and glow
-    hotaru_apply_state();
-}
 
 static void build_sidebar(lv_obj_t *scr) {
     lv_obj_t *sb = make_panel(scr, 0, CONTENT_Y, SIDEBAR_W, CONTENT_H);
-    hotaru_build(sb);
+    companion->build(sb, SIDEBAR_W, CONTENT_H);
 }
 
 static void build_vertical_divider(lv_obj_t *scr) {
@@ -699,7 +429,7 @@ static void build_ma_grass(lv_obj_t *ctr) {
     static const uint32_t sx_delay[3] = {200, 700, 400};
 
     for (int i = 0; i < 3; i++) {
-        lv_obj_t *blade = ma_rect(ctr, bx[i], y_bot - bh[i], 3, bh[i], COL_STEM, 2);
+        lv_obj_t *blade = ma_rect(ctr, bx[i], y_bot - bh[i], 3, bh[i], COL_OK, 2);
 
         // Height animation (roots stay fixed, tips rise and fall)
         lv_anim_t a;
@@ -1031,38 +761,34 @@ static void update_claude_ui() {
 
 // Fills panel_status with the WPM / active-idle display.
 // Panel is RWIDTH × STATUS_H (≈224 × 65 px).
-static void build_wpm_panel(lv_obj_t *parent) {
-    // Active / idle indicator dot — left side, vertically centred
-    dot_status = lv_obj_create(parent);
-    lv_obj_remove_style_all(dot_status);
-    lv_obj_set_size(dot_status, 6, 6);
-    lv_obj_set_pos(dot_status, 8, (STATUS_H - 6) / 2);
-    lv_obj_set_style_bg_color(dot_status, COL_TEXT_DIM, 0);
-    lv_obj_set_style_bg_opa(dot_status, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(dot_status, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(dot_status, 0, 0);
-    lv_obj_clear_flag(dot_status, LV_OBJ_FLAG_SCROLLABLE);
+static void build_stats_panel(lv_obj_t *parent) {
+    // Three stat rows: CPU, RAM, WPM
+    // Each row: dim key label (top-left) + colored value (top-right) + full-width bar below
+    struct { const char *key; lv_obj_t **val; lv_obj_t **bar; } rows[3] = {
+        { "CPU", &lbl_cpu_val, &bar_cpu },
+        { "RAM", &lbl_ram_val, &bar_ram },
+        { "WPM", &lbl_wpm_val, &bar_wpm },
+    };
 
-    // "IDLE" / "ACTIVE" state label
-    lbl_status = lv_label_create(parent);
-    lv_label_set_text(lbl_status, "IDLE");
-    lv_obj_set_style_text_color(lbl_status, COL_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(lbl_status, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl_status, 20, (STATUS_H - 14) / 2);
+    for (int i = 0; i < 3; i++) {
+        int ty = 4 + i * STATS_ROW_H;   // text y
+        int by = ty + 12;                // bar y (below text)
 
-    // Large WPM number — right side, upper half
-    lbl_wpm_val = lv_label_create(parent);
-    lv_label_set_text(lbl_wpm_val, "0");
-    lv_obj_set_style_text_color(lbl_wpm_val, COL_TEXT_PRI, 0);
-    lv_obj_set_style_text_font(lbl_wpm_val, &lv_font_montserrat_24, 0);
-    lv_obj_align(lbl_wpm_val, LV_ALIGN_RIGHT_MID, -8, -9);
+        lv_obj_t *k = lv_label_create(parent);
+        lv_label_set_text(k, rows[i].key);
+        lv_obj_set_style_text_color(k, COL_TEXT_DIM, 0);
+        lv_obj_set_style_text_font(k, &lv_font_montserrat_10, 0);
+        lv_obj_set_pos(k, 8, ty);
 
-    // "WPM" dim key below the number
-    lv_obj_t *k_wpm = lv_label_create(parent);
-    lv_label_set_text(k_wpm, "WPM");
-    lv_obj_set_style_text_color(k_wpm, COL_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(k_wpm, &lv_font_montserrat_10, 0);
-    lv_obj_align(k_wpm, LV_ALIGN_RIGHT_MID, -8, 14);
+        lv_obj_t *v = lv_label_create(parent);
+        lv_label_set_text(v, "0");
+        lv_obj_set_style_text_color(v, COL_OK, 0);
+        lv_obj_set_style_text_font(v, &lv_font_montserrat_10, 0);
+        lv_obj_align(v, LV_ALIGN_TOP_RIGHT, -8, ty);
+        *rows[i].val = v;
+
+        *rows[i].bar = make_bar(parent, 8, by, RWIDTH - 16, 4);
+    }
 }
 
 static void build_right_panels(lv_obj_t *scr) {
@@ -1086,7 +812,7 @@ static void build_right_panels(lv_obj_t *scr) {
 
     // Status / WPM panel
     panel_status = make_panel(scr, RSTART, y, RWIDTH, STATUS_H);
-    build_wpm_panel(panel_status);
+    build_stats_panel(panel_status);
 }
 
 static void build_dashboard() {
@@ -1121,6 +847,7 @@ static void handle_packet(const String &line) {
         state.wpm    = doc["wpm"]    | 0;
         state.active = doc["active"] | false;
         strlcpy(state.time_str, doc["time"] | "--:--", sizeof(state.time_str));
+        strlcpy(state.date_str, doc["date"] | "",     sizeof(state.date_str));
 
         if (state.active) {
             last_active_ms = millis();
@@ -1153,7 +880,6 @@ static void handle_packet(const String &line) {
         }
 
         update_stats_ui();
-        update_wpm_ui();
         update_music_ui();
         update_claude_ui();
         Serial.println("{\"ack\":true}");
@@ -1221,6 +947,7 @@ static void enter_sleep() {
     lv_obj_clear_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
     bl_set(BL_DIM);
     zzz_timer = lv_timer_create(zzz_cb, 700, nullptr);
+    companion->on_sleep();
 }
 
 static void exit_sleep() {
@@ -1229,6 +956,7 @@ static void exit_sleep() {
     if (zzz_timer) { lv_timer_del(zzz_timer); zzz_timer = nullptr; }
     lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
     bl_set(BL_FULL);
+    companion->on_wake();
 }
 
 // ---------------------------------------------------------------------------
@@ -1239,18 +967,12 @@ static void show_disconnected() {
     state.active = false; state.music_active = false;
     update_stats_ui();
     update_music_ui();
-    // Override stats labels to "--" instead of "0%"
     lv_label_set_text(lbl_cpu_val, "--");
     lv_label_set_text(lbl_ram_val, "--");
+    lv_label_set_text(lbl_wpm_val, "--");
     lv_obj_set_style_text_color(lbl_cpu_val, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_color(lbl_ram_val, COL_TEXT_DIM, 0);
-    // WPM panel: show DISC with alert colour
-    lv_obj_set_style_bg_color(dot_status, COL_ALERT, 0);
-    lv_label_set_text(lbl_status, "DISC");
-    lv_obj_set_style_text_color(lbl_status, COL_ALERT, 0);
-    lv_label_set_text(lbl_wpm_val, "--");
-    // Return Hotaru to idle
-    hotaru_update(0, false);
+    lv_obj_set_style_text_color(lbl_wpm_val, COL_TEXT_DIM, 0);
 }
 
 // ---------------------------------------------------------------------------

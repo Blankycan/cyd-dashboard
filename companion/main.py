@@ -72,6 +72,7 @@ def collect_stats(kb: KeyboardMonitor | None = None,
         "cpu":    int(psutil.cpu_percent()),
         "ram":    int(psutil.virtual_memory().percent),
         "time":   datetime.now().strftime("%H:%M"),
+        "date":   datetime.now().strftime("%a %d %b"),
         "wpm":    kb.wpm() if kb else 0,
         "active": kb.is_active() if kb else False,
     }

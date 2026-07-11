@@ -1,27 +1,13 @@
 #pragma once
 // =============================================================================
-// HOTARU THEME  —  CYD Dashboard color palette
-// =============================================================================
-// All colors used throughout the firmware are defined here.
-// To swap the whole palette, update the PAL_* hex values below.
-// Nothing else in the codebase should contain raw color literals.
-//
-// Aesthetic: LOFI / cozy Japanese / solarpunk
-// Inspired by forest spirits, paper lanterns, fireflies at dusk.
+// CYD Dashboard — color palette
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// RAW PALETTE  (24-bit RGB hex — edit these to retheme the entire project)
+// RAW PALETTE  (24-bit RGB hex)
 // -----------------------------------------------------------------------------
 
-// --- Character "Hotaru" ---
-#define PAL_CAP         0xE07A5F  // warm terracotta  — mushroom cap
-#define PAL_CAP_SHINE   0xF2CC8F  // sun amber        — cap highlight / rim
-#define PAL_SPOTS       0xFEFAE0  // warm cream       — cap underside spots
-#define PAL_FACE        0xEDF6F9  // soft off-white   — face and body
-#define PAL_EYES        0x264653  // deep teal        — eyes (same as border)
-#define PAL_STEM        0x81B29A  // sage green       — stem / body
-#define PAL_GLOW        0xE9C46A  // warm gold        — glow, sparks, active pulse
+#define PAL_GLOW        0xE9C46A  // warm gold — sparks, active accents
 
 // --- UI backgrounds ---
 #define PAL_BG          0x0F1F1A  // very dark forest — main background
@@ -62,12 +48,6 @@
 #define COL_ALERT           LVC(PAL_ALERT)
 #define COL_BAR_TRACK       LVC(PAL_BAR_TRACK)
 
-#define COL_CAP             LVC(PAL_CAP)
-#define COL_CAP_SHINE       LVC(PAL_CAP_SHINE)
-#define COL_SPOTS           LVC(PAL_SPOTS)
-#define COL_FACE            LVC(PAL_FACE)
-#define COL_EYES            LVC(PAL_EYES)
-#define COL_STEM            LVC(PAL_STEM)
 #define COL_GLOW            LVC(PAL_GLOW)
 
 // -----------------------------------------------------------------------------
@@ -85,5 +65,4 @@
 #define TFT_COL_OK          PAL565(PAL_OK)
 #define TFT_COL_WARN        PAL565(PAL_WARN)
 #define TFT_COL_ALERT       PAL565(PAL_ALERT)
-#define TFT_COL_CAP         PAL565(PAL_CAP)
 #define TFT_COL_GLOW        PAL565(PAL_GLOW)
