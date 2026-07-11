@@ -138,7 +138,7 @@ void update_claude_ui() {
         lv_label_set_text(lbl_claude_out, "--");
         lv_bar_set_value(bar_claude_tok, 0, LV_ANIM_OFF);
         lv_label_set_text(lbl_claude_in,   "in  --");
-        lv_label_set_text(lbl_claude_sess, "-- sess");
+        lv_label_set_text(lbl_claude_sess, "-- sessions");
     } else {
         fmt_k(buf, sizeof(buf), state.claude_out);
         lv_label_set_text(lbl_claude_out, buf);
@@ -151,7 +151,8 @@ void update_claude_ui() {
         snprintf(buf, sizeof(buf), "in  %s", tmp);
         lv_label_set_text(lbl_claude_in, buf);
 
-        snprintf(buf, sizeof(buf), "%d sess", state.claude_sessions);
+        snprintf(buf, sizeof(buf), "%d %s", state.claude_sessions,
+                 state.claude_sessions == 1 ? "session" : "sessions");
         lv_label_set_text(lbl_claude_sess, buf);
     }
 
