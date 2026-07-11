@@ -788,7 +788,7 @@ static void build_music_panel(lv_obj_t *parent) {
     lbl_music_title = lv_label_create(parent);
     lv_label_set_text(lbl_music_title, "nothing playing");
     lv_obj_set_style_text_color(lbl_music_title, COL_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(lbl_music_title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(lbl_music_title, &lv_font_montserrat_12, 0);
     lv_obj_set_pos(lbl_music_title, 22, 8);
     lv_obj_set_width(lbl_music_title, MUSIC_LABEL_W);
     lv_label_set_long_mode(lbl_music_title, LV_LABEL_LONG_DOT);
@@ -859,7 +859,7 @@ static void build_claude_panel(lv_obj_t *parent) {
     dot_claude = lv_obj_create(parent);
     lv_obj_remove_style_all(dot_claude);
     lv_obj_set_size(dot_claude, 6, 6);
-    lv_obj_set_pos(dot_claude, 8, 7);
+    lv_obj_set_pos(dot_claude, 8, (20 - 6) / 2);  // vertically centred in 20px header row
     lv_obj_set_style_bg_color(dot_claude, COL_TEXT_DIM, 0);
     lv_obj_set_style_bg_opa(dot_claude, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(dot_claude, LV_RADIUS_CIRCLE, 0);
@@ -888,7 +888,7 @@ static void build_claude_panel(lv_obj_t *parent) {
     lv_obj_t *lbl_out_hdr = lv_label_create(claude_view_tok);
     lv_label_set_text(lbl_out_hdr, "out today");
     lv_obj_set_style_text_color(lbl_out_hdr, COL_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(lbl_out_hdr, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(lbl_out_hdr, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(lbl_out_hdr, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_set_pos(lbl_out_hdr, RWIDTH - 70, 2);
     lv_obj_set_width(lbl_out_hdr, 62);
@@ -1035,8 +1035,8 @@ static void build_wpm_panel(lv_obj_t *parent) {
     // Active / idle indicator dot — left side, vertically centred
     dot_status = lv_obj_create(parent);
     lv_obj_remove_style_all(dot_status);
-    lv_obj_set_size(dot_status, 9, 9);
-    lv_obj_set_pos(dot_status, 10, (STATUS_H - 9) / 2);
+    lv_obj_set_size(dot_status, 6, 6);
+    lv_obj_set_pos(dot_status, 8, (STATUS_H - 6) / 2);
     lv_obj_set_style_bg_color(dot_status, COL_TEXT_DIM, 0);
     lv_obj_set_style_bg_opa(dot_status, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(dot_status, LV_RADIUS_CIRCLE, 0);
@@ -1048,7 +1048,7 @@ static void build_wpm_panel(lv_obj_t *parent) {
     lv_label_set_text(lbl_status, "IDLE");
     lv_obj_set_style_text_color(lbl_status, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl_status, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl_status, 26, (STATUS_H - 14) / 2);
+    lv_obj_set_pos(lbl_status, 20, (STATUS_H - 14) / 2);
 
     // Large WPM number — right side, upper half
     lbl_wpm_val = lv_label_create(parent);
