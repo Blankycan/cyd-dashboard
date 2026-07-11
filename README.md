@@ -6,7 +6,7 @@ now-playing music, Claude AI usage, and connection status.
 
 ```
 ┌────────────────────────┐
-│ 14:32          Sat 12  │  ← clock + date
+│ 14:32       Sat 12 Jul │  ← clock + date
 ├────────────────────────┤
 │ ● Lofi Hip Hop Radio   │  ← now-playing (artist scrolls)
 │   chill beats        ♫ │
@@ -19,13 +19,13 @@ now-playing music, Claude AI usage, and connection status.
 │             today      │  ← token counts
 │ ████████████░░░░░░░░░  │
 │ in 8.4k      3 sess    │
-│ ························│
+│ ·······················│
 │ 5h  23%    resets 2h4m │  ← rate-limit bars
 │ █████░░░░░░░░░░░░░░░░  │
 │ 7d   8%    resets 4d3h │
 │ ██░░░░░░░░░░░░░░░░░░░  │
 ├────────────────────────┤
-│ ● active    192.168.1.5│  ← connection status + host IP
+│ ● active   192.168.1.5 │  ← connection status + host IP
 └────────────────────────┘
 ```
 
@@ -42,12 +42,12 @@ The **firmware** runs on the ESP32 and is platform-independent.
 
 The **companion app** runs on the host PC and has the following requirements:
 
-- **Linux** — keyboard monitoring uses evdev (`/dev/input/*`), which is Linux-specific.
-  A pynput fallback exists for macOS/Windows but is untested.
+- **Linux** — keyboard monitoring uses evdev (`/dev/input/`*), which is Linux-specific.
+A pynput fallback exists for macOS/Windows but is untested.
 - **Wayland** recommended — media info is fetched via `playerctl` (MPRIS2/D-Bus),
-  which works on both Wayland and X11. The keyboard monitor uses evdev directly, so
-  it works without X11.
-- **`input` group membership** required for evdev keyboard access:
+which works on both Wayland and X11. The keyboard monitor uses evdev directly, so
+it works without X11.
+- `**input` group membership** required for evdev keyboard access:
   ```
   sudo usermod -aG input $USER
   ```
@@ -62,18 +62,21 @@ seconds. The ESP32 parses it and updates the display.
 
 **Data sources:**
 
-| Panel | Source |
-|---|---|
-| Clock / date | `datetime.now()` on the host |
-| CPU / RAM | `psutil` |
-| WPM | evdev keypress timestamps, rolling 10 s window |
-| Music | `playerctl metadata` (MPRIS2) |
-| Claude tokens | Scans `~/.claude/projects/**/*.jsonl` for today's usage |
+
+| Panel              | Source                                                                  |
+| ------------------ | ----------------------------------------------------------------------- |
+| Clock / date       | `datetime.now()` on the host                                            |
+| CPU / RAM          | `psutil`                                                                |
+| WPM                | evdev keypress timestamps, rolling 10 s window                          |
+| Music              | `playerctl metadata` (MPRIS2)                                           |
+| Claude tokens      | Scans `~/.claude/projects/**/*.jsonl` for today's usage                 |
 | Claude rate limits | Single minimal API call to `api.anthropic.com` (reads response headers) |
-| Host IP | `socket` — routes toward 8.8.8.8 to pick the right interface |
-| Connection status | Derived: connected = receiving packets; active = keyboard used recently |
+| Host IP            | `socket` — routes toward 8.8.8.8 to pick the right interface            |
+| Connection status  | Derived: connected = receiving packets; active = keyboard used recently |
+
 
 **Claude auth** (for rate-limit bars) uses whichever is available first:
+
 - OAuth token from `~/.claude/.credentials.json` (Claude Code login, no setup needed)
 - `ANTHROPIC_API_KEY` environment variable
 
@@ -165,8 +168,7 @@ path and Python binary:
 This creates the service file, enables it, and starts it immediately. It also
 prints the commands for checking status, tailing logs, stopping, and removing.
 
-<details>
-<summary>Manual setup</summary>
+Manual setup
 
 Create `~/.config/systemd/user/cyd-dashboard.service`:
 
@@ -192,7 +194,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now cyd-dashboard
 ```
 
-</details>
+
 
 To view logs:
 
@@ -207,17 +209,19 @@ journalctl --user -u cyd-dashboard -f
 All colours live in `src/theme.h`. Edit the `PAL_*` defines there to retheme
 the entire firmware.
 
-| Role | Hex | Description |
-|---|---|---|
-| Background | `#0F1F1A` | Very dark forest |
-| Panel | `#162820` | Slightly lighter cards |
-| Primary text | `#FEFAE0` | Warm cream |
-| Secondary text | `#81B29A` | Sage green |
-| Dim text | `#4A7B6F` | Muted sage |
-| OK / connected | `#81B29A` | Sage green |
-| Warning (>70%) | `#F2CC8F` | Amber |
-| Alert (>90%) | `#E07A5F` | Terracotta |
-| Accent / glow | `#E9C46A` | Warm gold |
+
+| Role           | Hex       | Description            |
+| -------------- | --------- | ---------------------- |
+| Background     | `#0F1F1A` | Very dark forest       |
+| Panel          | `#162820` | Slightly lighter cards |
+| Primary text   | `#FEFAE0` | Warm cream             |
+| Secondary text | `#81B29A` | Sage green             |
+| Dim text       | `#4A7B6F` | Muted sage             |
+| OK / connected | `#81B29A` | Sage green             |
+| Warning (>70%) | `#F2CC8F` | Amber                  |
+| Alert (>90%)   | `#E07A5F` | Terracotta             |
+| Accent / glow  | `#E9C46A` | Warm gold              |
+
 
 ---
 
@@ -244,3 +248,4 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     claude.*        Token usage and rate-limit panels (rotates)
     indicator.*     Connection status dot, label, and host IP
 ```
+

@@ -19,7 +19,7 @@ import json
 import os
 import threading
 import time
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 SCAN_INTERVAL  = 60.0    # seconds between JSONL scans
@@ -157,8 +157,8 @@ class ClaudeTokenMonitor:
 
     # ------------------------------------------------------------------
     def _scan(self):
-        today       = date.today().isoformat()
-        today_start = time.mktime(date.today().timetuple())
+        today       = date.today()          # local date
+        today_start = time.mktime(today.timetuple())
         pattern     = str(Path.home() / ".claude" / "projects" / "**" / "*.jsonl")
         candidates  = [f for f in glob.glob(pattern, recursive=True)
                        if os.path.getmtime(f) >= today_start]
@@ -176,7 +176,15 @@ class ClaudeTokenMonitor:
                             d = json.loads(line)
                             if d.get("type") != "assistant":
                                 continue
-                            if not d.get("timestamp", "").startswith(today):
+                            # Timestamps are UTC — convert to local before comparing
+                            ts = d.get("timestamp", "")
+                            if not ts:
+                                continue
+                            try:
+                                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                                if dt.astimezone().date() != today:
+                                    continue
+                            except (ValueError, TypeError):
                                 continue
                             u = d.get("message", {}).get("usage", {})
                             out_today += u.get("output_tokens", 0)

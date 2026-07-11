@@ -204,9 +204,13 @@ static uint32_t last_packet_ms = 0;
 static void show_disconnected() {
     state.cpu = 0; state.ram = 0; state.wpm = 0;
     state.active = false; state.music_active = false;
+    state.claude_out = 0; state.claude_inp = 0; state.claude_sessions = 0;
+    state.claude_h5_pct = -1; state.claude_h5_secs = -1;
+    state.claude_w7_pct = -1; state.claude_w7_secs = -1;
     update_stats_ui();
     stats_show_disconnected();
     update_music_ui();
+    update_claude_ui();
     update_status_ui();
 }
 

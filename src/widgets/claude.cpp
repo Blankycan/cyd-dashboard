@@ -134,19 +134,26 @@ void update_claude_ui() {
     lv_obj_set_style_bg_color(dot_claude, dot_c, 0);
 
     // Token section
-    fmt_k(buf, sizeof(buf), state.claude_out);
-    lv_label_set_text(lbl_claude_out, buf);
+    if (!state.connected) {
+        lv_label_set_text(lbl_claude_out, "--");
+        lv_bar_set_value(bar_claude_tok, 0, LV_ANIM_OFF);
+        lv_label_set_text(lbl_claude_in,   "in  --");
+        lv_label_set_text(lbl_claude_sess, "-- sess");
+    } else {
+        fmt_k(buf, sizeof(buf), state.claude_out);
+        lv_label_set_text(lbl_claude_out, buf);
 
-    int32_t tok_pct = (int32_t)((float)state.claude_out / 100000.0f * 100.0f);
-    if (tok_pct > 100) tok_pct = 100;
-    lv_bar_set_value(bar_claude_tok, (int)tok_pct, LV_ANIM_OFF);
+        int32_t tok_pct = (int32_t)((float)state.claude_out / 100000.0f * 100.0f);
+        if (tok_pct > 100) tok_pct = 100;
+        lv_bar_set_value(bar_claude_tok, (int)tok_pct, LV_ANIM_OFF);
 
-    fmt_k(tmp, sizeof(tmp), state.claude_inp);
-    snprintf(buf, sizeof(buf), "in  %s", tmp);
-    lv_label_set_text(lbl_claude_in, buf);
+        fmt_k(tmp, sizeof(tmp), state.claude_inp);
+        snprintf(buf, sizeof(buf), "in  %s", tmp);
+        lv_label_set_text(lbl_claude_in, buf);
 
-    snprintf(buf, sizeof(buf), "%d sess", state.claude_sessions);
-    lv_label_set_text(lbl_claude_sess, buf);
+        snprintf(buf, sizeof(buf), "%d sess", state.claude_sessions);
+        lv_label_set_text(lbl_claude_sess, buf);
+    }
 
     // Rate-limit section
     if (state.claude_h5_pct < 0) {
