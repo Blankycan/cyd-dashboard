@@ -8,14 +8,14 @@ now-playing music, Claude AI usage, and connection status.
 ┌────────────────────────┐
 │ 14:32          Sat 12  │  ← clock + date
 ├────────────────────────┤
-│ ♫  Lofi Hip Hop Radio  │  ← now-playing (artist scrolls)
-│    chill beats          │
+│ ● Lofi Hip Hop Radio ♫ │  ← now-playing (artist scrolls)
+│   chill beats          │
 ├────────────────────────┤
 │ CPU  43%  ██████░░░░░  │
 │ RAM  61%  █████████░░  │  ← system stats
 │ WPM  72   ████████░░░  │
 ├────────────────────────┤
-│ claude   1.2k out today│
+│ ● claude 1.2k out today│
 │ ████████████░░░░░░░░░  │  ← Claude token usage
 │ in 8.4k    3 sess      │
 ├────────────────────────┤
@@ -154,6 +154,19 @@ The terminal shows a live status line with CPU, RAM, WPM, and now-playing info.
 
 ## Installing the companion as a systemd service
 
+The easiest way is the included install script, which auto-detects the repo
+path and Python binary:
+
+```bash
+./install_companion_as_service.sh
+```
+
+This creates the service file, enables it, and starts it immediately. It also
+prints the commands for checking status, tailing logs, stopping, and removing.
+
+<details>
+<summary>Manual setup</summary>
+
 Create `~/.config/systemd/user/cyd-dashboard.service`:
 
 ```ini
@@ -163,7 +176,7 @@ After=network.target
 
 [Service]
 WorkingDirectory=/path/to/cyd-dashboard/companion
-ExecStart=/usr/bin/python main.py
+ExecStart=/usr/bin/python3 main.py
 Restart=on-failure
 RestartSec=5
 
@@ -176,8 +189,9 @@ Replace `/path/to/cyd-dashboard` with the actual path, then:
 ```bash
 systemctl --user daemon-reload
 systemctl --user enable --now cyd-dashboard
-systemctl --user status cyd-dashboard
 ```
+
+</details>
 
 To view logs:
 

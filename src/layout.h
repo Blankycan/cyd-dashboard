@@ -18,7 +18,9 @@
 #define MUSIC_H     52
 #define STATS_H     72
 #define STATS_ROW_H 22
-#define CLAUDE_H    90
+// CLAUDE_H is sized to consume all remaining space between stats and indicator.
+// Formula: SCREEN_H - CONTENT_Y - MUSIC_H - DIV_W - STATS_H - DIV_W - DIV_W - INDICATOR_H
+#define CLAUDE_H    126
 #define INDICATOR_H 36
 
 // Music panel — right-side animation area
@@ -27,10 +29,6 @@
 #define MUSIC_LABEL_W (MA_X - 26)
 
 #define DISCONNECT_TIMEOUT_MS 5000   // no packet → show offline state
-
-// Claude panel — rotate between token and rate-limit views (ms per view)
-// Set to 0 to disable rotation (shows token view only)
-#define CLAUDE_ROTATE_MS 8000
 
 // Sleep / backlight — dims after inactivity, wakes on touch or host "active" flag
 #define SLEEP_TIMEOUT_MS  (5 * 60 * 1000)

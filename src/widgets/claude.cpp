@@ -3,22 +3,17 @@
 #include "../state.h"
 #include "../theme.h"
 #include "../ui_helpers.h"
-#include <Arduino.h>
+#include <stdio.h>
 
-// Panel has two stacked views (token usage vs rate limits) toggled by a timer.
-static lv_obj_t  *dot_claude       = nullptr;
-static lv_obj_t  *claude_view_tok  = nullptr;
-static lv_obj_t  *claude_view_rl   = nullptr;
-static lv_timer_t *claude_rot_timer  = nullptr;
-static lv_timer_t *claude_prog_timer = nullptr;
-static bool        claude_show_rl    = false;
-static uint32_t    claude_switched_ms = 0;
+static lv_obj_t *dot_claude     = nullptr;
 
-static lv_obj_t   *bar_claude_prog  = nullptr;
+// Token section
 static lv_obj_t *lbl_claude_out  = nullptr;
 static lv_obj_t *bar_claude_tok  = nullptr;
 static lv_obj_t *lbl_claude_in   = nullptr;
 static lv_obj_t *lbl_claude_sess = nullptr;
+
+// Rate-limit section
 static lv_obj_t *lbl_h5_pct   = nullptr;
 static lv_obj_t *lbl_h5_reset = nullptr;
 static lv_obj_t *bar_h5       = nullptr;
@@ -26,42 +21,8 @@ static lv_obj_t *lbl_w7_pct   = nullptr;
 static lv_obj_t *lbl_w7_reset = nullptr;
 static lv_obj_t *bar_w7       = nullptr;
 
-// Transparent sub-container for one of the two rotating views
-static lv_obj_t *make_view(lv_obj_t *parent, int y, int h) {
-    lv_obj_t *v = lv_obj_create(parent);
-    lv_obj_remove_style_all(v);
-    lv_obj_set_size(v, PANEL_W, h);
-    lv_obj_set_pos(v, 0, y);
-    lv_obj_set_style_bg_opa(v, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(v, 0, 0);
-    lv_obj_clear_flag(v, LV_OBJ_FLAG_SCROLLABLE);
-    return v;
-}
-
-// Swap between token and rate-limit views every CLAUDE_ROTATE_MS
-static void claude_rotate_cb(lv_timer_t *) {
-    if (state.claude_h5_pct < 0) return;
-    claude_show_rl  = !claude_show_rl;
-    claude_switched_ms = millis();
-    if (claude_show_rl) {
-        lv_obj_add_flag(claude_view_tok,  LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(claude_view_rl, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_clear_flag(claude_view_tok, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(claude_view_rl,   LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
-// Thin progress bar under header — fills over the rotation interval
-static void claude_prog_cb(lv_timer_t *) {
-    if (!bar_claude_prog || state.claude_h5_pct < 0) return;
-    uint32_t elapsed = millis() - claude_switched_ms;
-    int pct = (int)((float)elapsed / (float)CLAUDE_ROTATE_MS * 100.0f);
-    if (pct > 100) pct = 100;
-    lv_bar_set_value(bar_claude_prog, pct, LV_ANIM_OFF);
-}
-
 void build_claude_panel(lv_obj_t *parent) {
+    // --- Header ---
     dot_claude = lv_obj_create(parent);
     lv_obj_remove_style_all(dot_claude);
     lv_obj_set_size(dot_claude, 6, 6);
@@ -78,109 +39,101 @@ void build_claude_panel(lv_obj_t *parent) {
     lv_obj_set_style_text_font(lbl_hdr, &lv_font_montserrat_14, 0);
     lv_obj_set_pos(lbl_hdr, 20, 3);
 
-    bar_claude_prog = make_bar(parent, PANEL_W - 70, 9, 62, 4);
-    lv_obj_set_style_bg_color(bar_claude_prog, COL_TEXT_DIM, LV_PART_INDICATOR);
-    lv_bar_set_value(bar_claude_prog, 0, LV_ANIM_OFF);
-    lv_obj_add_flag(bar_claude_prog, LV_OBJ_FLAG_HIDDEN);
-
-    const int VIEW_Y = 20, VIEW_H = CLAUDE_H - VIEW_Y;
-
-    // Token view
-    claude_view_tok = make_view(parent, VIEW_Y, VIEW_H);
-
-    lv_obj_t *lbl_out_hdr = lv_label_create(claude_view_tok);
+    // --- Token section ---
+    lv_obj_t *lbl_out_hdr = lv_label_create(parent);
     lv_label_set_text(lbl_out_hdr, "out today");
     lv_obj_set_style_text_color(lbl_out_hdr, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl_out_hdr, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(lbl_out_hdr, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_out_hdr, PANEL_W - 70, 2);
+    lv_obj_set_pos(lbl_out_hdr, PANEL_W - 70, 22);
     lv_obj_set_width(lbl_out_hdr, 62);
 
-    lbl_claude_out = lv_label_create(claude_view_tok);
+    lbl_claude_out = lv_label_create(parent);
     lv_label_set_text(lbl_claude_out, "0");
     lv_obj_set_style_text_color(lbl_claude_out, COL_GLOW, 0);
     lv_obj_set_style_text_font(lbl_claude_out, &lv_font_montserrat_20, 0);
-    lv_obj_set_pos(lbl_claude_out, 8, 2);
+    lv_obj_set_pos(lbl_claude_out, 8, 20);
 
-    bar_claude_tok = make_bar(claude_view_tok, 8, 30, PANEL_W - 16, 6);
+    bar_claude_tok = make_bar(parent, 8, 44, PANEL_W - 16, 5);
     lv_obj_set_style_bg_color(bar_claude_tok, COL_GLOW, LV_PART_INDICATOR);
 
-    lbl_claude_in = lv_label_create(claude_view_tok);
+    lbl_claude_in = lv_label_create(parent);
     lv_label_set_text(lbl_claude_in, "in  0");
     lv_obj_set_style_text_color(lbl_claude_in, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl_claude_in, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl_claude_in, 8, 44);
+    lv_obj_set_pos(lbl_claude_in, 8, 54);
 
-    lbl_claude_sess = lv_label_create(claude_view_tok);
+    lbl_claude_sess = lv_label_create(parent);
     lv_label_set_text(lbl_claude_sess, "0 sess");
     lv_obj_set_style_text_color(lbl_claude_sess, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl_claude_sess, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(lbl_claude_sess, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_claude_sess, PANEL_W / 2, 44);
+    lv_obj_set_pos(lbl_claude_sess, PANEL_W / 2, 54);
     lv_obj_set_width(lbl_claude_sess, PANEL_W / 2 - 8);
 
-    // Rate-limit view
-    claude_view_rl = make_view(parent, VIEW_Y, VIEW_H);
-    lv_obj_add_flag(claude_view_rl, LV_OBJ_FLAG_HIDDEN);
+    // --- Internal divider between token and rate-limit sections ---
+    lv_obj_t *idiv = lv_obj_create(parent);
+    lv_obj_remove_style_all(idiv);
+    lv_obj_set_size(idiv, PANEL_W - 16, 1);
+    lv_obj_set_pos(idiv, 8, 70);
+    lv_obj_set_style_bg_color(idiv, COL_DIVIDER, 0);
+    lv_obj_set_style_bg_opa(idiv, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(idiv, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *l5h = lv_label_create(claude_view_rl);
+    // --- Rate-limit section ---
+    lv_obj_t *l5h = lv_label_create(parent);
     lv_label_set_text(l5h, "5h");
     lv_obj_set_style_text_color(l5h, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(l5h, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(l5h, 8, 4);
+    lv_obj_set_pos(l5h, 8, 76);
 
-    lbl_h5_pct = lv_label_create(claude_view_rl);
+    lbl_h5_pct = lv_label_create(parent);
     lv_label_set_text(lbl_h5_pct, "--");
     lv_obj_set_style_text_font(lbl_h5_pct, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl_h5_pct, 30, 4);
+    lv_obj_set_pos(lbl_h5_pct, 30, 76);
 
-    lbl_h5_reset = lv_label_create(claude_view_rl);
+    lbl_h5_reset = lv_label_create(parent);
     lv_label_set_text(lbl_h5_reset, "--");
     lv_obj_set_style_text_color(lbl_h5_reset, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl_h5_reset, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(lbl_h5_reset, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_h5_reset, PANEL_W - 78, 4);
+    lv_obj_set_pos(lbl_h5_reset, PANEL_W - 78, 76);
     lv_obj_set_width(lbl_h5_reset, 70);
 
-    bar_h5 = make_bar(claude_view_rl, 8, 18, PANEL_W - 16, 6);
+    bar_h5 = make_bar(parent, 8, 90, PANEL_W - 16, 5);
 
-    lv_obj_t *l7d = lv_label_create(claude_view_rl);
+    lv_obj_t *l7d = lv_label_create(parent);
     lv_label_set_text(l7d, "7d");
     lv_obj_set_style_text_color(l7d, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(l7d, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(l7d, 8, 34);
+    lv_obj_set_pos(l7d, 8, 100);
 
-    lbl_w7_pct = lv_label_create(claude_view_rl);
+    lbl_w7_pct = lv_label_create(parent);
     lv_label_set_text(lbl_w7_pct, "--");
     lv_obj_set_style_text_font(lbl_w7_pct, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl_w7_pct, 30, 34);
+    lv_obj_set_pos(lbl_w7_pct, 30, 100);
 
-    lbl_w7_reset = lv_label_create(claude_view_rl);
+    lbl_w7_reset = lv_label_create(parent);
     lv_label_set_text(lbl_w7_reset, "--");
     lv_obj_set_style_text_color(lbl_w7_reset, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl_w7_reset, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(lbl_w7_reset, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_w7_reset, PANEL_W - 78, 34);
+    lv_obj_set_pos(lbl_w7_reset, PANEL_W - 78, 100);
     lv_obj_set_width(lbl_w7_reset, 70);
 
-    bar_w7 = make_bar(claude_view_rl, 8, 48, PANEL_W - 16, 6);
+    bar_w7 = make_bar(parent, 8, 114, PANEL_W - 16, 5);
 }
 
-// Refresh all Claude labels and bars from state (both views, even if hidden)
 void update_claude_ui() {
     char buf[20], tmp[16];
 
+    // Dot color: rate-limit health if available, else session presence
     lv_color_t dot_c = (state.claude_h5_pct >= 0)
                        ? pct_col(state.claude_h5_pct)
                        : (state.claude_sessions > 0 ? COL_OK : COL_TEXT_DIM);
     lv_obj_set_style_bg_color(dot_claude, dot_c, 0);
 
-    if (state.claude_h5_pct >= 0) {
-        lv_obj_clear_flag(bar_claude_prog, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(bar_claude_prog, LV_OBJ_FLAG_HIDDEN);
-    }
-
+    // Token section
     fmt_k(buf, sizeof(buf), state.claude_out);
     lv_label_set_text(lbl_claude_out, buf);
 
@@ -195,6 +148,7 @@ void update_claude_ui() {
     snprintf(buf, sizeof(buf), "%d sess", state.claude_sessions);
     lv_label_set_text(lbl_claude_sess, buf);
 
+    // Rate-limit section
     if (state.claude_h5_pct < 0) {
         lv_label_set_text(lbl_h5_pct, "--");
         lv_obj_set_style_text_color(lbl_h5_pct, COL_TEXT_DIM, 0);
@@ -220,13 +174,4 @@ void update_claude_ui() {
     lv_label_set_text(lbl_w7_reset, buf);
     lv_bar_set_value(bar_w7, (state.claude_w7_pct < 0) ? 0 : state.claude_w7_pct, LV_ANIM_OFF);
     lv_obj_set_style_bg_color(bar_w7, pct_col(state.claude_w7_pct), LV_PART_INDICATOR);
-}
-
-// Call once from setup() to begin auto-rotation between views
-void claude_start_timers() {
-#if CLAUDE_ROTATE_MS > 0
-    claude_switched_ms = millis();
-    claude_rot_timer   = lv_timer_create(claude_rotate_cb, CLAUDE_ROTATE_MS, nullptr);
-    claude_prog_timer  = lv_timer_create(claude_prog_cb,   200,              nullptr);
-#endif
 }

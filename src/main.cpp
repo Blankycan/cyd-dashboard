@@ -313,9 +313,8 @@ void setup() {
     build_dashboard();
     build_sleep_overlay();
     last_active_ms = millis();
-    claude_start_timers();
 
-    Serial.println("{\"boot\":true,\"version\":\"0.7\"}");
+    Serial.println("{\"boot\":true,\"version\":\"0.8\"}");
 }
 
 // LVGL tick, serial RX, disconnect detection, and auto-sleep
