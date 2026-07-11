@@ -70,6 +70,7 @@ struct DashState {
     bool music_playing   = false;
     bool music_active    = false;
     char idle_msg[48]    = "";
+    char ip_str[16]      = "";
     // Token view (always available from JSONL)
     int32_t claude_out      = 0;
     int32_t claude_inp      = 0;
@@ -108,6 +109,7 @@ static lv_obj_t *bar_wpm     = nullptr;
 // Status indicator handles (ACTIVE / IDLE / OFFLINE)
 static lv_obj_t *dot_status  = nullptr;
 static lv_obj_t *lbl_status  = nullptr;
+static lv_obj_t *lbl_ip      = nullptr;
 
 // Music panel handles
 static lv_obj_t *dot_music        = nullptr;
@@ -288,6 +290,7 @@ static void update_status_ui() {
     lv_obj_set_style_bg_color(dot_status, col, 0);
     lv_label_set_text(lbl_status, text);
     lv_obj_set_style_text_color(lbl_status, col, 0);
+    lv_label_set_text(lbl_ip, state.ip_str);
 }
 
 static void update_stats_ui() {
@@ -810,6 +813,14 @@ static void build_indicator_panel(lv_obj_t *parent) {
     lv_obj_set_style_text_color(lbl_status, COL_ALERT, 0);
     lv_obj_set_style_text_font(lbl_status, &lv_font_montserrat_14, 0);
     lv_obj_set_pos(lbl_status, 20, (INDICATOR_H - 14) / 2);
+
+    lbl_ip = lv_label_create(parent);
+    lv_label_set_text(lbl_ip, "");
+    lv_obj_set_style_text_color(lbl_ip, COL_TEXT_DIM, 0);
+    lv_obj_set_style_text_font(lbl_ip, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_align(lbl_ip, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_pos(lbl_ip, PANEL_W / 2, (INDICATOR_H - 12) / 2);
+    lv_obj_set_width(lbl_ip, PANEL_W / 2 - 8);
 }
 
 static void build_panels(lv_obj_t *scr) {
@@ -878,6 +889,7 @@ static void handle_packet(const String &line) {
             lv_label_set_text(lbl_sleep_time, state.time_str);
         }
         strlcpy(state.idle_msg, doc["idle_msg"] | "", sizeof(state.idle_msg));
+        strlcpy(state.ip_str,   doc["ip"]       | "", sizeof(state.ip_str));
 
         JsonObject music = doc["music"];
         if (music) {

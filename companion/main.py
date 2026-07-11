@@ -6,6 +6,7 @@ import argparse
 import glob
 import json
 import random
+import socket
 import sys
 import time
 from datetime import datetime
@@ -54,6 +55,15 @@ def _get_idle_msg() -> str:
     return _idle_msg
 
 
+def get_local_ip() -> str:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except Exception:
+        return ""
+
+
 def find_port() -> str | None:
     for p in serial.tools.list_ports.comports():
         if p.vid in ESP32_VIDS:
@@ -75,6 +85,7 @@ def collect_stats(kb: KeyboardMonitor | None = None,
         "date":   datetime.now().strftime("%a %d %b"),
         "wpm":    kb.wpm() if kb else 0,
         "active": kb.is_active() if kb else False,
+        "ip":     get_local_ip(),
     }
     if m:
         stats["music"] = m
