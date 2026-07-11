@@ -1,0 +1,30 @@
+# Hotaru idle messages — shown in the music panel when nothing is playing.
+# One message per line. Lines starting with # are ignored.
+# ASCII only (Montserrat on the ESP32 has no emoji support).
+
+brewing vibes...
+rain on the window
+lost in thought
+cat nap loading...
+404: music not found
+between the songs
+the quiet moment
+inhale. exhale.
+kettle is on
+moonlight and static
+daydream engaged
+lofi mode: on
+somewhere between notes
+coffee deserved
+no playlist needed
+just existing here
+signal lost. vibe found.
+waiting for the drop
+soft hours
+the void is cozy
+cursor blink frequency
+a brief intermission
+static and solitude
+very into doing nothing
+optimal idle state
+staring contest with screen

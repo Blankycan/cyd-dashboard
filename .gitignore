@@ -1,0 +1,5 @@
+.pio/
+__pycache__/
+*.pyc
+*.pyo
+companion/__pycache__/
