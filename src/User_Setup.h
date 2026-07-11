@@ -6,9 +6,9 @@
 #define ILI9341_2_DRIVER
 #define TFT_INVERSION_ON
 
-// Physical panel dimensions (rotation applied in firmware via setRotation())
-#define TFT_WIDTH  320
-#define TFT_HEIGHT 240
+// Physical panel dimensions (always portrait native for ILI9341; rotation in firmware)
+#define TFT_WIDTH  240
+#define TFT_HEIGHT 320
 
 // SPI pins
 #define TFT_MISO 12

@@ -5,41 +5,39 @@
 #include <lvgl.h>
 #include <ArduinoJson.h>
 #include "theme.h"
-#include "companions/poring.h"
-
-static const Companion *companion = &poring_companion;
 
 // ---------------------------------------------------------------------------
 // Layout constants (all sizes in pixels)
 // ---------------------------------------------------------------------------
-#define SCREEN_W    320
-#define SCREEN_H    240
+#define SCREEN_W    240
+#define SCREEN_H    320
 #define BL_PIN      21
 
 #define TOPBAR_H    30      // top bar height
-#define SIDEBAR_W   96      // companion column width
 #define DIV_W       1       // divider line width
 
 // Content area (below top bar)
 #define CONTENT_Y   (TOPBAR_H + DIV_W)
 #define CONTENT_H   (SCREEN_H - CONTENT_Y)
 
-// Right panel x start and width
-#define RSTART      (SIDEBAR_W + DIV_W)
-#define RWIDTH      (SCREEN_W - RSTART)
+// Panel width = full screen width
+#define PANEL_W     SCREEN_W
 
-// Right panel section heights (must sum to CONTENT_H)
+// Panel section heights (stacked vertically)
 #define MUSIC_H     52
 #define CLAUDE_H    90
-#define STATUS_H    (CONTENT_H - MUSIC_H - DIV_W - CLAUDE_H - DIV_W)
+#define STATS_H     72
 
-// Stats panel row layout (bottom-right panel)
+// Stats panel row layout
 #define STATS_ROW_H  22    // pixels per stat row (text + bar)
 
+// Connection / activity indicator panel
+#define INDICATOR_H  36
+
 // Music panel — right-side animation area
-#define MA_W          38                   // animation area width
-#define MA_X          (RWIDTH - 4 - MA_W) // animation area left x in panel
-#define MUSIC_LABEL_W (MA_X - 26)         // title/artist label width (x=22..MA_X-4)
+#define MA_W          38                    // animation area width
+#define MA_X          (PANEL_W - 4 - MA_W) // animation area left x in panel
+#define MUSIC_LABEL_W (MA_X - 26)          // title/artist label width
 
 // Disconnection timeout
 #define DISCONNECT_TIMEOUT_MS 5000
@@ -106,6 +104,10 @@ static lv_obj_t *lbl_ram_val = nullptr;
 static lv_obj_t *bar_ram     = nullptr;
 static lv_obj_t *lbl_wpm_val = nullptr;
 static lv_obj_t *bar_wpm     = nullptr;
+
+// Status indicator handles (ACTIVE / IDLE / OFFLINE)
+static lv_obj_t *dot_status  = nullptr;
+static lv_obj_t *lbl_status  = nullptr;
 
 // Music panel handles
 static lv_obj_t *dot_music        = nullptr;
@@ -239,7 +241,6 @@ static void touch_read_cb(lv_indev_drv_t *, lv_indev_data_t *data) {
         data->state   = LV_INDEV_STATE_PRESSED;
         last_active_ms = millis();
         if (sleep_state == SS_ASLEEP) exit_sleep();
-        else companion->on_touch();
     } else {
         data->state = LV_INDEV_STATE_RELEASED;
     }
@@ -271,6 +272,24 @@ static lv_color_t pct_col(int pct) {
 // ---------------------------------------------------------------------------
 // UI updates — called whenever state changes
 // ---------------------------------------------------------------------------
+static void update_status_ui() {
+    lv_color_t col;
+    const char *text;
+    if (!state.connected) {
+        col  = COL_ALERT;
+        text = "offline";
+    } else if (state.active) {
+        col  = COL_OK;
+        text = "active";
+    } else {
+        col  = COL_TEXT_DIM;
+        text = "idle";
+    }
+    lv_obj_set_style_bg_color(dot_status, col, 0);
+    lv_label_set_text(lbl_status, text);
+    lv_obj_set_style_text_color(lbl_status, col, 0);
+}
+
 static void update_stats_ui() {
     lv_label_set_text(lbl_time, state.time_str);
     if (state.date_str[0]) lv_label_set_text(lbl_date, state.date_str);
@@ -299,7 +318,7 @@ static void update_stats_ui() {
     lv_bar_set_value(bar_wpm, wpm_capped, LV_ANIM_OFF);
     lv_obj_set_style_bg_color(bar_wpm, cwpm, LV_PART_INDICATOR);
 
-    companion->update(state.wpm, state.active, state.music_playing, state.connected);
+    update_status_ui();
 }
 
 // ---------------------------------------------------------------------------
@@ -320,26 +339,10 @@ static void build_topbar(lv_obj_t *scr) {
     lbl_date = lv_label_create(tb);
     lv_label_set_text(lbl_date, "");
     lv_obj_set_style_text_color(lbl_date, COL_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(lbl_date, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(lbl_date, &lv_font_montserrat_14, 0);
     lv_obj_align(lbl_date, LV_ALIGN_RIGHT_MID, -8, 0);
 }
 
-
-static void build_sidebar(lv_obj_t *scr) {
-    lv_obj_t *sb = make_panel(scr, 0, CONTENT_Y, SIDEBAR_W, CONTENT_H);
-    companion->build(sb, SIDEBAR_W, CONTENT_H);
-}
-
-static void build_vertical_divider(lv_obj_t *scr) {
-    lv_obj_t *div = lv_obj_create(scr);
-    lv_obj_remove_style_all(div);
-    lv_obj_set_size(div, 1, CONTENT_H);
-    lv_obj_set_pos(div, SIDEBAR_W, CONTENT_Y);
-    lv_obj_set_style_bg_color(div, COL_DIVIDER, 0);
-    lv_obj_set_style_bg_opa(div, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(div, 0, 0);
-    lv_obj_clear_flag(div, LV_OBJ_FLAG_SCROLLABLE);
-}
 
 // ---------------------------------------------------------------------------
 // Music panel — right-side animation state machine
@@ -501,13 +504,13 @@ static void update_music_ui() {
     }
 }
 
-// Fills panel_music (RWIDTH × MUSIC_H ≈ 224 × 52 px).
+// Fills panel_music (PANEL_W × MUSIC_H ≈ 224 × 52 px).
 static void build_music_panel(lv_obj_t *parent) {
     // Playback indicator dot
     dot_music = lv_obj_create(parent);
     lv_obj_remove_style_all(dot_music);
     lv_obj_set_size(dot_music, 6, 6);
-    lv_obj_set_pos(dot_music, 8, (MUSIC_H - 6) / 2);
+    lv_obj_set_pos(dot_music, 8, 12);
     lv_obj_set_style_bg_color(dot_music, COL_TEXT_DIM, 0);
     lv_obj_set_style_bg_opa(dot_music, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(dot_music, LV_RADIUS_CIRCLE, 0);
@@ -518,7 +521,7 @@ static void build_music_panel(lv_obj_t *parent) {
     lbl_music_title = lv_label_create(parent);
     lv_label_set_text(lbl_music_title, "nothing playing");
     lv_obj_set_style_text_color(lbl_music_title, COL_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(lbl_music_title, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(lbl_music_title, &lv_font_montserrat_14, 0);
     lv_obj_set_pos(lbl_music_title, 22, 8);
     lv_obj_set_width(lbl_music_title, MUSIC_LABEL_W);
     lv_label_set_long_mode(lbl_music_title, LV_LABEL_LONG_DOT);
@@ -551,7 +554,7 @@ static void build_music_panel(lv_obj_t *parent) {
 static lv_obj_t *make_view(lv_obj_t *parent, int y, int h) {
     lv_obj_t *v = lv_obj_create(parent);
     lv_obj_remove_style_all(v);
-    lv_obj_set_size(v, RWIDTH, h);
+    lv_obj_set_size(v, PANEL_W, h);
     lv_obj_set_pos(v, 0, y);
     lv_obj_set_style_bg_opa(v, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(v, 0, 0);
@@ -582,7 +585,7 @@ static void claude_prog_cb(lv_timer_t *) {
     lv_bar_set_value(bar_claude_prog, pct, LV_ANIM_OFF);
 }
 
-// Fills panel_claude.  Panel is RWIDTH × CLAUDE_H (≈224 × 90 px).
+// Fills panel_claude.  Panel is PANEL_W × CLAUDE_H (≈224 × 90 px).
 // Header (dot + "claude") is shared; two sub-views sit below it.
 static void build_claude_panel(lv_obj_t *parent) {
     // Shared indicator dot
@@ -600,11 +603,11 @@ static void build_claude_panel(lv_obj_t *parent) {
     lv_obj_t *lbl_hdr = lv_label_create(parent);
     lv_label_set_text(lbl_hdr, "claude");
     lv_obj_set_style_text_color(lbl_hdr, COL_TEXT_DIM, 0);
-    lv_obj_set_style_text_font(lbl_hdr, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(lbl_hdr, &lv_font_montserrat_14, 0);
     lv_obj_set_pos(lbl_hdr, 20, 3);
 
     // View-switch progress bar — top-right of header, hidden until both views active
-    bar_claude_prog = make_bar(parent, RWIDTH - 70, 9, 62, 4);
+    bar_claude_prog = make_bar(parent, PANEL_W - 70, 9, 62, 4);
     lv_obj_set_style_bg_color(bar_claude_prog, COL_TEXT_DIM, LV_PART_INDICATOR);
     lv_bar_set_value(bar_claude_prog, 0, LV_ANIM_OFF);
     lv_obj_add_flag(bar_claude_prog, LV_OBJ_FLAG_HIDDEN);
@@ -620,7 +623,7 @@ static void build_claude_panel(lv_obj_t *parent) {
     lv_obj_set_style_text_color(lbl_out_hdr, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl_out_hdr, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(lbl_out_hdr, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_out_hdr, RWIDTH - 70, 2);
+    lv_obj_set_pos(lbl_out_hdr, PANEL_W - 70, 2);
     lv_obj_set_width(lbl_out_hdr, 62);
 
     // Large output token count
@@ -631,7 +634,7 @@ static void build_claude_panel(lv_obj_t *parent) {
     lv_obj_set_pos(lbl_claude_out, 8, 2);
 
     // Progress bar vs 100k daily reference
-    bar_claude_tok = make_bar(claude_view_tok, 8, 30, RWIDTH - 16, 6);
+    bar_claude_tok = make_bar(claude_view_tok, 8, 30, PANEL_W - 16, 6);
     lv_obj_set_style_bg_color(bar_claude_tok, COL_GLOW, LV_PART_INDICATOR);
 
     // Bottom row: input tokens (left) + sessions (right)
@@ -646,8 +649,8 @@ static void build_claude_panel(lv_obj_t *parent) {
     lv_obj_set_style_text_color(lbl_claude_sess, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl_claude_sess, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(lbl_claude_sess, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_claude_sess, RWIDTH / 2, 44);
-    lv_obj_set_width(lbl_claude_sess, RWIDTH / 2 - 8);
+    lv_obj_set_pos(lbl_claude_sess, PANEL_W / 2, 44);
+    lv_obj_set_width(lbl_claude_sess, PANEL_W / 2 - 8);
 
     // ---- RATE-LIMIT VIEW (hidden until API data arrives) ----------------
     claude_view_rl = make_view(parent, VIEW_Y, VIEW_H);
@@ -670,10 +673,10 @@ static void build_claude_panel(lv_obj_t *parent) {
     lv_obj_set_style_text_color(lbl_h5_reset, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl_h5_reset, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(lbl_h5_reset, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_h5_reset, RWIDTH - 78, 4);
+    lv_obj_set_pos(lbl_h5_reset, PANEL_W - 78, 4);
     lv_obj_set_width(lbl_h5_reset, 70);
 
-    bar_h5 = make_bar(claude_view_rl, 8, 18, RWIDTH - 16, 6);
+    bar_h5 = make_bar(claude_view_rl, 8, 18, PANEL_W - 16, 6);
 
     // 7d row
     lv_obj_t *l7d = lv_label_create(claude_view_rl);
@@ -692,10 +695,10 @@ static void build_claude_panel(lv_obj_t *parent) {
     lv_obj_set_style_text_color(lbl_w7_reset, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl_w7_reset, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(lbl_w7_reset, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_w7_reset, RWIDTH - 78, 34);
+    lv_obj_set_pos(lbl_w7_reset, PANEL_W - 78, 34);
     lv_obj_set_width(lbl_w7_reset, 70);
 
-    bar_w7 = make_bar(claude_view_rl, 8, 48, RWIDTH - 16, 6);
+    bar_w7 = make_bar(claude_view_rl, 8, 48, PANEL_W - 16, 6);
 }
 
 static void update_claude_ui() {
@@ -760,7 +763,7 @@ static void update_claude_ui() {
 }
 
 // Fills panel_status with the WPM / active-idle display.
-// Panel is RWIDTH × STATUS_H (≈224 × 65 px).
+// Panel is PANEL_W × STATUS_H (≈224 × 65 px).
 static void build_stats_panel(lv_obj_t *parent) {
     // Three stat rows: CPU, RAM, WPM
     // Each row: dim key label (top-left) + colored value (top-right) + full-width bar below
@@ -787,32 +790,52 @@ static void build_stats_panel(lv_obj_t *parent) {
         lv_obj_align(v, LV_ALIGN_TOP_RIGHT, -8, ty);
         *rows[i].val = v;
 
-        *rows[i].bar = make_bar(parent, 8, by, RWIDTH - 16, 4);
+        *rows[i].bar = make_bar(parent, 8, by, PANEL_W - 16, 4);
     }
 }
 
-static void build_right_panels(lv_obj_t *scr) {
+static void build_indicator_panel(lv_obj_t *parent) {
+    dot_status = lv_obj_create(parent);
+    lv_obj_remove_style_all(dot_status);
+    lv_obj_set_size(dot_status, 6, 6);
+    lv_obj_set_pos(dot_status, 8, (INDICATOR_H - 6) / 2);
+    lv_obj_set_style_bg_color(dot_status, COL_ALERT, 0);
+    lv_obj_set_style_bg_opa(dot_status, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(dot_status, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(dot_status, 0, 0);
+    lv_obj_clear_flag(dot_status, LV_OBJ_FLAG_SCROLLABLE);
+
+    lbl_status = lv_label_create(parent);
+    lv_label_set_text(lbl_status, "offline");
+    lv_obj_set_style_text_color(lbl_status, COL_ALERT, 0);
+    lv_obj_set_style_text_font(lbl_status, &lv_font_montserrat_14, 0);
+    lv_obj_set_pos(lbl_status, 20, (INDICATOR_H - 14) / 2);
+}
+
+static void build_panels(lv_obj_t *scr) {
     int y = CONTENT_Y;
 
-    // Music panel
-    panel_music = make_panel(scr, RSTART, y, RWIDTH, MUSIC_H);
+    panel_music = make_panel(scr, 0, y, SCREEN_W, MUSIC_H);
     build_music_panel(panel_music);
     y += MUSIC_H;
 
-    make_hdiv(scr, y, RSTART, RWIDTH);
+    make_hdiv(scr, y, 0, SCREEN_W);
     y += DIV_W;
 
-    // Claude panel
-    panel_claude = make_panel(scr, RSTART, y, RWIDTH, CLAUDE_H);
+    panel_status = make_panel(scr, 0, y, SCREEN_W, STATS_H);
+    build_stats_panel(panel_status);
+    y += STATS_H;
+
+    make_hdiv(scr, y, 0, SCREEN_W);
+    y += DIV_W;
+
+    panel_claude = make_panel(scr, 0, y, SCREEN_W, CLAUDE_H);
     build_claude_panel(panel_claude);
     y += CLAUDE_H;
 
-    make_hdiv(scr, y, RSTART, RWIDTH);
-    y += DIV_W;
-
-    // Status / WPM panel
-    panel_status = make_panel(scr, RSTART, y, RWIDTH, STATUS_H);
-    build_stats_panel(panel_status);
+    make_hdiv(scr, y, 0, SCREEN_W);
+    lv_obj_t *panel_indicator = make_panel(scr, 0, SCREEN_H - INDICATOR_H, SCREEN_W, INDICATOR_H);
+    build_indicator_panel(panel_indicator);
 }
 
 static void build_dashboard() {
@@ -824,9 +847,7 @@ static void build_dashboard() {
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
     build_topbar(scr);
-    build_sidebar(scr);
-    build_vertical_divider(scr);
-    build_right_panels(scr);
+    build_panels(scr);
 }
 
 // ---------------------------------------------------------------------------
@@ -915,7 +936,7 @@ static void build_sleep_overlay() {
     lv_obj_set_pos(lbl_sleep_time, 0, (SCREEN_H - 30) / 2);
 
     // Three separate z labels so each can independently change font size
-    static const int zx[3] = { 126, 152, 178 };
+    static const int zx[3] = { 96, 112, 128 };
     int zy_big   = (SCREEN_H - 30) / 2 + 34;
     int zy_small = zy_big + 12;  // bottom-align font_12 with font_24
     for (int i = 0; i < 3; i++) {
@@ -947,7 +968,6 @@ static void enter_sleep() {
     lv_obj_clear_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
     bl_set(BL_DIM);
     zzz_timer = lv_timer_create(zzz_cb, 700, nullptr);
-    companion->on_sleep();
 }
 
 static void exit_sleep() {
@@ -956,7 +976,6 @@ static void exit_sleep() {
     if (zzz_timer) { lv_timer_del(zzz_timer); zzz_timer = nullptr; }
     lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
     bl_set(BL_FULL);
-    companion->on_wake();
 }
 
 // ---------------------------------------------------------------------------
@@ -967,6 +986,7 @@ static void show_disconnected() {
     state.active = false; state.music_active = false;
     update_stats_ui();
     update_music_ui();
+    update_status_ui();
     lv_label_set_text(lbl_cpu_val, "--");
     lv_label_set_text(lbl_ram_val, "--");
     lv_label_set_text(lbl_wpm_val, "--");
@@ -982,7 +1002,7 @@ void setup() {
     Serial.begin(115200);
 
     tft.init();
-    tft.setRotation(1);
+    tft.setRotation(0);
     tft.fillScreen(TFT_BLACK);
 
     // Must be after tft.init() — otherwise tft.init() resets pin to digitalWrite
@@ -1006,7 +1026,7 @@ void setup() {
 
     touch_spi.begin(25, 39, 32, 33);  // SCK, MISO, MOSI, CS
     ts.begin(touch_spi);
-    ts.setRotation(1);
+    ts.setRotation(0);
 
     static lv_indev_drv_t indev_drv;
     lv_indev_drv_init(&indev_drv);
