@@ -18,9 +18,8 @@
 #define TFT_DC    2
 #define TFT_RST  -1
 
-// Backlight — GPIO 21, PWM-capable for dimming
-#define TFT_BL   21
-#define TFT_BACKLIGHT_ON HIGH
+// Backlight managed by firmware via ledcWrite — do NOT define TFT_BL here
+// or tft.init() will call pinMode/digitalWrite and kill the PWM channel.
 
 // Touch (XPT2046)
 #define TOUCH_CS 33

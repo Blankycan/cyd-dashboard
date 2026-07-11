@@ -2,7 +2,9 @@
 // Parses {"type":"stats","cpu":XX,"ram":XX,"time":"HH:MM","wpm":XX,"active":bool}.
 
 #include <Arduino.h>
+#include <SPI.h>
 #include <TFT_eSPI.h>
+#include <XPT2046_Touchscreen.h>
 #include <lvgl.h>
 #include <ArduinoJson.h>
 #include "theme.h"
@@ -46,6 +48,14 @@
 // Claude panel — rotate between token and rate-limit views (ms per view)
 // Set to 0 to disable rotation (shows token view only)
 #define CLAUDE_ROTATE_MS 8000
+
+// Sleep / backlight
+#define SLEEP_TIMEOUT_MS  (5 * 60 * 1000)  // keyboard idle time before sleep
+#define BL_PWM_CHANNEL    0
+#define BL_PWM_FREQ       5000
+#define BL_PWM_BITS       8
+#define BL_FULL           255
+#define BL_DIM            12
 
 // ---------------------------------------------------------------------------
 // Dashboard state — updated from serial packets
@@ -132,6 +142,16 @@ static MusicAnim ma_state = MA_NONE;
 // Disconnect tracking
 static uint32_t  last_packet_ms = 0;
 
+// Sleep state
+enum SleepState { SS_AWAKE, SS_ASLEEP };
+static SleepState sleep_state    = SS_AWAKE;
+static uint32_t   last_active_ms = 0;
+static lv_obj_t  *sleep_overlay  = nullptr;
+static lv_obj_t  *lbl_sleep_time = nullptr;
+static lv_obj_t  *lbl_z[3]      = {};
+static lv_timer_t *zzz_timer     = nullptr;
+static void exit_sleep();   // forward decl (defined before setup)
+
 // Hotaru animation state
 enum HotaruState { HS_IDLE, HS_TYPING_SLOW, HS_TYPING_FAST };
 static HotaruState   h_state       = HS_IDLE;
@@ -215,6 +235,25 @@ static void disp_flush(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *px
     tft.pushColors(reinterpret_cast<uint16_t*>(&px->full), w * h, true);
     tft.endWrite();
     lv_disp_flush_ready(drv);
+}
+
+// Touch — XPT2046 is on its own SPI bus (HSPI), separate from the display
+// CYD (ESP32-2432S028R) wiring: SCK=25, MISO=39, MOSI=32, CS=33, IRQ=36
+static SPIClass        touch_spi(HSPI);
+static XPT2046_Touchscreen ts(33, 36);
+
+static void touch_read_cb(lv_indev_drv_t *, lv_indev_data_t *data) {
+    if (ts.tirqTouched() && ts.touched()) {
+        TS_Point p = ts.getPoint();
+        // Raw range ~200–3900; map to screen coords for rotation 1
+        data->point.x = map(p.x, 200, 3900, 0, SCREEN_W - 1);
+        data->point.y = map(p.y, 200, 3900, 0, SCREEN_H - 1);
+        data->state   = LV_INDEV_STATE_PRESSED;
+        last_active_ms = millis();
+        if (sleep_state == SS_ASLEEP) exit_sleep();
+    } else {
+        data->state = LV_INDEV_STATE_RELEASED;
+    }
 }
 
 static void hotaru_update(int wpm, bool active);  // forward decl
@@ -1082,6 +1121,14 @@ static void handle_packet(const String &line) {
         state.wpm    = doc["wpm"]    | 0;
         state.active = doc["active"] | false;
         strlcpy(state.time_str, doc["time"] | "--:--", sizeof(state.time_str));
+
+        if (state.active) {
+            last_active_ms = millis();
+            if (sleep_state == SS_ASLEEP) exit_sleep();
+        }
+        if (sleep_state == SS_ASLEEP) {
+            lv_label_set_text(lbl_sleep_time, state.time_str);
+        }
         strlcpy(state.idle_msg, doc["idle_msg"] | "", sizeof(state.idle_msg));
 
         JsonObject music = doc["music"];
@@ -1114,6 +1161,77 @@ static void handle_packet(const String &line) {
 }
 
 // ---------------------------------------------------------------------------
+// Backlight + sleep
+// ---------------------------------------------------------------------------
+static void bl_set(uint8_t level) {
+    ledcWrite(BL_PWM_CHANNEL, level);
+}
+
+static void build_sleep_overlay() {
+    lv_obj_t *scr = lv_scr_act();
+
+    sleep_overlay = lv_obj_create(scr);
+    lv_obj_remove_style_all(sleep_overlay);
+    lv_obj_set_size(sleep_overlay, SCREEN_W, SCREEN_H);
+    lv_obj_set_pos(sleep_overlay, 0, 0);
+    lv_obj_set_style_bg_color(sleep_overlay, COL_BG, 0);
+    lv_obj_set_style_bg_opa(sleep_overlay, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(sleep_overlay, 0, 0);
+    lv_obj_clear_flag(sleep_overlay, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
+
+    lbl_sleep_time = lv_label_create(sleep_overlay);
+    lv_label_set_text(lbl_sleep_time, "--:--");
+    lv_obj_set_style_text_color(lbl_sleep_time, COL_TEXT_SEC, 0);
+    lv_obj_set_style_text_font(lbl_sleep_time, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_align(lbl_sleep_time, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(lbl_sleep_time, SCREEN_W);
+    lv_obj_set_pos(lbl_sleep_time, 0, (SCREEN_H - 30) / 2);
+
+    // Three separate z labels so each can independently change font size
+    static const int zx[3] = { 126, 152, 178 };
+    int zy_big   = (SCREEN_H - 30) / 2 + 34;
+    int zy_small = zy_big + 12;  // bottom-align font_12 with font_24
+    for (int i = 0; i < 3; i++) {
+        lbl_z[i] = lv_label_create(sleep_overlay);
+        lv_label_set_text(lbl_z[i], "z");
+        lv_obj_set_style_text_color(lbl_z[i], COL_TEXT_DIM, 0);
+        lv_obj_set_style_text_font(lbl_z[i], &lv_font_montserrat_12, 0);
+        lv_obj_set_pos(lbl_z[i], zx[i], zy_small);
+    }
+}
+
+static void zzz_cb(lv_timer_t *) {
+    static int step = 0;
+    int zy_big   = (SCREEN_H - 30) / 2 + 34;
+    int zy_small = zy_big + 12;
+    for (int i = 0; i < 3; i++) {
+        bool big = (step == i + 1);
+        lv_obj_set_style_text_font(lbl_z[i],
+            big ? &lv_font_montserrat_24 : &lv_font_montserrat_12, 0);
+        lv_obj_set_y(lbl_z[i], big ? zy_big : zy_small);
+    }
+    step = (step + 1) % 4;  // 0=all small, 1=first big, 2=mid big, 3=last big
+}
+
+static void enter_sleep() {
+    if (sleep_state == SS_ASLEEP) return;
+    sleep_state = SS_ASLEEP;
+    lv_label_set_text(lbl_sleep_time, state.time_str);
+    lv_obj_clear_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
+    bl_set(BL_DIM);
+    zzz_timer = lv_timer_create(zzz_cb, 700, nullptr);
+}
+
+static void exit_sleep() {
+    if (sleep_state == SS_AWAKE) return;
+    sleep_state = SS_AWAKE;
+    if (zzz_timer) { lv_timer_del(zzz_timer); zzz_timer = nullptr; }
+    lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
+    bl_set(BL_FULL);
+}
+
+// ---------------------------------------------------------------------------
 // Disconnection handling
 // ---------------------------------------------------------------------------
 static void show_disconnected() {
@@ -1141,12 +1259,14 @@ static void show_disconnected() {
 void setup() {
     Serial.begin(115200);
 
-    pinMode(BL_PIN, OUTPUT);
-    digitalWrite(BL_PIN, HIGH);
-
     tft.init();
     tft.setRotation(1);
     tft.fillScreen(TFT_BLACK);
+
+    // Must be after tft.init() — otherwise tft.init() resets pin to digitalWrite
+    ledcSetup(BL_PWM_CHANNEL, BL_PWM_FREQ, BL_PWM_BITS);
+    ledcAttachPin(BL_PIN, BL_PWM_CHANNEL);
+    ledcWrite(BL_PWM_CHANNEL, BL_FULL);
 
     lv_init();
     lv_disp_draw_buf_init(&draw_buf, lv_buf, nullptr, SCREEN_W * 10);
@@ -1162,7 +1282,19 @@ void setup() {
     lv_theme_t *th = lv_theme_basic_init(disp);
     lv_disp_set_theme(disp, th);
 
+    touch_spi.begin(25, 39, 32, 33);  // SCK, MISO, MOSI, CS
+    ts.begin(touch_spi);
+    ts.setRotation(1);
+
+    static lv_indev_drv_t indev_drv;
+    lv_indev_drv_init(&indev_drv);
+    indev_drv.type    = LV_INDEV_TYPE_POINTER;
+    indev_drv.read_cb = touch_read_cb;
+    lv_indev_drv_register(&indev_drv);
+
     build_dashboard();
+    build_sleep_overlay();
+    last_active_ms = millis();
 
 #if CLAUDE_ROTATE_MS > 0
     claude_switched_ms = millis();
@@ -1185,6 +1317,10 @@ void loop() {
     if (state.connected && millis() - last_packet_ms > DISCONNECT_TIMEOUT_MS) {
         state.connected = false;
         show_disconnected();
+    }
+
+    if (sleep_state == SS_AWAKE && millis() - last_active_ms > SLEEP_TIMEOUT_MS) {
+        enter_sleep();
     }
 
     delay(5);
