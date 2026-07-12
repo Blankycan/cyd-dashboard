@@ -152,6 +152,19 @@ static void exit_sleep() {
 }
 
 // ---------------------------------------------------------------------------
+// Offline clock — advances time_str from stored h/m + elapsed millis()
+// so the display keeps ticking even when the companion is disconnected.
+// ---------------------------------------------------------------------------
+static void clock_tick_cb(lv_timer_t *) {
+    if (state.time_h < 0) return;
+    uint32_t elapsed_m = (millis() - state.time_set_ms) / 60000UL;
+    int total = state.time_h * 60 + state.time_m + (int)elapsed_m;
+    snprintf(state.time_str, sizeof(state.time_str), "%02d:%02d",
+             (total / 60) % 24, total % 60);
+    update_topbar_ui();
+}
+
+// ---------------------------------------------------------------------------
 // Dashboard layout — stacks music, stats, claude, and status panels vertically
 // ---------------------------------------------------------------------------
 static void build_panels(lv_obj_t *scr) {
@@ -236,12 +249,21 @@ static void handle_packet(const String &line) {
         strlcpy(state.idle_msg, doc["idle_msg"] | "", sizeof(state.idle_msg));
         strlcpy(state.ip_str,   doc["ip"]       | "", sizeof(state.ip_str));
 
-        if (state.active) {
-            last_active_ms = millis();
-            if (sleep_state == SS_ASLEEP) exit_sleep();
+        // Store parsed h/m so the offline clock can keep ticking after disconnect
+        {
+            int h = -1, m = -1;
+            if (sscanf(state.time_str, "%d:%d", &h, &m) == 2) {
+                state.time_h      = (int8_t)h;
+                state.time_m      = (int8_t)m;
+                state.time_set_ms = millis();
+            }
         }
+
+        // Any incoming packet keeps the display awake — sleep is for when the
+        // companion is not running, not for when the user isn't typing.
+        last_active_ms = millis();
         if (sleep_state == SS_ASLEEP) {
-            lv_label_set_text(lbl_sleep_time, state.time_str);
+            exit_sleep();
         }
 
         JsonObject music = doc["music"];
@@ -316,6 +338,7 @@ void setup() {
 
     build_dashboard();
     build_sleep_overlay();
+    lv_timer_create(clock_tick_cb, 10000, nullptr);
     last_active_ms = millis();
 
     Serial.println("{\"boot\":true,\"version\":\"0.8\"}");
@@ -336,8 +359,15 @@ void loop() {
         show_disconnected();
     }
 
-    if (sleep_state == SS_AWAKE && millis() - last_active_ms > SLEEP_TIMEOUT_MS) {
-        enter_sleep();
+    // Sleep after inactivity — use packet time when connected (display stays
+    // awake while companion is running), touch time when disconnected.
+    {
+        uint32_t idle_ms = state.connected
+            ? millis() - last_packet_ms
+            : millis() - last_active_ms;
+        if (sleep_state == SS_AWAKE && idle_ms > SLEEP_TIMEOUT_MS) {
+            enter_sleep();
+        }
     }
 
     delay(5);
