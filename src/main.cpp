@@ -80,10 +80,12 @@ static void bl_set(uint8_t level) {
 // ---------------------------------------------------------------------------
 // Sleep overlay
 // ---------------------------------------------------------------------------
-static lv_obj_t  *sleep_overlay  = nullptr;
-static lv_obj_t  *lbl_sleep_time = nullptr;
-static lv_obj_t  *lbl_z[3]      = {};
-static lv_timer_t *zzz_timer     = nullptr;
+static lv_obj_t  *sleep_overlay   = nullptr;
+static lv_obj_t  *lbl_sleep_time  = nullptr;
+static lv_obj_t  *lbl_sleep_away  = nullptr;
+static lv_obj_t  *lbl_z[3]       = {};
+static lv_timer_t *zzz_timer      = nullptr;
+static uint32_t   last_keyboard_ms = 0;    // millis() of last state.active packet
 
 // Animate the three "z" labels on the sleep screen (cycling which one is large)
 static void zzz_cb(lv_timer_t *) {
@@ -97,6 +99,20 @@ static void zzz_cb(lv_timer_t *) {
         lv_obj_set_y(lbl_z[i], big ? zy_big : zy_small);
     }
     step = (step + 1) % 4;
+}
+
+// Format how long since last keyboard activity into buf (e.g. "away 47m", "away 2h 3m")
+static void fmt_away(char *buf, size_t n) {
+    if (!last_keyboard_ms || state.last_active_str[0] == '\0') {
+        buf[0] = '\0';
+        return;
+    }
+    uint32_t mins = (millis() - last_keyboard_ms) / 60000UL;
+    uint32_t hrs  = mins / 60;
+    if (hrs > 0)
+        snprintf(buf, n, "away %luh %lum", (unsigned long)hrs, (unsigned long)(mins % 60));
+    else
+        snprintf(buf, n, "away %lum", (unsigned long)mins);
 }
 
 // Full-screen overlay shown when the display enters sleep mode
@@ -130,6 +146,14 @@ static void build_sleep_overlay() {
         lv_obj_set_style_text_font(lbl_z[i], &lv_font_montserrat_12, 0);
         lv_obj_set_pos(lbl_z[i], zx[i], zy_small);
     }
+
+    lbl_sleep_away = lv_label_create(sleep_overlay);
+    lv_label_set_text(lbl_sleep_away, "");
+    lv_obj_set_style_text_color(lbl_sleep_away, COL_TEXT_DIM, 0);
+    lv_obj_set_style_text_font(lbl_sleep_away, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_align(lbl_sleep_away, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(lbl_sleep_away, SCREEN_W);
+    lv_obj_set_pos(lbl_sleep_away, 0, SCREEN_H - 30);
 }
 
 // Dim backlight and show sleep overlay after SLEEP_TIMEOUT_MS of inactivity
@@ -137,6 +161,9 @@ static void enter_sleep() {
     if (sleep_state == SS_ASLEEP) return;
     sleep_state = SS_ASLEEP;
     lv_label_set_text(lbl_sleep_time, state.time_str);
+    char away[24];
+    fmt_away(away, sizeof(away));
+    lv_label_set_text(lbl_sleep_away, away);
     lv_obj_clear_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
     bl_set(BL_DIM);
     zzz_timer = lv_timer_create(zzz_cb, 700, nullptr);
@@ -162,6 +189,12 @@ static void clock_tick_cb(lv_timer_t *) {
     snprintf(state.time_str, sizeof(state.time_str), "%02d:%02d",
              (total / 60) % 24, total % 60);
     update_topbar_ui();
+    if (sleep_state == SS_ASLEEP) {
+        lv_label_set_text(lbl_sleep_time, state.time_str);
+        char away[24];
+        fmt_away(away, sizeof(away));
+        lv_label_set_text(lbl_sleep_away, away);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -257,6 +290,11 @@ static void handle_packet(const String &line) {
                 state.time_m      = (int8_t)m;
                 state.time_set_ms = millis();
             }
+        }
+
+        if (state.active) {
+            last_keyboard_ms = millis();
+            strlcpy(state.last_active_str, state.time_str, sizeof(state.last_active_str));
         }
 
         // Any incoming packet keeps the display awake — sleep is for when the

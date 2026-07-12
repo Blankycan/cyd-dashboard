@@ -10,6 +10,7 @@ struct DashState {
     int8_t   time_h       = -1;     // last received hour (-1 = no time yet)
     int8_t   time_m       = -1;     // last received minute
     uint32_t time_set_ms  = 0;      // millis() when time_h/m were stored
+    char last_active_str[6] = "";   // HH:MM of last keyboard activity
     int  cpu              = 0;
     int  ram              = 0;
     int  wpm              = 0;

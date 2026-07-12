@@ -3,9 +3,10 @@
 #include "../state.h"
 #include "../theme.h"
 
-static lv_obj_t *dot_status = nullptr;
-static lv_obj_t *lbl_status = nullptr;
-static lv_obj_t *lbl_ip     = nullptr;
+static lv_obj_t *dot_status      = nullptr;
+static lv_obj_t *lbl_status      = nullptr;
+static lv_obj_t *lbl_last_active = nullptr;
+static lv_obj_t *lbl_ip          = nullptr;
 
 // Status dot (left), text label (center-left), IP address (right)
 void build_indicator_panel(lv_obj_t *parent) {
@@ -24,6 +25,12 @@ void build_indicator_panel(lv_obj_t *parent) {
     lv_obj_set_style_text_color(lbl_status, COL_ALERT, 0);
     lv_obj_set_style_text_font(lbl_status, &lv_font_montserrat_14, 0);
     lv_obj_set_pos(lbl_status, 20, (INDICATOR_H - 14) / 2);
+
+    lbl_last_active = lv_label_create(parent);
+    lv_label_set_text(lbl_last_active, "");
+    lv_obj_set_style_text_color(lbl_last_active, COL_TEXT_DIM, 0);
+    lv_obj_set_style_text_font(lbl_last_active, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(lbl_last_active, 80, (INDICATOR_H - 12) / 2);
 
     lbl_ip = lv_label_create(parent);
     lv_label_set_text(lbl_ip, "");
@@ -51,5 +58,13 @@ void update_status_ui() {
     lv_obj_set_style_bg_color(dot_status, col, 0);
     lv_label_set_text(lbl_status, text);
     lv_obj_set_style_text_color(lbl_status, col, 0);
+
+    // Show last active time when idle or offline; hide when actively typing
+    if (state.active || state.last_active_str[0] == '\0') {
+        lv_label_set_text(lbl_last_active, "");
+    } else {
+        lv_label_set_text(lbl_last_active, state.last_active_str);
+    }
+
     lv_label_set_text(lbl_ip, state.ip_str);
 }
