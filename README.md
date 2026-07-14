@@ -105,7 +105,12 @@ Declared in `platformio.ini` — installed automatically on first build:
 
 ### Companion app (Python 3.10+)
 
-```
+Use a virtualenv so dependencies stay isolated from system Python:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
 pip install psutil pyserial evdev
 ```
 
@@ -118,6 +123,12 @@ sudo pacman -S playerctl
 # Debian / Ubuntu
 sudo apt install playerctl
 ```
+
+Remember to `source .venv/bin/activate` again in any new shell before running
+`main.py` directly. This also matters when installing the systemd service
+(see below) — the install script picks up whatever `python3` is first on
+`PATH`, so activate the venv before running it if you want the service to use
+the venv's interpreter and packages.
 
 ---
 
@@ -136,6 +147,53 @@ Install [PlatformIO](https://platformio.org/install/cli), then:
 The upload speed is set to 115200 baud in `platformio.ini` for reliable flashing.
 If flashing fails on the first attempt, retry — the ESP32 occasionally needs a second
 try to enter bootloader mode cleanly.
+
+`platformio.ini` hardcodes `upload_port = /dev/ttyUSB0`. If your board enumerates
+on a different port (see [Serial port](#serial-port) below), override it on the
+command line instead of editing the file:
+
+```bash
+~/.platformio/penv/bin/pio run --target upload --upload-port /dev/ttyUSB1
+```
+
+---
+
+## Serial port
+
+The CYD's USB-serial chip is usually a **CH340** (USB VID `1a86`), sometimes a
+CP2102 (`10c4`) or similar. On Linux it shows up as `/dev/ttyUSB0`,
+`/dev/ttyUSB1`, etc. — the exact number depends on enumeration order and can
+shift between reboots or when other USB-serial devices are plugged in.
+
+To find it:
+
+```bash
+# Shows a stable symlink plus the current ttyUSB target
+ls -la /dev/serial/by-id/
+
+# Or list connected USB devices and look for the serial chip
+lsusb | grep -iE 'ch340|cp210|silicon|qinheng'
+```
+
+**Permissions** — your user needs access to the serial device's group, which
+varies by distro:
+
+```bash
+# Debian / Ubuntu (dialout group)
+sudo usermod -aG dialout $USER
+
+# Arch (uucp group)
+sudo usermod -aG uucp $USER
+```
+
+Log out and back in (or `newgrp <group>`) to apply. Without this, both
+`pio run --target upload` and the companion app will fail to open the port
+(`could not open port` / `Permission denied`).
+
+The companion app auto-detects the port by first matching known ESP32 USB
+vendor IDs, falling back to the first `/dev/ttyUSB*` or `/dev/ttyACM*` found
+(see `find_port()` in `companion/main.py`). If you have multiple USB-serial
+devices connected, pass `--port` explicitly to avoid ambiguity.
 
 ---
 

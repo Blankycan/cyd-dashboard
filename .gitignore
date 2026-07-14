@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 *.pyo
 companion/__pycache__/
+.venv/
