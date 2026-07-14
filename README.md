@@ -262,11 +262,24 @@ journalctl --user -u cyd-dashboard -f
 
 ---
 
-## Colour palette
+## Colour themes
 
-All colours live in `src/theme.h`. Edit the `PAL_*` defines there to retheme
-the entire firmware.
+Each theme is a standalone palette file under `src/themes/`. `src/theme.h` is
+a small selector that pulls in whichever one is active — pick it by editing
+`CYD_THEME` in `src/config.h`:
 
+```c
+#define CYD_THEME  CYD_THEME_GRAPE_EMBER
+```
+
+then rebuild and reflash. Available themes:
+
+| `CYD_THEME` value        | File                        | Look                                     |
+| ------------------------- | ---------------------------- | ------------------------------------------ |
+| `CYD_THEME_FOREST`        | `src/themes/forest.h`        | Warm dark forest green, sage/cream text    |
+| `CYD_THEME_GRAPE_EMBER`   | `src/themes/grape-ember.h`   | Dark purple, orange accents                |
+
+**Forest** — `src/themes/forest.h`:
 
 | Role           | Hex       | Description            |
 | -------------- | --------- | ---------------------- |
@@ -280,6 +293,24 @@ the entire firmware.
 | Alert (>90%)   | `#E07A5F` | Terracotta             |
 | Accent / glow  | `#E9C46A` | Warm gold              |
 
+**Grape Ember** — `src/themes/grape-ember.h`:
+
+| Role           | Hex       | Description       |
+| -------------- | --------- | ----------------- |
+| Background     | `#200D26` | Deep grape         |
+| Panel          | `#31173B` | Dark violet cards  |
+| Border         | `#652D80` | Vivid purple       |
+| Primary text   | `#F5EBF9` | Near-white lilac   |
+| Secondary text | `#D4A3E0` | Soft orchid        |
+| Dim text       | `#84509B` | Muted purple       |
+| OK / connected | `#6FCF97` | Soft green         |
+| Warning (>70%) | `#F2A65A` | Amber orange       |
+| Alert (>90%)   | `#FF4D6D` | Vivid coral-red    |
+| Accent / glow  | `#FF8A3D` | Vivid orange       |
+
+**Adding a new theme**: copy `src/themes/forest.h` to `src/themes/<name>.h`,
+edit its `PAL_*` defines, add a `CYD_THEME_<NAME>` id in `config.h`, and add a
+matching `#include` branch in `theme.h`.
 
 ---
 
@@ -298,7 +329,10 @@ src/                ESP32 firmware (Arduino / PlatformIO)
   config.h          User-tunable settings (timeouts, brightness, token bar ceiling)
   layout.h          Panel geometry and hardware wiring constants
   state.h           Shared DashState struct populated from serial packets
-  theme.h           Colour palette
+  theme.h           Colour theme selector (includes the active themes/*.h)
+  themes/           Standalone colour palettes — see Colour themes above
+    forest.h        Warm dark forest green (original)
+    grape-ember.h   Dark purple, orange accents
   ui_helpers.h/cpp  Shared LVGL widget factories and formatters
   main.cpp          Hardware init, sleep overlay, packet handler, setup/loop
   widgets/
