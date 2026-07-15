@@ -77,7 +77,11 @@
 #define COL_TOPBAR_CLOCK      LVC(0x1A0010)
 #define COL_TOPBAR_DATE       LVC(0x550035)
 
-#define COL_MUSIC_ICON_PLAY   LVC(PAL_GLOW)
+#define COL_MUSIC_ICON_PLAY   LVC(PAL_OK)
+
+#define COL_CLAUDE_TOKENS_OUT   LVC(PAL_GLOW)
+#define COL_CLAUDE_TOK_BAR_FILL LVC(PAL_GLOW)
+#define COL_CLAUDE_TOK_BAR_BG   LVC(0x1A0020)
 
 // -----------------------------------------------------------------------------
 // RGB565 MACROS  (use these for any direct TFT_eSPI drawing outside LVGL)
