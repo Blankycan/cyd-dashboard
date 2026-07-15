@@ -61,6 +61,36 @@ lv_obj_t *make_dot(lv_obj_t *parent, int x, int y, lv_color_t col) {
 // Formatting & color helpers
 // ---------------------------------------------------------------------------
 
+BarRow make_bar_row(lv_obj_t *parent, int x, int y, int w, const char *key,
+                    lv_color_t key_col, lv_color_t val_col,
+                    lv_color_t extra_col, lv_color_t bar_bg) {
+    BarRow r;
+
+    r.lbl_key = lv_label_create(parent);
+    lv_label_set_text(r.lbl_key, key);
+    lv_obj_set_style_text_color(r.lbl_key, key_col, 0);
+    lv_obj_set_style_text_font(r.lbl_key, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(r.lbl_key, x, y);
+
+    r.lbl_val = lv_label_create(parent);
+    lv_label_set_text(r.lbl_val, "--");
+    lv_obj_set_style_text_color(r.lbl_val, val_col, 0);
+    lv_obj_set_style_text_font(r.lbl_val, &lv_font_montserrat_12, 0);
+    lv_obj_set_pos(r.lbl_val, x + 28, y);
+
+    r.lbl_extra = lv_label_create(parent);
+    lv_label_set_text(r.lbl_extra, "");
+    lv_obj_set_style_text_color(r.lbl_extra, extra_col, 0);
+    lv_obj_set_style_text_font(r.lbl_extra, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_align(r.lbl_extra, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_pos(r.lbl_extra, x + w - 70, y);
+    lv_obj_set_width(r.lbl_extra, 70);
+
+    r.bar = make_bar(parent, x, y + 14, w, 5, bar_bg);
+
+    return r;
+}
+
 void make_placeholder(lv_obj_t *parent, const char *text) {
     lv_obj_t *lbl = lv_label_create(parent);
     lv_label_set_text(lbl, text);

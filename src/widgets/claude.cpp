@@ -14,12 +14,8 @@ static lv_obj_t *lbl_claude_in   = nullptr;
 static lv_obj_t *lbl_claude_sess = nullptr;
 
 // Rate-limit section
-static lv_obj_t *lbl_h5_pct   = nullptr;
-static lv_obj_t *lbl_h5_reset = nullptr;
-static lv_obj_t *bar_h5       = nullptr;
-static lv_obj_t *lbl_w7_pct   = nullptr;
-static lv_obj_t *lbl_w7_reset = nullptr;
-static lv_obj_t *bar_w7       = nullptr;
+static BarRow row_h5;
+static BarRow row_w7;
 
 void build_claude_panel(lv_obj_t *parent) {
     // --- Header ---
@@ -67,49 +63,15 @@ void build_claude_panel(lv_obj_t *parent) {
     make_hdiv(parent, 70, 8, PANEL_W - 16, COL_CLAUDE_DIVIDER);
 
     // --- Rate-limit section ---
-    lv_obj_t *l5h = lv_label_create(parent);
-    lv_label_set_text(l5h, "5h");
-    lv_obj_set_style_text_color(l5h, COL_CLAUDE_H5_LABEL, 0);
-    lv_obj_set_style_text_font(l5h, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(l5h, 8, 76);
+    row_h5 = make_bar_row(parent, 8, 76, PANEL_W - 16, "5h",
+                           COL_CLAUDE_H5_LABEL, COL_CLAUDE_H5_LABEL,
+                           COL_CLAUDE_H5_RESET, COL_CLAUDE_H5_BAR_BG);
+    lv_obj_set_style_bg_color(row_h5.bar, COL_CLAUDE_H5_BAR_FILL, LV_PART_INDICATOR);
 
-    lbl_h5_pct = lv_label_create(parent);
-    lv_label_set_text(lbl_h5_pct, "--");
-    lv_obj_set_style_text_font(lbl_h5_pct, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl_h5_pct, 30, 76);
-
-    lbl_h5_reset = lv_label_create(parent);
-    lv_label_set_text(lbl_h5_reset, "--");
-    lv_obj_set_style_text_color(lbl_h5_reset, COL_CLAUDE_H5_RESET, 0);
-    lv_obj_set_style_text_font(lbl_h5_reset, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_align(lbl_h5_reset, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_h5_reset, PANEL_W - 78, 76);
-    lv_obj_set_width(lbl_h5_reset, 70);
-
-    bar_h5 = make_bar(parent, 8, 90, PANEL_W - 16, 5, COL_CLAUDE_H5_BAR_BG);
-    lv_obj_set_style_bg_color(bar_h5, COL_CLAUDE_H5_BAR_FILL, LV_PART_INDICATOR);
-
-    lv_obj_t *l7d = lv_label_create(parent);
-    lv_label_set_text(l7d, "7d");
-    lv_obj_set_style_text_color(l7d, COL_CLAUDE_W7_LABEL, 0);
-    lv_obj_set_style_text_font(l7d, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(l7d, 8, 100);
-
-    lbl_w7_pct = lv_label_create(parent);
-    lv_label_set_text(lbl_w7_pct, "--");
-    lv_obj_set_style_text_font(lbl_w7_pct, &lv_font_montserrat_12, 0);
-    lv_obj_set_pos(lbl_w7_pct, 30, 100);
-
-    lbl_w7_reset = lv_label_create(parent);
-    lv_label_set_text(lbl_w7_reset, "--");
-    lv_obj_set_style_text_color(lbl_w7_reset, COL_CLAUDE_W7_RESET, 0);
-    lv_obj_set_style_text_font(lbl_w7_reset, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_align(lbl_w7_reset, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_w7_reset, PANEL_W - 78, 100);
-    lv_obj_set_width(lbl_w7_reset, 70);
-
-    bar_w7 = make_bar(parent, 8, 114, PANEL_W - 16, 5, COL_CLAUDE_W7_BAR_BG);
-    lv_obj_set_style_bg_color(bar_w7, COL_CLAUDE_W7_BAR_FILL, LV_PART_INDICATOR);
+    row_w7 = make_bar_row(parent, 8, 100, PANEL_W - 16, "7d",
+                           COL_CLAUDE_W7_LABEL, COL_CLAUDE_W7_LABEL,
+                           COL_CLAUDE_W7_RESET, COL_CLAUDE_W7_BAR_BG);
+    lv_obj_set_style_bg_color(row_w7.bar, COL_CLAUDE_W7_BAR_FILL, LV_PART_INDICATOR);
 }
 
 void update_claude_ui() {
@@ -148,28 +110,28 @@ void update_claude_ui() {
 
     // Rate-limit section
     if (state.claude_h5_pct < 0) {
-        lv_label_set_text(lbl_h5_pct, "--");
-        lv_obj_set_style_text_color(lbl_h5_pct, COL_CLAUDE_H5_LABEL, 0);
+        lv_label_set_text(row_h5.lbl_val, "--");
+        lv_obj_set_style_text_color(row_h5.lbl_val, COL_CLAUDE_H5_LABEL, 0);
     } else {
         snprintf(buf, sizeof(buf), "%d%%", state.claude_h5_pct);
-        lv_label_set_text(lbl_h5_pct, buf);
-        lv_obj_set_style_text_color(lbl_h5_pct, pct_col3(state.claude_h5_pct, COL_CLAUDE_H5_BAR_FILL, COL_CLAUDE_H5_BAR_WARN, COL_CLAUDE_H5_BAR_ALERT), 0);
+        lv_label_set_text(row_h5.lbl_val, buf);
+        lv_obj_set_style_text_color(row_h5.lbl_val, pct_col3(state.claude_h5_pct, COL_CLAUDE_H5_BAR_FILL, COL_CLAUDE_H5_BAR_WARN, COL_CLAUDE_H5_BAR_ALERT), 0);
     }
     fmt_reset(buf, sizeof(buf), state.claude_h5_secs);
-    lv_label_set_text(lbl_h5_reset, buf);
-    lv_bar_set_value(bar_h5, (state.claude_h5_pct < 0) ? 0 : state.claude_h5_pct, LV_ANIM_OFF);
-    lv_obj_set_style_bg_color(bar_h5, pct_col3(state.claude_h5_pct, COL_CLAUDE_H5_BAR_FILL, COL_CLAUDE_H5_BAR_WARN, COL_CLAUDE_H5_BAR_ALERT), LV_PART_INDICATOR);
+    lv_label_set_text(row_h5.lbl_extra, buf);
+    lv_bar_set_value(row_h5.bar, (state.claude_h5_pct < 0) ? 0 : state.claude_h5_pct, LV_ANIM_OFF);
+    lv_obj_set_style_bg_color(row_h5.bar, pct_col3(state.claude_h5_pct, COL_CLAUDE_H5_BAR_FILL, COL_CLAUDE_H5_BAR_WARN, COL_CLAUDE_H5_BAR_ALERT), LV_PART_INDICATOR);
 
     if (state.claude_w7_pct < 0) {
-        lv_label_set_text(lbl_w7_pct, "--");
-        lv_obj_set_style_text_color(lbl_w7_pct, COL_CLAUDE_W7_LABEL, 0);
+        lv_label_set_text(row_w7.lbl_val, "--");
+        lv_obj_set_style_text_color(row_w7.lbl_val, COL_CLAUDE_W7_LABEL, 0);
     } else {
         snprintf(buf, sizeof(buf), "%d%%", state.claude_w7_pct);
-        lv_label_set_text(lbl_w7_pct, buf);
-        lv_obj_set_style_text_color(lbl_w7_pct, pct_col3(state.claude_w7_pct, COL_CLAUDE_W7_BAR_FILL, COL_CLAUDE_W7_BAR_WARN, COL_CLAUDE_W7_BAR_ALERT), 0);
+        lv_label_set_text(row_w7.lbl_val, buf);
+        lv_obj_set_style_text_color(row_w7.lbl_val, pct_col3(state.claude_w7_pct, COL_CLAUDE_W7_BAR_FILL, COL_CLAUDE_W7_BAR_WARN, COL_CLAUDE_W7_BAR_ALERT), 0);
     }
     fmt_reset(buf, sizeof(buf), state.claude_w7_secs);
-    lv_label_set_text(lbl_w7_reset, buf);
-    lv_bar_set_value(bar_w7, (state.claude_w7_pct < 0) ? 0 : state.claude_w7_pct, LV_ANIM_OFF);
-    lv_obj_set_style_bg_color(bar_w7, pct_col3(state.claude_w7_pct, COL_CLAUDE_W7_BAR_FILL, COL_CLAUDE_W7_BAR_WARN, COL_CLAUDE_W7_BAR_ALERT), LV_PART_INDICATOR);
+    lv_label_set_text(row_w7.lbl_extra, buf);
+    lv_bar_set_value(row_w7.bar, (state.claude_w7_pct < 0) ? 0 : state.claude_w7_pct, LV_ANIM_OFF);
+    lv_obj_set_style_bg_color(row_w7.bar, pct_col3(state.claude_w7_pct, COL_CLAUDE_W7_BAR_FILL, COL_CLAUDE_W7_BAR_WARN, COL_CLAUDE_W7_BAR_ALERT), LV_PART_INDICATOR);
 }
