@@ -6,7 +6,7 @@
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// RAW PALETTE  (24-bit RGB hex)
+// LEVEL 1 — RAW PALETTE  (24-bit RGB hex)
 // -----------------------------------------------------------------------------
 
 #define PAL_GLOW        0xFF007F  // hot rose          — sparks, active accents
@@ -29,7 +29,7 @@
 #define PAL_BAR_TRACK   0x3D0025  // dark rose         — progress bar background
 
 // -----------------------------------------------------------------------------
-// LVGL COLOR MACROS  (use these everywhere in firmware UI code)
+// LEVEL 1 — LVGL COLOR MACROS  (use these everywhere in firmware UI code)
 // lv_color_hex() accepts 0xRRGGBB and handles RGB565 conversion internally.
 // -----------------------------------------------------------------------------
 #include <lvgl.h>
@@ -52,9 +52,32 @@
 
 #define COL_GLOW            LVC(PAL_GLOW)
 
-// Topbar text sits on the bright PAL_PANEL background, so it needs dark colours.
-#define COL_TOPBAR_TEXT_PRI LVC(0x1A0010)
-#define COL_TOPBAR_TEXT_DIM LVC(0x550035)
+// -----------------------------------------------------------------------------
+// LEVEL 2 — Per-widget semantic tokens
+// Derived from palette; override per-widget appearance without touching PAL_*.
+// -----------------------------------------------------------------------------
+
+#define COL_TITLE           LVC(PAL_TEXT_PRI)
+#define COL_DIVIDER_INNER   LVC(PAL_DIVIDER)
+#define COL_BAR_BG          LVC(PAL_BAR_TRACK)
+#define COL_BAR_FILL        LVC(PAL_OK)
+#define COL_BAR_WARN        LVC(PAL_WARN)
+#define COL_BAR_ALERT       LVC(PAL_ALERT)
+#define COL_BAR_INACTIVE    LVC(PAL_TEXT_DIM)
+#define COL_BAR_LABEL       LVC(PAL_TEXT_DIM)
+#define COL_BAR_VALUE       LVC(PAL_OK)
+#define COL_BAR_EXTRA       LVC(PAL_TEXT_DIM)
+
+// -----------------------------------------------------------------------------
+// LEVEL 3 — Per-widget overrides specific to Neon Rose
+// Topbar sits on the bright PAL_PANEL pink so needs dark text colours.
+// -----------------------------------------------------------------------------
+
+#define COL_TOPBAR_BG         LVC(PAL_PANEL)
+#define COL_TOPBAR_CLOCK      LVC(0x1A0010)
+#define COL_TOPBAR_DATE       LVC(0x550035)
+
+#define COL_MUSIC_ICON_PLAY   LVC(PAL_GLOW)
 
 // -----------------------------------------------------------------------------
 // RGB565 MACROS  (use these for any direct TFT_eSPI drawing outside LVGL)

@@ -2,6 +2,7 @@
 #include "../layout.h"
 #include "../state.h"
 #include "../theme.h"
+#include "../ui_helpers.h"
 
 // ---------------------------------------------------------------------------
 // Music animation state machine
@@ -50,11 +51,11 @@ static void build_ma_notes(lv_obj_t *ctr) {
     lv_obj_set_style_border_width(grp, 0, 0);
     lv_obj_clear_flag(grp, LV_OBJ_FLAG_SCROLLABLE);
 
-    ma_rect(grp, 10, 4, 20, 4, COL_GLOW, 0);   // beam
-    ma_rect(grp, 10, 4,  2, 22, COL_GLOW, 0);  // stem 1
-    ma_rect(grp,  5, 23, 6,  5, COL_GLOW, 3);  // head 1
-    ma_rect(grp, 28, 4,  2, 16, COL_GLOW, 0);  // stem 2
-    ma_rect(grp, 23, 17, 6,  5, COL_GLOW, 3);  // head 2
+    ma_rect(grp, 10, 4, 20, 4, COL_MUSIC_ICON_PLAY, 0);   // beam
+    ma_rect(grp, 10, 4,  2, 22, COL_MUSIC_ICON_PLAY, 0);  // stem 1
+    ma_rect(grp,  5, 23, 6,  5, COL_MUSIC_ICON_PLAY, 3);  // head 1
+    ma_rect(grp, 28, 4,  2, 16, COL_MUSIC_ICON_PLAY, 0);  // stem 2
+    ma_rect(grp, 23, 17, 6,  5, COL_MUSIC_ICON_PLAY, 3);  // head 2
 
     lv_anim_t a;
     lv_anim_init(&a);
@@ -71,8 +72,8 @@ static void build_ma_notes(lv_obj_t *ctr) {
 // Two vertical bars — shown when a track is loaded but paused
 static void build_ma_pause(lv_obj_t *ctr) {
     int bar_h = 22, bar_y = (MUSIC_H - bar_h) / 2;
-    ma_rect(ctr, 10, bar_y, 5, bar_h, COL_TEXT_SEC, 2);
-    ma_rect(ctr, 22, bar_y, 5, bar_h, COL_TEXT_SEC, 2);
+    ma_rect(ctr, 10, bar_y, 5, bar_h, COL_MUSIC_ICON_PAUSE, 2);
+    ma_rect(ctr, 22, bar_y, 5, bar_h, COL_MUSIC_ICON_PAUSE, 2);
 }
 
 // Swaying grass blades — default when disconnected or no music
@@ -84,7 +85,7 @@ static void build_ma_grass(lv_obj_t *ctr) {
     const int y_bot = MUSIC_H - 6;
 
     for (int i = 0; i < 3; i++) {
-        lv_obj_t *blade = ma_rect(ctr, bx[i], y_bot - bh[i], 3, bh[i], COL_OK, 2);
+        lv_obj_t *blade = ma_rect(ctr, bx[i], y_bot - bh[i], 3, bh[i], COL_MUSIC_ICON_IDLE, 2);
 
         lv_anim_t a;
         lv_anim_init(&a);
@@ -126,19 +127,11 @@ static void set_music_anim(MusicAnim next) {
 }
 
 void build_music_panel(lv_obj_t *parent) {
-    dot_music = lv_obj_create(parent);
-    lv_obj_remove_style_all(dot_music);
-    lv_obj_set_size(dot_music, 6, 6);
-    lv_obj_set_pos(dot_music, 8, 12);
-    lv_obj_set_style_bg_color(dot_music, COL_TEXT_DIM, 0);
-    lv_obj_set_style_bg_opa(dot_music, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(dot_music, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(dot_music, 0, 0);
-    lv_obj_clear_flag(dot_music, LV_OBJ_FLAG_SCROLLABLE);
+    dot_music = make_dot(parent, 8, 12, COL_MUSIC_DOT_IDLE);
 
     lbl_music_title = lv_label_create(parent);
     lv_label_set_text(lbl_music_title, "nothing playing");
-    lv_obj_set_style_text_color(lbl_music_title, COL_TEXT_DIM, 0);
+    lv_obj_set_style_text_color(lbl_music_title, COL_MUSIC_DOT_IDLE, 0);
     lv_obj_set_style_text_font(lbl_music_title, &lv_font_montserrat_14, 0);
     lv_obj_set_pos(lbl_music_title, 22, 8);
     lv_obj_set_width(lbl_music_title, MUSIC_LABEL_W);
@@ -146,7 +139,7 @@ void build_music_panel(lv_obj_t *parent) {
 
     lbl_music_artist = lv_label_create(parent);
     lv_label_set_text(lbl_music_artist, "");
-    lv_obj_set_style_text_color(lbl_music_artist, COL_TEXT_SEC, 0);
+    lv_obj_set_style_text_color(lbl_music_artist, COL_MUSIC_TEXT, 0);
     lv_obj_set_style_text_font(lbl_music_artist, &lv_font_montserrat_12, 0);
     lv_obj_set_pos(lbl_music_artist, 22, 30);
     lv_obj_set_width(lbl_music_artist, MUSIC_LABEL_W);
@@ -177,18 +170,18 @@ void update_music_ui() {
     set_music_anim(anim);
 
     if (state.music_active) {
-        lv_color_t dc = state.music_playing ? COL_OK : COL_TEXT_DIM;
+        lv_color_t dc = state.music_playing ? COL_MUSIC_DOT_PLAYING : COL_MUSIC_DOT_IDLE;
         lv_obj_set_style_bg_color(dot_music, dc, 0);
         lv_label_set_text(lbl_music_title, state.music_title);
         lv_obj_set_style_text_color(lbl_music_title,
-            state.music_playing ? COL_TEXT_PRI : COL_TEXT_SEC, 0);
+            state.music_playing ? COL_MUSIC_TITLE : COL_MUSIC_DOT_IDLE, 0);
         lv_label_set_text(lbl_music_artist, state.music_artist);
-        lv_obj_set_style_text_color(lbl_music_artist, COL_TEXT_SEC, 0);
+        lv_obj_set_style_text_color(lbl_music_artist, COL_MUSIC_TEXT, 0);
     } else {
-        lv_obj_set_style_bg_color(dot_music, COL_TEXT_DIM, 0);
+        lv_obj_set_style_bg_color(dot_music, COL_MUSIC_DOT_IDLE, 0);
         lv_label_set_text(lbl_music_title, "nothing playing");
-        lv_obj_set_style_text_color(lbl_music_title, COL_TEXT_DIM, 0);
+        lv_obj_set_style_text_color(lbl_music_title, COL_MUSIC_DOT_IDLE, 0);
         lv_label_set_text(lbl_music_artist, state.idle_msg);
-        lv_obj_set_style_text_color(lbl_music_artist, COL_TEXT_DIM, 0);
+        lv_obj_set_style_text_color(lbl_music_artist, COL_MUSIC_DOT_IDLE, 0);
     }
 }

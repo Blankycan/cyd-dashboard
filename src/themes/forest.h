@@ -53,6 +53,22 @@
 #define COL_GLOW            LVC(PAL_GLOW)
 
 // -----------------------------------------------------------------------------
+// LEVEL 2 — Per-widget semantic tokens
+// Derived from palette; override per-widget appearance without touching PAL_*.
+// -----------------------------------------------------------------------------
+
+#define COL_TITLE           LVC(PAL_TEXT_PRI)
+#define COL_DIVIDER_INNER   LVC(PAL_DIVIDER)
+#define COL_BAR_BG          LVC(PAL_BAR_TRACK)
+#define COL_BAR_FILL        LVC(PAL_OK)
+#define COL_BAR_WARN        LVC(PAL_WARN)
+#define COL_BAR_ALERT       LVC(PAL_ALERT)
+#define COL_BAR_INACTIVE    LVC(PAL_TEXT_DIM)
+#define COL_BAR_LABEL       LVC(PAL_TEXT_DIM)
+#define COL_BAR_VALUE       LVC(PAL_OK)
+#define COL_BAR_EXTRA       LVC(PAL_TEXT_DIM)
+
+// -----------------------------------------------------------------------------
 // RGB565 MACROS  (use these for any direct TFT_eSPI drawing outside LVGL)
 // -----------------------------------------------------------------------------
 #define _R5(hex)  (((hex) >> 19) & 0x1F)

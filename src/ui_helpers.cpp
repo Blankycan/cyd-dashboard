@@ -6,26 +6,26 @@
 // LVGL widget factories
 // ---------------------------------------------------------------------------
 
-lv_obj_t *make_panel(lv_obj_t *parent, int x, int y, int w, int h) {
+lv_obj_t *make_panel(lv_obj_t *parent, int x, int y, int w, int h, lv_color_t bg) {
     lv_obj_t *p = lv_obj_create(parent);
     lv_obj_remove_style_all(p);
     lv_obj_set_pos(p, x, y);
     lv_obj_set_size(p, w, h);
-    lv_obj_set_style_bg_color(p, COL_BG, 0);
+    lv_obj_set_style_bg_color(p, bg, 0);
     lv_obj_set_style_bg_opa(p, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(p, 0, 0);
     lv_obj_clear_flag(p, LV_OBJ_FLAG_SCROLLABLE);
     return p;
 }
 
-lv_obj_t *make_bar(lv_obj_t *parent, int x, int y, int w, int h) {
+lv_obj_t *make_bar(lv_obj_t *parent, int x, int y, int w, int h, lv_color_t bg) {
     lv_obj_t *bar = lv_bar_create(parent);
     lv_obj_remove_style_all(bar);
     lv_obj_set_size(bar, w, h);
     lv_obj_set_pos(bar, x, y);
     lv_bar_set_range(bar, 0, 100);
     lv_obj_set_style_radius(bar, 2, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(bar, COL_BAR_TRACK, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(bar, bg, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_radius(bar, 2, LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(bar, COL_OK, LV_PART_INDICATOR);
@@ -33,15 +33,28 @@ lv_obj_t *make_bar(lv_obj_t *parent, int x, int y, int w, int h) {
     return bar;
 }
 
-void make_hdiv(lv_obj_t *parent, int y, int x, int w) {
+void make_hdiv(lv_obj_t *parent, int y, int x, int w, lv_color_t col) {
     lv_obj_t *div = lv_obj_create(parent);
     lv_obj_remove_style_all(div);
     lv_obj_set_size(div, w, 1);
     lv_obj_set_pos(div, x, y);
-    lv_obj_set_style_bg_color(div, COL_DIVIDER, 0);
+    lv_obj_set_style_bg_color(div, col, 0);
     lv_obj_set_style_bg_opa(div, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(div, 0, 0);
     lv_obj_clear_flag(div, LV_OBJ_FLAG_SCROLLABLE);
+}
+
+lv_obj_t *make_dot(lv_obj_t *parent, int x, int y, lv_color_t col) {
+    lv_obj_t *d = lv_obj_create(parent);
+    lv_obj_remove_style_all(d);
+    lv_obj_set_size(d, 6, 6);
+    lv_obj_set_pos(d, x, y);
+    lv_obj_set_style_bg_color(d, col, 0);
+    lv_obj_set_style_bg_opa(d, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(d, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(d, 0, 0);
+    lv_obj_clear_flag(d, LV_OBJ_FLAG_SCROLLABLE);
+    return d;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,17 +69,25 @@ void make_placeholder(lv_obj_t *parent, const char *text) {
     lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
 }
 
+lv_color_t pct_color3(int pct, lv_color_t fill, lv_color_t warn, lv_color_t alert) {
+    if (pct >= 90) return alert;
+    if (pct >= 70) return warn;
+    return fill;
+}
+
+lv_color_t pct_col3(int pct, lv_color_t fill, lv_color_t warn, lv_color_t alert) {
+    if (pct < 0)   return fill;
+    if (pct >= 90) return alert;
+    if (pct >= 70) return warn;
+    return fill;
+}
+
 lv_color_t pct_color(int pct) {
-    if (pct >= 90) return COL_ALERT;
-    if (pct >= 70) return COL_WARN;
-    return COL_OK;
+    return pct_color3(pct, COL_BAR_FILL, COL_BAR_WARN, COL_BAR_ALERT);
 }
 
 lv_color_t pct_col(int pct) {
-    if (pct < 0)   return COL_TEXT_DIM;
-    if (pct >= 90) return COL_ALERT;
-    if (pct >= 70) return COL_WARN;
-    return COL_OK;
+    return pct_col3(pct, COL_BAR_FILL, COL_BAR_WARN, COL_BAR_ALERT);
 }
 
 void fmt_k(char *buf, size_t sz, int32_t n) {

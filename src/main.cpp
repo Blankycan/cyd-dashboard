@@ -11,9 +11,9 @@
 #include "theme.h"
 #include "widgets/topbar.h"
 #include "widgets/music.h"
-#include "widgets/stats.h"
+#include "widgets/system.h"
 #include "widgets/claude.h"
-#include "widgets/indicator.h"
+#include "widgets/status.h"
 
 // CYD Dashboard firmware entry point.
 // Host PC sends JSON stats over serial (115200); LVGL renders the UI on the TFT.
@@ -205,28 +205,28 @@ static void build_panels(lv_obj_t *scr) {
 
     lv_obj_t *p;
 
-    p = make_panel(scr, 0, y, SCREEN_W, MUSIC_H);
+    p = make_panel(scr, 0, y, SCREEN_W, MUSIC_H, COL_MUSIC_BG);
     build_music_panel(p);
     y += MUSIC_H;
 
-    make_hdiv(scr, y, 0, SCREEN_W);
+    make_hdiv(scr, y, 0, SCREEN_W, COL_DIVIDER);
     y += DIV_W;
 
-    p = make_panel(scr, 0, y, SCREEN_W, STATS_H);
-    build_stats_panel(p);
+    p = make_panel(scr, 0, y, SCREEN_W, STATS_H, COL_SYSTEM_BG);
+    build_system_panel(p);
     y += STATS_H;
 
-    make_hdiv(scr, y, 0, SCREEN_W);
+    make_hdiv(scr, y, 0, SCREEN_W, COL_DIVIDER);
     y += DIV_W;
 
-    p = make_panel(scr, 0, y, SCREEN_W, CLAUDE_H);
+    p = make_panel(scr, 0, y, SCREEN_W, CLAUDE_H, COL_CLAUDE_BG);
     build_claude_panel(p);
     y += CLAUDE_H;
 
-    make_hdiv(scr, y, 0, SCREEN_W);
+    make_hdiv(scr, y, 0, SCREEN_W, COL_DIVIDER);
 
-    p = make_panel(scr, 0, SCREEN_H - INDICATOR_H, SCREEN_W, INDICATOR_H);
-    build_indicator_panel(p);
+    p = make_panel(scr, 0, SCREEN_H - INDICATOR_H, SCREEN_W, INDICATOR_H, COL_STATUS_BG);
+    build_status_panel(p);
 }
 
 static void build_dashboard() {
@@ -253,8 +253,8 @@ static void show_disconnected() {
     state.claude_out = 0; state.claude_inp = 0; state.claude_sessions = 0;
     state.claude_h5_pct = -1; state.claude_h5_secs = -1;
     state.claude_w7_pct = -1; state.claude_w7_secs = -1;
-    update_stats_ui();
-    stats_show_disconnected();
+    update_system_ui();
+    system_show_disconnected();
     update_music_ui();
     update_claude_ui();
     update_status_ui();
@@ -326,7 +326,7 @@ static void handle_packet(const String &line) {
         }
 
         update_topbar_ui();
-        update_stats_ui();
+        update_system_ui();
         update_music_ui();
         update_claude_ui();
         update_status_ui();
