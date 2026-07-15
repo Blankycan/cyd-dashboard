@@ -11,8 +11,9 @@
 #define CYD_THEME_FOREST        1
 #define CYD_THEME_GRAPE_EMBER   2
 #define CYD_THEME_NEON_ROSE     3
+#define CYD_THEME_RAINBOW       4
 
-#define CYD_THEME  CYD_THEME_NEON_ROSE
+#define CYD_THEME  CYD_THEME_RAINBOW
 
 // Sleep & backlight --------------------------------------------------------
 // Inactivity time before the display dims (milliseconds)

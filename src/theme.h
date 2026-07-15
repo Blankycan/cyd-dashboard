@@ -13,6 +13,8 @@
     #include "themes/grape-ember.h"
 #elif CYD_THEME == CYD_THEME_NEON_ROSE
     #include "themes/neon-rose.h"
+#elif CYD_THEME == CYD_THEME_RAINBOW
+    #include "themes/rainbow.h"
 #else
     #include "themes/forest.h"
 #endif
