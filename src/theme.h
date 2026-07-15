@@ -11,6 +11,14 @@
 
 #if CYD_THEME == CYD_THEME_GRAPE_EMBER
     #include "themes/grape-ember.h"
+#elif CYD_THEME == CYD_THEME_NEON_ROSE
+    #include "themes/neon-rose.h"
 #else
     #include "themes/forest.h"
+#endif
+
+// Themes that don't distinguish topbar text fall back to normal text colours.
+#ifndef COL_TOPBAR_TEXT_PRI
+#define COL_TOPBAR_TEXT_PRI COL_TEXT_PRI
+#define COL_TOPBAR_TEXT_DIM COL_TEXT_DIM
 #endif

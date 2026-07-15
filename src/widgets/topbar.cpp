@@ -15,13 +15,13 @@ void build_topbar(lv_obj_t *scr) {
 
     lbl_time = lv_label_create(tb);
     lv_label_set_text(lbl_time, "--:--");
-    lv_obj_set_style_text_color(lbl_time, COL_TEXT_PRI, 0);
+    lv_obj_set_style_text_color(lbl_time, COL_TOPBAR_TEXT_PRI, 0);
     lv_obj_set_style_text_font(lbl_time, &lv_font_montserrat_20, 0);
     lv_obj_align(lbl_time, LV_ALIGN_LEFT_MID, 8, 0);
 
     lbl_date = lv_label_create(tb);
     lv_label_set_text(lbl_date, "");
-    lv_obj_set_style_text_color(lbl_date, COL_TEXT_DIM, 0);
+    lv_obj_set_style_text_color(lbl_date, COL_TOPBAR_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl_date, &lv_font_montserrat_14, 0);
     lv_obj_align(lbl_date, LV_ALIGN_RIGHT_MID, -8, 0);
 }

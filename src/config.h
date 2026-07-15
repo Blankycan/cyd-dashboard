@@ -10,8 +10,9 @@
 // values, add a CYD_THEME_<NAME> id below, and wire it into theme.h.
 #define CYD_THEME_FOREST        1
 #define CYD_THEME_GRAPE_EMBER   2
+#define CYD_THEME_NEON_ROSE     3
 
-#define CYD_THEME  CYD_THEME_FOREST
+#define CYD_THEME  CYD_THEME_NEON_ROSE
 
 // Sleep & backlight --------------------------------------------------------
 // Inactivity time before the display dims (milliseconds)
