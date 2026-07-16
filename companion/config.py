@@ -18,3 +18,9 @@ MEDIA_POLL_INTERVAL = 3.0  # seconds between playerctl metadata polls
 # Claude token scanner -----------------------------------------------------
 SCAN_INTERVAL  = 60.0    # seconds between JSONL scans for today's token counts
 FETCH_INTERVAL = 300.0   # seconds between API calls for rate-limit headers
+
+# Claude activity hooks -----------------------------------------------------
+# A session's "active" entry older than this is treated as an orphan (e.g.
+# a session that crashed without firing its Stop hook) and ignored, so a
+# stale entry can't inflate the working-session count forever.
+ACTIVITY_STALE_SECS = 7200

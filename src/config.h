@@ -31,3 +31,11 @@
 // saturates if you go beyond it.  500 000 suits moderate-heavy daily use;
 // raise to 1 000 000 if you consistently hit the ceiling.
 #define CLAUDE_TOK_MAX        500000
+
+// Claude working-session dots ------------------------------------------------
+// One small dot per currently-active Claude Code session, shown to the
+// right of the "claude" label. Requires the hooks installed by
+// install_claude_activity_hooks.sh — see companion/claude_activity.py.
+#define CLAUDE_SESSION_MAX_DOTS   8      // how many concurrent sessions to show before collapsing to "+"
+#define CLAUDE_SESSION_BREATH_MS  1500   // full fade cycle while a session is active
+#define CLAUDE_SESSION_HOLD_MS    4000   // how long a finished dot holds idle color before it vanishes

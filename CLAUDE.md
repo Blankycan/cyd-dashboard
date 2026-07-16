@@ -32,6 +32,11 @@ python main.py --port /dev/ttyUSB1
 ./install_companion_as_service.sh          # idempotent; re-run after changing deps/venv path
 systemctl --user restart cyd-dashboard     # after plain code edits to companion/
 journalctl --user -u cyd-dashboard -f
+./uninstall_companion_as_service.sh        # stop + disable + remove the unit file
+
+# Companion: opt-in Claude Code hooks (enables the Claude panel's working-session dots)
+./install_claude_activity_hooks.sh         # idempotent; edits ~/.claude/settings.json machine-wide
+./uninstall_claude_activity_hooks.sh       # removes only the cyd-dashboard hook entries
 ```
 
 There is no test suite and no linter configured for either side — nothing to run
@@ -63,7 +68,7 @@ between the packet handler and every widget's update function.
 
 Panels live under `src/widgets/`, stacked top-to-bottom by `build_panels()` in
 `main.cpp`: `topbar` (clock/date) → `music` (now-playing + animated icon) →
-`system` (CPU/RAM/WPM bars) → `claude` (token counts + rate-limit bars) →
+`system` (CPU/RAM/WPM bars) → `claude` (token counts, rate-limit bars, and opt-in working-session dots) →
 `status` (connection dot + IP). Each widget pairs a `.h`/`.cpp`: the `.h`
 declares `build_<name>_panel()` and `update_<name>_ui()`; the `.cpp` builds LVGL
 objects once and mutates them in place on update (no rebuilding widgets per
@@ -110,6 +115,13 @@ background thread/state and `collect_stats()` never blocks on them:
   percentages. Auth is whichever of `~/.claude/.credentials.json` (OAuth from a
   `claude` login) or `ANTHROPIC_API_KEY` is available; if neither, rate-limit
   fields are omitted and the firmware hides that section.
+- `claude_activity.py` — `ClaudeActivityMonitor`, unlike the others, needs no
+  background thread: it just reads (mtime-cached) the small status file that
+  Claude Code itself keeps current via hooks (`hooks/session_touch.py`,
+  registered by `install_claude_activity_hooks.sh`), counting sessions
+  currently mid-turn. This is opt-in — if the hooks were never installed the
+  status file never appears, `working_count()` stays 0, and a one-line warning
+  is printed once at startup.
 
 `config.py` holds the tunables (poll `INTERVAL`, idle-message rotation
 interval, WPM window). `idle_messages.txt` is the pool of strings shown in the
@@ -126,3 +138,10 @@ and `collect_stats()` in `companion/main.py` for how it's assembled. The
 firmware acks each packet with `{"ack":true}` but the companion doesn't depend
 on it (non-blocking read, ignored on timeout). If you add a field to one side,
 update the other by hand — there's no shared schema.
+
+The `claude` sub-object's `working` field (count of sessions currently
+mid-turn, from `claude_activity.py`) is unrelated to its `sessions` field
+(count of distinct sessions with token activity *today*, from
+`claude_tokens.py`) — same object, two different counting mechanisms, kept
+as separate fields (`state.claude_working` vs `state.claude_sessions` in
+`state.h`) rather than merged.

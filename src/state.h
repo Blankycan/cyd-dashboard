@@ -30,7 +30,8 @@ struct DashState {
     // Claude usage (optional sub-object in stats packet)
     int32_t claude_out      = 0;     // output tokens today
     int32_t claude_inp      = 0;     // input tokens today
-    int     claude_sessions = 0;
+    int     claude_sessions = 0;     // distinct sessions with token activity *today* (JSONL scan)
+    int     claude_working  = 0;     // sessions *currently* mid-turn, live (hook-based, unrelated to claude_sessions)
     int  claude_h5_pct  = -1;          // 5-hour rate limit % (-1 = unavailable)
     int  claude_h5_secs = -1;          // seconds until 5h window resets
     int  claude_w7_pct  = -1;          // 7-day rate limit %

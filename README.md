@@ -71,6 +71,7 @@ seconds. The ESP32 parses it and updates the display.
 | Music              | `playerctl metadata` (MPRIS2)                                           |
 | Claude tokens      | Scans `~/.claude/projects/**/*.jsonl` for today's usage                 |
 | Claude rate limits | Single minimal API call to `api.anthropic.com` (reads response headers) |
+| Claude working     | Opt-in Claude Code hooks — see [Enabling Claude working-session dots](#enabling-claude-working-session-dots) |
 | Host IP            | `socket` — routes toward 8.8.8.8 to pick the right interface            |
 | Connection status  | Derived: connected = receiving packets; active = keyboard used recently |
 
@@ -277,6 +278,57 @@ changed dependencies or moved the venv, re-run `./install_companion_as_service.s
 instead (it's idempotent) so the service file's `ExecStart` interpreter path
 stays correct.
 
+To remove the service:
+
+```bash
+./uninstall_companion_as_service.sh
+```
+
+Stops and disables the service and removes its unit file. The companion app
+itself isn't touched — you can still run it directly (see above). Safe to
+re-run; does nothing if the service was never installed.
+
+---
+
+## Enabling Claude working-session dots
+
+The Claude panel can show a small dot per Claude Code session that's
+currently mid-turn (thinking or running tools), next to the existing
+rate-limit dot — see [Colour themes](#colour-themes) below for how that's
+rendered. This is opt-in and off by default, because detecting "is Claude
+working right now" isn't something Claude Code exposes passively — it
+requires registering [hooks](https://docs.claude.com/en/docs/claude-code/hooks)
+that fire on every prompt submit / turn end.
+
+```bash
+./install_claude_activity_hooks.sh
+```
+
+This edits `~/.claude/settings.json`, adding a `UserPromptSubmit` hook and a
+`Stop` hook that both point at `companion/hooks/session_touch.py` — a small
+stdlib-only script that tracks which sessions are currently active in
+`~/.cache/cyd-dashboard/claude_sessions.json`. It's idempotent (safe to
+re-run) and additive (backs up your existing settings file first and merges
+in alongside any hooks you already have configured).
+
+**This is a machine-wide change** — once installed, the hooks fire for
+*every* Claude Code session on the machine, not just ones related to this
+dashboard, since Claude Code has no concept of "which project cares about
+this." Already-open sessions may need to be restarted to pick up the new
+hooks. If the companion app is run without this installed, it prints a
+one-line warning and the working-session dots simply stay empty — nothing
+else is affected.
+
+```bash
+./uninstall_claude_activity_hooks.sh
+```
+
+This removes only the two hook entries referencing `session_touch.py` from
+`~/.claude/settings.json` (any other hooks you have configured are left
+untouched, and a timestamped backup is made first) and deletes
+`~/.cache/cyd-dashboard/`. Safe to re-run; does nothing if the hooks were
+never installed.
+
 ---
 
 ## Colour themes
@@ -370,6 +422,9 @@ companion/          Host-side Python app
   keyboard.py       evdev keypress monitor + WPM calculation
   media.py          playerctl MPRIS2 poller
   claude_tokens.py  JSONL scanner + API rate-limit fetcher
+  claude_activity.py  Reads the working-session status file (see hooks/ below)
+  hooks/
+    session_touch.py Claude Code hook script — marks a session active/idle
   idle_messages.txt Rotating messages shown when no music is playing
 
 src/                ESP32 firmware (Arduino / PlatformIO)

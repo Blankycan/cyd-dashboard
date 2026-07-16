@@ -251,6 +251,7 @@ static void show_disconnected() {
     state.cpu = 0; state.ram = 0; state.wpm = 0;
     state.active = false; state.music_active = false;
     state.claude_out = 0; state.claude_inp = 0; state.claude_sessions = 0;
+    state.claude_working = 0;
     state.claude_h5_pct = -1; state.claude_h5_secs = -1;
     state.claude_w7_pct = -1; state.claude_w7_secs = -1;
     update_system_ui();
@@ -319,6 +320,7 @@ static void handle_packet(const String &line) {
             state.claude_out      = claude_obj["out"]      | (int32_t)0;
             state.claude_inp      = claude_obj["inp"]      | (int32_t)0;
             state.claude_sessions = claude_obj["sessions"] | 0;
+            state.claude_working  = claude_obj["working"]  | 0;
             state.claude_h5_pct   = claude_obj["h5_pct"]  | -1;
             state.claude_h5_secs  = claude_obj["h5_secs"] | -1;
             state.claude_w7_pct   = claude_obj["w7_pct"]  | -1;

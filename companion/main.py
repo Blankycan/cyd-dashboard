@@ -16,6 +16,7 @@ import psutil
 import serial
 import serial.tools.list_ports
 
+from claude_activity import ClaudeActivityMonitor
 from claude_tokens import ClaudeTokenMonitor
 from config import INTERVAL, IDLE_MSG_INTERVAL
 from keyboard import KeyboardMonitor
@@ -72,7 +73,8 @@ def find_port() -> str | None:
 
 def collect_stats(kb: KeyboardMonitor | None = None,
                   media: MediaMonitor | None = None,
-                  claude_tok: ClaudeTokenMonitor | None = None) -> dict:
+                  claude_tok: ClaudeTokenMonitor | None = None,
+                  claude_activity: ClaudeActivityMonitor | None = None) -> dict:
     m   = media.get()      if media      else None
     tok = claude_tok.get() if claude_tok else None
     stats: dict = {
@@ -90,7 +92,9 @@ def collect_stats(kb: KeyboardMonitor | None = None,
     else:
         stats["idle_msg"] = _get_idle_msg()
     if tok:
-        stats["claude"] = tok  # {out, inp, sessions, h5_pct, h5_secs, w7_pct, w7_secs}
+        tok = dict(tok)  # out, inp, sessions, h5_pct, h5_secs, w7_pct, w7_secs
+        tok["working"] = claude_activity.working_count() if claude_activity else 0
+        stats["claude"] = tok
     return stats
 
 
@@ -135,6 +139,9 @@ def print_stats(s: dict) -> None:
             return "ok"
         out_k = tok["out"] / 1000.0
         tok_tok = f"{out_k:.1f}k out  {tok['sessions']} sess"
+        if tok.get("working"):
+            working_lbl = f"{tok['working']} working"
+            tok_tok += f"  {ansi('ok', working_lbl)}"
         h5, w7  = tok["h5_pct"], tok["w7_pct"]
         if h5 >= 0 or w7 >= 0:
             tok_rl = (
@@ -184,6 +191,9 @@ def main():
     claude_tok = ClaudeTokenMonitor()
     claude_tok.start()
 
+    claude_activity = ClaudeActivityMonitor()
+    claude_activity.start()
+
     print()
     print(ansi("cap", "  CYD Dashboard  -  companion"))
     print(ansi("text_dim", f"  {port} @ {BAUD} baud"))
@@ -209,7 +219,7 @@ def main():
 
     try:
         while True:
-            stats = collect_stats(kb, media, claude_tok)
+            stats = collect_stats(kb, media, claude_tok, claude_activity)
             ser.write((json.dumps(stats) + "\n").encode())
             print_stats(stats)
 
@@ -226,6 +236,7 @@ def main():
         kb.stop()
         media.stop()
         claude_tok.stop()
+        claude_activity.stop()
         ser.close()
 
 

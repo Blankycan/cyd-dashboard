@@ -7,7 +7,7 @@
 //   Topbar   indigo bg / yellow clock / cyan date
 //   Music    dark-green bg / lime text / orange|yellow|sky icons
 //   System   dark-violet bg; CPU=reds, RAM=greens, WPM=blues
-//   Claude   dark-teal bg / gold tokens; H5=violets, W7=teals
+//   Claude   dark-teal bg / gold tokens; H5=violets, W7=teals; working dots=lime/blue-violet/pink
 //   Status   dark-gold bg / lime active / sky-blue idle / red offline
 //
 // Selected via CYD_THEME_RAINBOW in config.h (see theme.h for the dispatch).
@@ -128,6 +128,9 @@
 #define COL_CLAUDE_DOT_WARN     LVC(0xFFAA00)  // amber
 #define COL_CLAUDE_DOT_ALERT    LVC(0xFF2244)  // red-pink
 #define COL_CLAUDE_DOT_IDLE     LVC(0x0044AA)  // medium blue
+#define COL_CLAUDE_WORK_DOT_ACTIVE   LVC(0x33FF00)  // yellow-green
+#define COL_CLAUDE_WORK_DOT_IDLE     LVC(0x6633FF)  // blue-violet
+#define COL_CLAUDE_WORK_DOT_OVERFLOW LVC(0xFF3399)  // hot pink
 #define COL_CLAUDE_TOKENS_OUT   LVC(0xFFDD00)  // gold
 #define COL_CLAUDE_TOK_BAR_BG   LVC(0x1A1400)  // dark gold
 #define COL_CLAUDE_TOK_BAR_FILL LVC(0xFFDD00)  // gold
