@@ -76,6 +76,28 @@
 #define COL_BAR_EXTRA       LVC(PAL_TEXT_DIM)
 
 // -----------------------------------------------------------------------------
+// LEVEL 3 — Per-widget overrides specific to Grape Ember
+// Topbar inverts to the bright rose-pink for its background, with dark plum
+// text for contrast (clock darkest, date a shade lighter — same relationship
+// as the panel/bg pair). Icons and the Claude token number/bar pick up the
+// orange glow accent instead of the violet "OK" colour, and dots go orange
+// wherever they'd otherwise use the generic active colour.
+// -----------------------------------------------------------------------------
+
+#define COL_TOPBAR_BG         LVC(PAL_TEXT_PRI)
+#define COL_TOPBAR_CLOCK      LVC(PAL_BG)
+#define COL_TOPBAR_DATE       LVC(PAL_PANEL)
+
+#define COL_DOT_ACTIVE        LVC(PAL_GLOW)
+
+#define COL_MUSIC_ICON_PLAY   LVC(PAL_GLOW)
+#define COL_MUSIC_ICON_PAUSE  LVC(PAL_GLOW)
+#define COL_MUSIC_ICON_IDLE   LVC(PAL_GLOW)
+
+#define COL_CLAUDE_TOKENS_OUT   LVC(PAL_GLOW)
+#define COL_CLAUDE_TOK_BAR_FILL LVC(PAL_GLOW)
+
+// -----------------------------------------------------------------------------
 // RGB565 MACROS  (use these for any direct TFT_eSPI drawing outside LVGL)
 // -----------------------------------------------------------------------------
 #define _R5(hex)  (((hex) >> 19) & 0x1F)
