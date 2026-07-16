@@ -156,6 +156,17 @@ command line instead of editing the file:
 ~/.platformio/penv/bin/pio run --target upload --upload-port /dev/ttyUSB1
 ```
 
+**If the companion app is running as a systemd service** (see
+[Installing the companion as a systemd service](#installing-the-companion-as-a-systemd-service)),
+it holds the serial port open and the upload will fail to connect. Stop it
+first, flash, then start it again:
+
+```bash
+systemctl --user stop cyd-dashboard
+~/.platformio/penv/bin/pio run --target upload
+systemctl --user start cyd-dashboard
+```
+
 ---
 
 ## Serial port
@@ -259,6 +270,12 @@ To view logs:
 ```bash
 journalctl --user -u cyd-dashboard -f
 ```
+
+**After changing `companion/` code**, the service needs to pick up the change —
+`systemctl --user restart cyd-dashboard` is enough for plain code edits. If you
+changed dependencies or moved the venv, re-run `./install_companion_as_service.sh`
+instead (it's idempotent) so the service file's `ExecStart` interpreter path
+stays correct.
 
 ---
 
