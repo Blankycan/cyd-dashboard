@@ -291,10 +291,12 @@ a small selector that pulls in whichever one is active — pick it by editing
 
 then rebuild and reflash. Available themes:
 
-| `CYD_THEME` value        | File                        | Look                                     |
-| ------------------------- | ---------------------------- | ------------------------------------------ |
-| `CYD_THEME_FOREST`        | `src/themes/forest.h`        | Warm dark forest green, sage/cream text    |
-| `CYD_THEME_GRAPE_EMBER`   | `src/themes/grape-ember.h`   | Dark purple, orange accents                |
+| `CYD_THEME` value        | File                        | Look                                                    |
+| ------------------------- | ---------------------------- | -------------------------------------------------------- |
+| `CYD_THEME_FOREST`        | `src/themes/forest.h`        | Warm dark forest green, sage/cream text                 |
+| `CYD_THEME_GRAPE_EMBER`   | `src/themes/grape-ember.h`   | Deep plum/violet, rose-pink text, orange accents         |
+| `CYD_THEME_NEON_ROSE`     | `src/themes/neon-rose.h`     | Black background, hot-pink topbar and accents            |
+| `CYD_THEME_RAINBOW`       | `src/themes/rainbow.h`       | Diagnostic — every colour token distinct (see below)      |
 
 **Forest** — `src/themes/forest.h`:
 
@@ -312,18 +314,46 @@ then rebuild and reflash. Available themes:
 
 **Grape Ember** — `src/themes/grape-ember.h`:
 
-| Role           | Hex       | Description       |
-| -------------- | --------- | ----------------- |
-| Background     | `#200D26` | Deep grape         |
-| Panel          | `#31173B` | Dark violet cards  |
-| Border         | `#652D80` | Vivid purple       |
-| Primary text   | `#F5EBF9` | Near-white lilac   |
-| Secondary text | `#D4A3E0` | Soft orchid        |
-| Dim text       | `#84509B` | Muted purple       |
-| OK / connected | `#6FCF97` | Soft green         |
-| Warning (>70%) | `#F2A65A` | Amber orange       |
-| Alert (>90%)   | `#FF4D6D` | Vivid coral-red    |
-| Accent / glow  | `#FF8A3D` | Vivid orange       |
+| Role           | Hex       | Description         |
+| -------------- | --------- | -------------------- |
+| Background     | `#270C24` | Deep plum             |
+| Panel          | `#3F173B` | Dark magenta-violet   |
+| Border         | `#922A8A` | Vivid magenta         |
+| Primary text   | `#EC8DB8` | Rose pink             |
+| Secondary text | `#C29AD6` | Soft lavender         |
+| Dim text       | `#AA5098` | Muted mauve           |
+| OK / connected | `#E05CE0` | Vivid violet          |
+| Warning (>70%) | `#FFB829` | Golden amber          |
+| Alert (>90%)   | `#FF4D6D` | Vivid coral-red       |
+| Accent / glow  | `#FF8A3D` | Vivid orange          |
+
+The topbar inverts to the primary rose-pink as its background (dark plum/violet
+text for contrast), and the music icons, Claude token number/bar, and the
+generic "active" dot colour all use the orange accent instead of the violet
+OK colour — see the Level-3 overrides at the bottom of `grape-ember.h`.
+
+**Neon Rose** — `src/themes/neon-rose.h`:
+
+| Role           | Hex       | Description          |
+| -------------- | --------- | ---------------------- |
+| Background     | `#16000F` | Very dark rose          |
+| Panel          | `#FF3399` | Hot pink (topbar bg)     |
+| Border         | `#BB0055` | Bright cerise            |
+| Primary text   | `#FF3399` | Hot pink                 |
+| Secondary text | `#FF88BB` | Light pink               |
+| Dim text       | `#FF6699` | Bright rose              |
+| OK / connected | `#FF1493` | Deep pink                |
+| Warning (>70%) | `#FFAA00` | Golden amber             |
+| Alert (>90%)   | `#FF2244` | Vivid red-pink           |
+| Accent / glow  | `#FF007F` | Hot rose                 |
+
+The topbar sits on the bright pink panel colour, so its clock/date text use
+dedicated dark overrides for contrast rather than the generic primary/dim text.
+
+**Rainbow** — `src/themes/rainbow.h` — a diagnostic theme, not meant to look
+good. Every single colour token is set to a distinct hue so any widget that
+silently falls back to an unintended default is immediately visible. See the
+comment block at the top of the file for which hue band each widget owns.
 
 **Adding a new theme**: copy `src/themes/forest.h` to `src/themes/<name>.h`,
 edit its `PAL_*` defines, add a `CYD_THEME_<NAME>` id in `config.h`, and add a
@@ -349,14 +379,16 @@ src/                ESP32 firmware (Arduino / PlatformIO)
   theme.h           Colour theme selector (includes the active themes/*.h)
   themes/           Standalone colour palettes — see Colour themes above
     forest.h        Warm dark forest green (original)
-    grape-ember.h   Dark purple, orange accents
+    grape-ember.h   Deep plum/violet, orange accents
+    neon-rose.h     Black background, hot-pink topbar and accents
+    rainbow.h       Diagnostic — every colour token distinct
   ui_helpers.h/cpp  Shared LVGL widget factories and formatters
   main.cpp          Hardware init, sleep overlay, packet handler, setup/loop
   widgets/
     topbar.*        Clock and date bar
     music.*         Now-playing panel with animated icon
-    stats.*         CPU, RAM, and WPM bars
+    system.*        CPU, RAM, and WPM bars
     claude.*        Token usage and rate-limit panels
-    indicator.*     Connection status dot, label, and host IP
+    status.*        Connection dot, label, and host IP
 ```
 
