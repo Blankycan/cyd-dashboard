@@ -8,6 +8,7 @@ import json
 import random
 import socket
 import sys
+import termios
 import time
 from datetime import datetime
 from pathlib import Path
@@ -200,14 +201,27 @@ def main():
     print()
 
     try:
-        ser = serial.Serial(port, BAUD, timeout=1)
+        # Open with DTR=False and RTS=False so we don't trigger the ESP32
+        # auto-reset circuit (DTR→GPIO0/BOOT, RTS→EN/RESET on the CYD board).
+        # The board keeps running; it transitions from disconnected→connected
+        # state as soon as it receives the first stats packet.
+        ser = serial.Serial()
+        ser.port     = port
+        ser.baudrate = BAUD
+        ser.timeout  = 1
+        ser.dtr      = False
+        ser.rts      = False
+        ser.open()
+        # Disable HUPCL so the kernel doesn't assert DTR/RTS when the port is
+        # closed (e.g. on service restart), which would otherwise reset the board.
+        attrs = termios.tcgetattr(ser.fd)
+        attrs[2] &= ~termios.HUPCL
+        termios.tcsetattr(ser.fd, termios.TCSANOW, attrs)
     except serial.SerialException as e:
         print(ansi("alert", f"  Cannot open {port}: {e}"))
         sys.exit(1)
 
-    time.sleep(2.0)  # wait for ESP32 boot
-
-    # Drain boot message
+    # Drain any pending line (e.g. a stale ack from before we connected)
     boot = ser.readline()
     if boot:
         try:
@@ -223,10 +237,18 @@ def main():
             ser.write((json.dumps(stats) + "\n").encode())
             print_stats(stats)
 
-            # Drain any ack (non-blocking — we don't depend on it)
+            # Drain any output from the board (non-blocking).
+            # Log anything that isn't a normal ack — firmware panics appear here.
             ser.timeout = 0.1
-            ser.readline()
+            raw = ser.readline()
             ser.timeout = 1.0
+            if raw:
+                txt = raw.decode("utf-8", errors="replace").strip()
+                try:
+                    if not json.loads(txt).get("ack"):
+                        print(ansi("warn", f"  ESP32: {txt}"))
+                except Exception:
+                    print(ansi("alert", f"  ESP32: {txt}"))
 
             time.sleep(INTERVAL)
 
