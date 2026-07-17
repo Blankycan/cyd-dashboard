@@ -298,10 +298,10 @@ static void handle_packet(const String &line) {
             last_keyboard_ms = millis();
             last_active_ms   = millis();
             strlcpy(state.last_active_str, state.time_str, sizeof(state.last_active_str));
+            if (sleep_state == SS_ASLEEP) exit_sleep();
         }
 
-        // Wake the screen on reconnection. Ongoing packets don't reset the
-        // sleep timer — only keyboard activity and touch do.
+        // Also wake on reconnection (companion restarted while screen was sleeping).
         if (!was_connected) {
             last_active_ms = millis();
             if (sleep_state == SS_ASLEEP) exit_sleep();
