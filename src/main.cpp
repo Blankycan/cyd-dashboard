@@ -271,8 +271,9 @@ static void handle_packet(const String &line) {
     const char *type = doc["type"] | "";
 
     if (strcmp(type, "stats") == 0) {
-        last_packet_ms  = millis();
-        state.connected = true;
+        bool was_connected = state.connected;
+        last_packet_ms     = millis();
+        state.connected    = true;
 
         state.cpu    = doc["cpu"]    | 0;
         state.ram    = doc["ram"]    | 0;
@@ -295,14 +296,15 @@ static void handle_packet(const String &line) {
 
         if (state.active) {
             last_keyboard_ms = millis();
+            last_active_ms   = millis();
             strlcpy(state.last_active_str, state.time_str, sizeof(state.last_active_str));
         }
 
-        // Any incoming packet keeps the display awake — sleep is for when the
-        // companion is not running, not for when the user isn't typing.
-        last_active_ms = millis();
-        if (sleep_state == SS_ASLEEP) {
-            exit_sleep();
+        // Wake the screen on reconnection. Ongoing packets don't reset the
+        // sleep timer — only keyboard activity and touch do.
+        if (!was_connected) {
+            last_active_ms = millis();
+            if (sleep_state == SS_ASLEEP) exit_sleep();
         }
 
         JsonObject music = doc["music"];
@@ -399,15 +401,9 @@ void loop() {
         show_disconnected();
     }
 
-    // Sleep after inactivity — use packet time when connected (display stays
-    // awake while companion is running), touch time when disconnected.
-    {
-        uint32_t idle_ms = state.connected
-            ? millis() - last_packet_ms
-            : millis() - last_active_ms;
-        if (sleep_state == SS_AWAKE && idle_ms > SLEEP_TIMEOUT_MS) {
-            enter_sleep();
-        }
+    // Sleep after keyboard/touch inactivity regardless of connection state.
+    if (sleep_state == SS_AWAKE && millis() - last_active_ms > SLEEP_TIMEOUT_MS) {
+        enter_sleep();
     }
 
     delay(5);
