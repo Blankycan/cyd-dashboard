@@ -201,10 +201,10 @@ def main():
     print()
 
     try:
-        # Open with DTR=False and RTS=False so we don't trigger the ESP32
-        # auto-reset circuit (DTR→GPIO0/BOOT, RTS→EN/RESET on the CYD board).
-        # The board keeps running; it transitions from disconnected→connected
-        # state as soon as it receives the first stats packet.
+        # Open with DTR=False and RTS=False to minimise reset-circuit triggering.
+        # On some USB-serial chips (CH340) a brief RTS pulse still slips through
+        # during open regardless, so we also wait for the firmware boot message
+        # before sending stats — that way packets never arrive mid-setup().
         ser = serial.Serial()
         ser.port     = port
         ser.baudrate = BAUD
@@ -212,8 +212,7 @@ def main():
         ser.dtr      = False
         ser.rts      = False
         ser.open()
-        # Disable HUPCL so the kernel doesn't assert DTR/RTS when the port is
-        # closed (e.g. on service restart), which would otherwise reset the board.
+        # Disable HUPCL so the kernel doesn't assert DTR/RTS on port close.
         attrs = termios.tcgetattr(ser.fd)
         attrs[2] &= ~termios.HUPCL
         termios.tcsetattr(ser.fd, termios.TCSANOW, attrs)
@@ -221,15 +220,28 @@ def main():
         print(ansi("alert", f"  Cannot open {port}: {e}"))
         sys.exit(1)
 
-    # Drain any pending line (e.g. a stale ack from before we connected)
-    boot = ser.readline()
-    if boot:
+    # Wait for the firmware's JSON boot line, draining ROM garbage in between.
+    # Timeout after 4 s so we don't block forever if the board was already
+    # running (no reset occurred, no boot message will come).
+    firmware_ver = None
+    deadline = time.time() + 4.0
+    while time.time() < deadline:
+        line = ser.readline()
+        if not line:
+            break
+        txt = line.decode("utf-8", errors="replace").strip()
         try:
-            b = json.loads(boot.decode().strip())
-            ver = b.get("version", "?")
-            print(ansi("ok", f"  Connected  -  firmware v{ver}\n"))
+            b = json.loads(txt)
+            if b.get("boot"):
+                firmware_ver = b.get("version", "?")
+                break
         except Exception:
-            print(ansi("text_dim", f"  Boot: {boot.decode().strip()}\n"))
+            pass  # ROM / non-JSON line — discard silently
+
+    if firmware_ver:
+        print(ansi("ok", f"  Connected  -  firmware v{firmware_ver}\n"))
+    else:
+        print(ansi("text_dim", "  Board already running — no boot message\n"))
 
     try:
         while True:
