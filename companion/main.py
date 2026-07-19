@@ -243,6 +243,7 @@ def main():
     else:
         print(ansi("text_dim", "  Board already running — no boot message\n"))
 
+    no_ack_streak = 0
     try:
         while True:
             stats = collect_stats(kb, media, claude_tok, claude_activity)
@@ -257,10 +258,16 @@ def main():
             if raw:
                 txt = raw.decode("utf-8", errors="replace").strip()
                 try:
-                    if not json.loads(txt).get("ack"):
+                    if json.loads(txt).get("ack"):
+                        no_ack_streak = 0
+                    else:
                         print(ansi("warn", f"  ESP32: {txt}"))
                 except Exception:
                     print(ansi("alert", f"  ESP32: {txt}"))
+            else:
+                no_ack_streak += 1
+                if no_ack_streak == 3:
+                    print(ansi("warn", "  ESP32 not acking — board may be frozen"))
 
             time.sleep(INTERVAL)
 

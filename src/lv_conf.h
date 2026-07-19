@@ -53,8 +53,8 @@
 #define LV_USE_ASSERT_STYLE         0
 #define LV_USE_ASSERT_MEM_INTEGRITY 0
 #define LV_USE_ASSERT_OBJ           0
-#define LV_ASSERT_HANDLER_INCLUDE   <stdint.h>
-#define LV_ASSERT_HANDLER           while(1);
+#define LV_ASSERT_HANDLER_INCLUDE   <esp_system.h>
+#define LV_ASSERT_HANDLER           esp_restart();
 #define LV_USE_PERF_MONITOR         0
 #define LV_USE_MEM_MONITOR          0
 #define LV_USE_REFR_DEBUG           0
