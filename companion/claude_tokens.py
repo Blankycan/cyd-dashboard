@@ -37,10 +37,12 @@ _OAUTH_SCOPES      = ("user:profile user:inference user:sessions:claude_code "
 
 def _load_credentials() -> dict | None:
     """Return {accessToken, refreshToken, expiresAt} or None."""
-    # 1. Try cached token written by a previous refresh
+    # 1. Try cached token written by a previous refresh (only while still valid —
+    #    if its refresh token has also expired, fall through to (2) rather than
+    #    returning a token that can never be refreshed again)
     try:
         d = json.loads(_TOKEN_CACHE_FILE.read_text())
-        if d.get("accessToken") and d.get("expiresAt"):
+        if d.get("accessToken") and d.get("expiresAt", 0) > (time.time() + 60) * 1000:
             return d
     except Exception:
         pass
