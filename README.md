@@ -115,7 +115,8 @@ pip install --upgrade pip
 pip install psutil pyserial evdev
 ```
 
-`playerctl` for music info (optional):
+`playerctl` for music info (optional — the music panel just shows "no media"
+without it):
 
 ```
 # Arch
@@ -124,6 +125,11 @@ sudo pacman -S playerctl
 # Debian / Ubuntu
 sudo apt install playerctl
 ```
+
+**Troubleshooting:** if the music panel stops updating after a distro/OS
+upgrade (e.g. an Omarchy version bump), check that `playerctl` is still
+installed — `which playerctl`. Upgrades can silently drop it as a package
+dependency even though nothing in this repo changed.
 
 Remember to `source .venv/bin/activate` again in any new shell before running
 `main.py` directly. This also matters when installing the systemd service
