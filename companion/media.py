@@ -41,26 +41,54 @@ class MediaMonitor:
                 self._info = info
             time.sleep(MEDIA_POLL_INTERVAL)
 
+    def _query(self, player: str) -> dict | None:
+        raw = subprocess.check_output(
+            ["playerctl", "-p", player, "metadata", "--format", FORMAT_STR],
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        ).decode().strip()
+
+        parts = raw.split(FIELD_SEP)
+        if len(parts) < 3:
+            return None
+
+        title, artist, status = parts[0].strip(), parts[1].strip(), parts[2].strip()
+        if not title:
+            return None
+
+        return {
+            "title":   title,
+            "artist":  artist,
+            "playing": status == "Playing",
+        }
+
     def _poll(self) -> dict | None:
         try:
-            raw = subprocess.check_output(
-                ["playerctl", "metadata", "--format", FORMAT_STR],
+            players = subprocess.check_output(
+                ["playerctl", "-l"],
                 stderr=subprocess.DEVNULL,
                 timeout=2,
-            ).decode().strip()
-
-            parts = raw.split(FIELD_SEP)
-            if len(parts) < 3:
+            ).decode().strip().splitlines()
+            players = [p.strip() for p in players if p.strip()]
+            if not players:
                 return None
 
-            title, artist, status = parts[0].strip(), parts[1].strip(), parts[2].strip()
-            if not title:
-                return None
-
-            return {
-                "title":   title,
-                "artist":  artist,
-                "playing": status == "Playing",
-            }
+            # Multiple players can be registered at once (e.g. a paused
+            # browser tab left in the background). Prefer whichever one is
+            # actually playing over the first player playerctl happens to
+            # list, falling back to the first player with any metadata.
+            fallback = None
+            for player in players:
+                try:
+                    info = self._query(player)
+                except Exception:
+                    continue
+                if info is None:
+                    continue
+                if info["playing"]:
+                    return info
+                if fallback is None:
+                    fallback = info
+            return fallback
         except Exception:
             return None
