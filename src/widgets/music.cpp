@@ -3,6 +3,7 @@
 #include "../state.h"
 #include "../theme.h"
 #include "../ui_helpers.h"
+#include "../fonts/fonts.h"
 
 // ---------------------------------------------------------------------------
 // Music animation state machine
@@ -132,7 +133,7 @@ void build_music_panel(lv_obj_t *parent) {
     lbl_music_title = lv_label_create(parent);
     lv_label_set_text(lbl_music_title, "nothing playing");
     lv_obj_set_style_text_color(lbl_music_title, COL_MUSIC_DOT_IDLE, 0);
-    lv_obj_set_style_text_font(lbl_music_title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(lbl_music_title, &font_ui_14, 0);
     lv_obj_set_pos(lbl_music_title, 22, 8);
     lv_obj_set_width(lbl_music_title, MUSIC_LABEL_W);
     lv_label_set_long_mode(lbl_music_title, LV_LABEL_LONG_DOT);
@@ -140,7 +141,7 @@ void build_music_panel(lv_obj_t *parent) {
     lbl_music_artist = lv_label_create(parent);
     lv_label_set_text(lbl_music_artist, "");
     lv_obj_set_style_text_color(lbl_music_artist, COL_MUSIC_TEXT, 0);
-    lv_obj_set_style_text_font(lbl_music_artist, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(lbl_music_artist, &font_ui_12, 0);
     lv_obj_set_pos(lbl_music_artist, 22, 30);
     lv_obj_set_width(lbl_music_artist, MUSIC_LABEL_W);
     lv_label_set_long_mode(lbl_music_artist, LV_LABEL_LONG_DOT);

@@ -3,15 +3,30 @@ Media monitor — polls playerctl (MPRIS2) for now-playing info.
 Works on Wayland/Hyprland via D-Bus without an X server.
 
 Requires playerctl: sudo pacman -S playerctl
+Requires unidecode: pip install unidecode
 """
 
 import subprocess
 import threading
 import time
 
+from unidecode import unidecode
+
 from config import MEDIA_POLL_INTERVAL
 FIELD_SEP     = "|||"
 FORMAT_STR    = f"{{{{title}}}}{FIELD_SEP}{{{{artist}}}}{FIELD_SEP}{{{{status}}}}"
+
+
+def _to_displayable(text: str) -> str:
+    """Fold characters the firmware's font can't render down to ASCII.
+
+    The firmware font covers Basic Latin + Latin-1 Supplement (U+0000-U+00FF),
+    which includes accented letters like é, ñ, Å, Ä, Ö, ü — those pass through
+    untouched. Anything past that (e.g. stylized "small caps" Unicode some
+    titles use) gets transliterated to its closest ASCII equivalent instead of
+    showing as a missing/wrong glyph.
+    """
+    return "".join(c if ord(c) <= 0xFF else unidecode(c) for c in text)
 
 
 class MediaMonitor:
@@ -57,8 +72,8 @@ class MediaMonitor:
             return None
 
         return {
-            "title":   title,
-            "artist":  artist,
+            "title":   _to_displayable(title),
+            "artist":  _to_displayable(artist),
             "playing": status == "Playing",
         }
 
