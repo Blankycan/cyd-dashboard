@@ -7,7 +7,6 @@ import glob
 import json
 import random
 import socket
-import sys
 import termios
 import time
 from datetime import datetime
@@ -167,84 +166,57 @@ def print_stats(s: dict) -> None:
     )
 
 
-def main():
-    parser = argparse.ArgumentParser(description="CYD Dashboard companion")
-    parser.add_argument("--port", help="Serial port (auto-detected if omitted)")
-    args = parser.parse_args()
+RECONNECT_DELAY = 5
 
-    port = args.port or find_port()
-    if not port:
-        print(ansi("alert", "  No ESP32 found. Check USB or pass --port /dev/ttyUSBx"))
-        sys.exit(1)
 
-    _load_idle_messages()
-
-    # Prime psutil — first cpu_percent() call always returns 0.0
-    psutil.cpu_percent()
-    time.sleep(0.5)
-
-    kb = KeyboardMonitor()
-    kb.start()
-
-    media = MediaMonitor()
-    media.start()
-
-    claude_tok = ClaudeTokenMonitor()
-    claude_tok.start()
-
-    claude_activity = ClaudeActivityMonitor()
-    claude_activity.start()
-
+def run_session(port: str, kb, media, claude_tok, claude_activity) -> None:
+    """Connect to `port` and stream stats until the link drops or errors out."""
     print()
     print(ansi("cap", "  CYD Dashboard  -  companion"))
     print(ansi("text_dim", f"  {port} @ {BAUD} baud"))
     print()
 
-    try:
-        # Open with DTR=False and RTS=False to minimise reset-circuit triggering.
-        # On some USB-serial chips (CH340) a brief RTS pulse still slips through
-        # during open regardless, so we also wait for the firmware boot message
-        # before sending stats — that way packets never arrive mid-setup().
-        ser = serial.Serial()
-        ser.port     = port
-        ser.baudrate = BAUD
-        ser.timeout  = 1
-        ser.dtr      = False
-        ser.rts      = False
-        ser.open()
-        # Disable HUPCL so the kernel doesn't assert DTR/RTS on port close.
-        attrs = termios.tcgetattr(ser.fd)
-        attrs[2] &= ~termios.HUPCL
-        termios.tcsetattr(ser.fd, termios.TCSANOW, attrs)
-    except serial.SerialException as e:
-        print(ansi("alert", f"  Cannot open {port}: {e}"))
-        sys.exit(1)
+    # Open with DTR=False and RTS=False to minimise reset-circuit triggering.
+    # On some USB-serial chips (CH340) a brief RTS pulse still slips through
+    # during open regardless, so we also wait for the firmware boot message
+    # before sending stats — that way packets never arrive mid-setup().
+    ser = serial.Serial()
+    ser.port     = port
+    ser.baudrate = BAUD
+    ser.timeout  = 1
+    ser.dtr      = False
+    ser.rts      = False
+    ser.open()
+    # Disable HUPCL so the kernel doesn't assert DTR/RTS on port close.
+    attrs = termios.tcgetattr(ser.fd)
+    attrs[2] &= ~termios.HUPCL
+    termios.tcsetattr(ser.fd, termios.TCSANOW, attrs)
 
-    # Wait for the firmware's JSON boot line, draining ROM garbage in between.
-    # Timeout after 4 s so we don't block forever if the board was already
-    # running (no reset occurred, no boot message will come).
-    firmware_ver = None
-    deadline = time.time() + 4.0
-    while time.time() < deadline:
-        line = ser.readline()
-        if not line:
-            break
-        txt = line.decode("utf-8", errors="replace").strip()
-        try:
-            b = json.loads(txt)
-            if b.get("boot"):
-                firmware_ver = b.get("version", "?")
+    try:
+        # Wait for the firmware's JSON boot line, draining ROM garbage in between.
+        # Timeout after 4 s so we don't block forever if the board was already
+        # running (no reset occurred, no boot message will come).
+        firmware_ver = None
+        deadline = time.time() + 4.0
+        while time.time() < deadline:
+            line = ser.readline()
+            if not line:
                 break
-        except Exception:
-            pass  # ROM / non-JSON line — discard silently
+            txt = line.decode("utf-8", errors="replace").strip()
+            try:
+                b = json.loads(txt)
+                if b.get("boot"):
+                    firmware_ver = b.get("version", "?")
+                    break
+            except Exception:
+                pass  # ROM / non-JSON line — discard silently
 
-    if firmware_ver:
-        print(ansi("ok", f"  Connected  -  firmware v{firmware_ver}\n"))
-    else:
-        print(ansi("text_dim", "  Board already running — no boot message\n"))
+        if firmware_ver:
+            print(ansi("ok", f"  Connected  -  firmware v{firmware_ver}\n"))
+        else:
+            print(ansi("text_dim", "  Board already running — no boot message\n"))
 
-    no_ack_streak = 0
-    try:
+        no_ack_streak = 0
         while True:
             stats = collect_stats(kb, media, claude_tok, claude_activity)
             ser.write((json.dumps(stats) + "\n").encode())
@@ -270,15 +242,57 @@ def main():
                     print(ansi("warn", "  ESP32 not acking — board may be frozen"))
 
             time.sleep(INTERVAL)
+    finally:
+        ser.close()
 
-    except serial.SerialException as e:
-        print(ansi("alert", f"\n  Serial error: {e}"))
+
+def main():
+    parser = argparse.ArgumentParser(description="CYD Dashboard companion")
+    parser.add_argument("--port", help="Serial port (auto-detected if omitted)")
+    args = parser.parse_args()
+
+    _load_idle_messages()
+
+    # Prime psutil — first cpu_percent() call always returns 0.0
+    psutil.cpu_percent()
+    time.sleep(0.5)
+
+    kb = KeyboardMonitor()
+    kb.start()
+
+    media = MediaMonitor()
+    media.start()
+
+    claude_tok = ClaudeTokenMonitor()
+    claude_tok.start()
+
+    claude_activity = ClaudeActivityMonitor()
+    claude_activity.start()
+
+    try:
+        # Loop forever: a missing board at startup (USB not yet enumerated —
+        # common right after boot) or a serial error mid-session (board reset,
+        # USB hiccup) just falls back into this loop and retries rather than
+        # exiting, so a full boot race never needs a manual service restart.
+        while True:
+            port = args.port or find_port()
+            if not port:
+                print(ansi("alert", "  No ESP32 found. Retrying..."))
+                time.sleep(RECONNECT_DELAY)
+                continue
+
+            try:
+                run_session(port, kb, media, claude_tok, claude_activity)
+            except serial.SerialException as e:
+                print(ansi("alert", f"\n  Serial error: {e}"))
+
+            print(ansi("text_dim", f"  Reconnecting in {RECONNECT_DELAY}s...\n"))
+            time.sleep(RECONNECT_DELAY)
     finally:
         kb.stop()
         media.stop()
         claude_tok.stop()
         claude_activity.stop()
-        ser.close()
 
 
 if __name__ == "__main__":
