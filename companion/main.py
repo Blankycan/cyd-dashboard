@@ -166,10 +166,12 @@ def print_stats(s: dict) -> None:
     )
 
 
-RECONNECT_DELAY = 5
+RECONNECT_DELAY    = 5
+BOOT_WARMUP_DELAY  = 45  # seconds
 
 
-def run_session(port: str, kb, media, claude_tok, claude_activity) -> None:
+def run_session(port: str, kb, media, claude_tok, claude_activity,
+                 force_warmup_reset: bool = False) -> None:
     """Connect to `port` and stream stats until the link drops or errors out."""
     print()
     print(ansi("cap", "  CYD Dashboard  -  companion"))
@@ -216,8 +218,25 @@ def run_session(port: str, kb, media, claude_tok, claude_activity) -> None:
         else:
             print(ansi("text_dim", "  Board already running — no boot message\n"))
 
+        session_start = time.time()
+        warmup_pending = force_warmup_reset
+
         no_ack_streak = 0
         while True:
+            # On a fresh boot, the board's first tft.init() can silently fail
+            # if it races the host's own USB/power settling right after the PC
+            # powers on — the ESP32 stays fully alive and keeps acking over
+            # serial, but the screen never lights up. A restart used to be the
+            # only fix because reopening the port pulses DTR/RTS and resets
+            # the board, giving tft.init() a second try once things have
+            # calmed down. Do that one reconnect automatically instead of
+            # waiting for a human to notice a black screen and do it by hand.
+            if warmup_pending and time.time() - session_start > BOOT_WARMUP_DELAY:
+                print(ansi("text_dim",
+                           "  Forcing one reconnect to recover from a possible "
+                           "cold-boot display glitch...\n"))
+                return
+
             stats = collect_stats(kb, media, claude_tok, claude_activity)
             ser.write((json.dumps(stats) + "\n").encode())
             print_stats(stats)
@@ -274,6 +293,7 @@ def main():
         # common right after boot) or a serial error mid-session (board reset,
         # USB hiccup) just falls back into this loop and retries rather than
         # exiting, so a full boot race never needs a manual service restart.
+        first_connection = True
         while True:
             port = args.port or find_port()
             if not port:
@@ -282,9 +302,11 @@ def main():
                 continue
 
             try:
-                run_session(port, kb, media, claude_tok, claude_activity)
+                run_session(port, kb, media, claude_tok, claude_activity,
+                            force_warmup_reset=first_connection)
             except serial.SerialException as e:
                 print(ansi("alert", f"\n  Serial error: {e}"))
+            first_connection = False
 
             print(ansi("text_dim", f"  Reconnecting in {RECONNECT_DELAY}s...\n"))
             time.sleep(RECONNECT_DELAY)
