@@ -167,7 +167,7 @@ def print_stats(s: dict) -> None:
 
 
 RECONNECT_DELAY    = 5
-BOOT_WARMUP_DELAY  = 45  # seconds
+BOOT_WARMUP_DELAY  = 10  # seconds
 
 
 def run_session(port: str, kb, media, claude_tok, claude_activity,
