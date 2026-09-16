@@ -80,30 +80,63 @@ class KeyboardMonitor:
         import evdev
         from evdev import ecodes
 
-        all_devs = [evdev.InputDevice(p) for p in evdev.list_devices()]
-        keyboards = [
-            d for d in all_devs
-            if ecodes.EV_KEY in d.capabilities()
-        ]
-        if not keyboards:
-            raise RuntimeError("no keyboard devices found")
+        # Re-open every keyboard device on a timer rather than once at
+        # startup. A device that re-enumerates (USB replug, suspend/resume,
+        # Bluetooth reconnect) gets a fresh backing instance while our old
+        # fd goes silently deaf — no exception, it just stops delivering
+        # events — so periodic reopen is what actually detects that instead
+        # of requiring a service restart.
+        RESCAN_INTERVAL = 30  # seconds
 
         sel = selectors.DefaultSelector()
-        for dev in keyboards:
-            try:
-                sel.register(dev, selectors.EVENT_READ)
-            except Exception:
-                pass  # device may have vanished
+        registered = {}  # path -> InputDevice
 
-        while self._running:
-            ready = sel.select(timeout=0.25)
-            for key, _ in ready:
+        def close_all():
+            for dev in registered.values():
                 try:
-                    for event in key.fileobj.read():
-                        if event.type == ecodes.EV_KEY and event.value == 1:
-                            self._press()
+                    sel.unregister(dev)
                 except Exception:
-                    pass  # device disconnected mid-read
+                    pass
+                try:
+                    dev.close()
+                except Exception:
+                    pass
+            registered.clear()
+
+        def rescan():
+            close_all()
+            for path in evdev.list_devices():
+                try:
+                    dev = evdev.InputDevice(path)
+                    if ecodes.EV_KEY not in dev.capabilities():
+                        dev.close()
+                        continue
+                    sel.register(dev, selectors.EVENT_READ, path)
+                    registered[path] = dev
+                except Exception:
+                    pass  # device unreadable or vanished mid-scan
+
+        rescan()
+        if not registered:
+            raise RuntimeError("no keyboard devices found")
+
+        try:
+            last_rescan = time.monotonic()
+            while self._running:
+                for key, _ in sel.select(timeout=0.25):
+                    try:
+                        for event in key.fileobj.read():
+                            if event.type == ecodes.EV_KEY and event.value == 1:
+                                self._press()
+                    except Exception:
+                        pass  # device disconnected mid-read; next rescan heals it
+
+                now = time.monotonic()
+                if now - last_rescan >= RESCAN_INTERVAL:
+                    rescan()
+                    last_rescan = now
+        finally:
+            close_all()
 
     def _pynput_loop(self):
         from pynput import keyboard
