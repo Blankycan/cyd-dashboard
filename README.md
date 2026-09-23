@@ -47,11 +47,36 @@ A pynput fallback exists for macOS/Windows but is untested.
 - **Wayland** recommended — media info is fetched via `playerctl` (MPRIS2/D-Bus),
 which works on both Wayland and X11. The keyboard monitor uses evdev directly, so
 it works without X11.
-- `**input` group membership** required for evdev keyboard access:
+- **`input` group membership** required for evdev keyboard *and mouse* access:
   ```
   sudo usermod -aG input $USER
   ```
-  Log out and back in to apply.
+  A plain log out/in is often **not enough** to apply this — the systemd
+  `--user` manager that runs the companion service is a long-lived process
+  that can survive a logout (it's tied to the user, not the session), so it
+  keeps its stale group list until it's actually restarted. **Reboot** to be
+  sure, then confirm with `id $USER` that `input` is listed.
+
+  Don't try to work around this with a `SupplementaryGroups=input` line in
+  the systemd unit — unprivileged `--user` services can't call `setgroups()`
+  (`CAP_SETGID` is required, even to set a group the manager already has),
+  so that directive just crash-loops the service
+  (`status=216/GROUP`/`Changing group credentials failed`). Once the account
+  is actually in the group and the manager has restarted, a plain unit with
+  no group directives inherits it automatically — no unit changes needed.
+
+  If wake-on-keypress/click still doesn't work after that, don't assume the
+  group fix failed — a keyboard/mouse can expose *several* `/dev/input/eventN`
+  nodes (e.g. a split/QMK keyboard commonly registers separate nodes for
+  keys, mouse-emulation, System Control and Consumer Control), and it's
+  logind's dynamic per-device ACLs — not group membership — that can tag only
+  *some* of those nodes as accessible while leaving the others (including the
+  actual key-matrix one) `Permission denied`. That's exactly what static
+  `input` group membership sidesteps once it's actually in effect. To check
+  which devices the running service can see:
+  ```
+  ls -l /proc/$(systemctl --user show cyd-dashboard -p MainPID --value)/fd | grep input
+  ```
 
 ---
 
