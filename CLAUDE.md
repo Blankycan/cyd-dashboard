@@ -34,6 +34,9 @@ systemctl --user restart cyd-dashboard     # after plain code edits to companion
 journalctl --user -u cyd-dashboard -f
 ./uninstall_companion_as_service.sh        # stop + disable + remove the unit file
 
+# Companion: calendar panel (needs ~/.config/cyd-dashboard/google_client.json first)
+./setup_calendar.sh                        # idempotent; installs Google libs, one-time login, restarts service
+
 # Companion: opt-in Claude Code hooks (enables the Claude panel's working-session dots)
 ./install_claude_activity_hooks.sh         # idempotent; edits ~/.claude/settings.json machine-wide
 ./uninstall_claude_activity_hooks.sh       # removes only the cyd-dashboard hook entries

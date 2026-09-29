@@ -407,8 +407,14 @@ chmod 600 ~/.config/cyd-dashboard/google_client.json
 ### 2. Log in (once per machine)
 
 ```bash
-cd companion && python gcal_auth.py
+./setup_calendar.sh
 ```
+
+This installs the Google API packages into the companion's Python (the one
+the systemd service uses, if it's installed), runs the login, shows which
+calendars will be used, and restarts the service. It's safe to re-run; it
+skips the login if a token already exists (`--relogin` forces a new one).
+The login step on its own is `cd companion && python gcal_auth.py`.
 
 A browser tab opens asking for read-only calendar access; pick the account
 and click **Allow**. A refresh token is saved to
@@ -451,13 +457,17 @@ can restyle it like any other panel.
 
 ### On another computer
 
-The OAuth client file isn't tied to one machine. Copy
-`~/.config/cyd-dashboard/google_client.json` and `calendars.txt` over
-(keeping them `chmod 600`),
-install the calendar Python packages, and run `python gcal_auth.py` there
-to give that machine its own token. You could copy `google_token.json`
-instead and skip the login, but a separate token per machine means you can
-revoke one without breaking the other. Neither file belongs in git.
+The OAuth client file isn't tied to one machine, so the Google Cloud setup in
+step 1 is only done once. On the other machine:
+
+1. Copy `~/.config/cyd-dashboard/google_client.json` and `calendars.txt`
+   from this one to the same folder there.
+2. Run `./setup_calendar.sh`.
+
+That gives the machine its own token. Copying `google_token.json` as well
+also works and skips the login, but a separate token per machine means you
+can revoke one without breaking the other. None of these files belong in
+git.
 
 ---
 
