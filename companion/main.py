@@ -7,6 +7,7 @@ import glob
 import json
 import random
 import socket
+import sys
 import termios
 import time
 from datetime import datetime
@@ -251,20 +252,32 @@ def run_session(port: str, kb, media, claude_tok, claude_activity, cal,
             ser.write((json.dumps(stats) + "\n").encode())
             print_stats(stats)
 
-            # Drain any output from the board (non-blocking).
-            # Log anything that isn't a normal ack — firmware panics appear here.
+            # Drain all output from the board: wait briefly for this packet's
+            # ack, then read whatever else is already buffered. Reading just
+            # one line per packet would let log lines (one extra line each)
+            # pile up into a backlog that never clears. Anything that isn't
+            # an ack or a log line is shown — firmware panics appear here.
+            got_ack = False
             ser.timeout = 0.1
             raw = ser.readline()
-            ser.timeout = 1.0
-            if raw:
+            while raw:
                 txt = raw.decode("utf-8", errors="replace").strip()
                 try:
-                    if json.loads(txt).get("ack"):
-                        no_ack_streak = 0
+                    msg = json.loads(txt)
+                    if msg.get("ack"):
+                        got_ack = True
+                    elif "log" in msg:
+                        print(ansi("text_dim", f"  CYD: {msg['log']}"))
                     else:
                         print(ansi("warn", f"  ESP32: {txt}"))
                 except Exception:
-                    print(ansi("alert", f"  ESP32: {txt}"))
+                    if txt:
+                        print(ansi("alert", f"  ESP32: {txt}"))
+                raw = ser.readline() if ser.in_waiting else b""
+            ser.timeout = 1.0
+
+            if got_ack:
+                no_ack_streak = 0
             else:
                 no_ack_streak += 1
                 if no_ack_streak == 3:
@@ -279,6 +292,10 @@ def main():
     parser = argparse.ArgumentParser(description="CYD Dashboard companion")
     parser.add_argument("--port", help="Serial port (auto-detected if omitted)")
     args = parser.parse_args()
+
+    # Under systemd stdout is a pipe, so Python block-buffers it and the
+    # journal only gets output in bursts with misleading timestamps.
+    sys.stdout.reconfigure(line_buffering=True)
 
     _load_idle_messages()
 

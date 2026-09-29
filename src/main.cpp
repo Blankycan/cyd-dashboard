@@ -15,6 +15,7 @@
 #include "widgets/system.h"
 #include "widgets/claude.h"
 #include "widgets/status.h"
+#include "scenes/scene_player.h"
 
 // CYD Dashboard firmware entry point.
 // Host PC sends JSON stats over serial (115200); LVGL renders the UI on the TFT.
@@ -57,17 +58,27 @@ static XPT2046_Touchscreen ts(33, 36);
 static uint32_t last_active_ms = 0;
 static void exit_sleep();   // forward decl
 
-// LVGL touch input callback — maps raw ADC coords to screen pixels
+// LVGL touch input callback — maps raw ADC coords to screen pixels and
+// forwards press/drag/release to the scene player. A touch that wakes the
+// display is swallowed, so waking never also flips or pokes a scene.
 static void touch_read_cb(lv_indev_drv_t *, lv_indev_data_t *data) {
+    static bool down = false, swallow = false;
+    static int  last_x = 0, last_y = 0;
     if (ts.tirqTouched() && ts.touched()) {
         TS_Point p = ts.getPoint();
-        data->point.x = map(p.x, 200, 3900, 0, SCREEN_W - 1);
-        data->point.y = map(p.y, 200, 3900, 0, SCREEN_H - 1);
+        last_x = map(p.x, 200, 3900, 0, SCREEN_W - 1);
+        last_y = map(p.y, 200, 3900, 0, SCREEN_H - 1);
+        data->point.x = last_x;
+        data->point.y = last_y;
         data->state   = LV_INDEV_STATE_PRESSED;
         last_active_ms = millis();
-        if (sleep_state == SS_ASLEEP) exit_sleep();
+        if (sleep_state == SS_ASLEEP) { exit_sleep(); swallow = true; }
+        if (!swallow) scene_player_touch(down ? SCENE_TOUCH_DRAG : SCENE_TOUCH_PRESS, last_x, last_y);
+        down = true;
     } else {
         data->state = LV_INDEV_STATE_RELEASED;
+        if (down && !swallow) scene_player_touch(SCENE_TOUCH_RELEASE, last_x, last_y);
+        down = swallow = false;
     }
 }
 
@@ -167,6 +178,7 @@ static void enter_sleep() {
     lv_label_set_text(lbl_sleep_away, away);
     lv_obj_clear_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
     bl_set(BL_DIM);
+    scene_player_set_paused(true);
     zzz_timer = lv_timer_create(zzz_cb, 700, nullptr);
 }
 
@@ -177,6 +189,7 @@ static void exit_sleep() {
     if (zzz_timer) { lv_timer_del(zzz_timer); zzz_timer = nullptr; }
     lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
     bl_set(BL_FULL);
+    scene_player_set_paused(false);
 }
 
 // ---------------------------------------------------------------------------
@@ -207,6 +220,7 @@ static void build_panels(lv_obj_t *scr) {
 
     p = make_panel(scr, 0, y, SCREEN_W, CALENDAR_H, COL_CALENDAR_BG);
     build_calendar_panel(p);
+    scene_player_init(p);   // ambient scenes take turns with the calendar in this slot
     y += CALENDAR_H;
 
     make_hdiv(scr, y, 0, SCREEN_W, COL_DIVIDER);

@@ -177,6 +177,17 @@ static void set_title(const char *text, lv_color_t col) {
     set_ellipsis_text(lbl_title, text);
 }
 
+bool calendar_wants_focus() {
+    int now = dash_now_min();
+    if (now < 0) return false;
+    for (int i = 0; i < state.cal_count; i++) {
+        const CalEvent &e = state.cal_events[i];
+        if (e.start_min <= now && now < e.end_min)           return true;
+        if (e.start_min > now && e.start_min - now <= CAL_QUIET_MIN) return true;
+    }
+    return false;
+}
+
 void update_calendar_ui() {
     int now = dash_now_min();
     update_timeline(now);

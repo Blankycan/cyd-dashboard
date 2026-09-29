@@ -16,6 +16,18 @@
 
 #define CYD_THEME  CYD_THEME_COZYFALL
 
+// Ambient scenes -------------------------------------------------------------
+// Played in the calendar slot, in this order and looping, whenever no meeting
+// is near. Available: SCENE_LEAVES, SCENE_SNOW, SCENE_LIFE (see
+// src/scenes/registry.h). Leave empty to always show the calendar.
+#define CYD_SCENES  SCENE_LEAVES, SCENE_LIFE
+
+#define SCENE_SHOW_MS         (3 * 60 * 1000)  // how long each scene plays
+#define CAL_PEEK_MS           (30 * 1000)      // calendar shown between scenes
+#define CAL_QUIET_MIN         30               // calendar only from this many minutes before a meeting until it ends
+#define SCENE_STOP_GRACE_MS   (12 * 1000)      // time a scene gets to wrap up before it's cut off
+#define SCENE_FRAME_MS        40               // scene frame period (25 fps)
+
 // Sleep & backlight --------------------------------------------------------
 // Inactivity time before the display dims (milliseconds)
 #define SLEEP_TIMEOUT_MS      (5 * 60 * 1000)

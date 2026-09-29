@@ -8,3 +8,7 @@
 
 void build_calendar_panel(lv_obj_t *parent);
 void update_calendar_ui();
+
+// True while a meeting is on or starts within CAL_QUIET_MIN — the scene
+// player keeps the calendar up instead of playing scenes.
+bool calendar_wants_focus();

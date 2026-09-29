@@ -134,6 +134,32 @@
 #define COL_CALENDAR_HOUR COL_TEXT_DIM
 #endif
 
+// --- Ambient scenes --- (scene_player.cpp, src/scenes/*.cpp)
+#ifndef COL_SCENE_BG
+#define COL_SCENE_BG COL_CALENDAR_BG
+#endif
+#ifndef COL_SCENE_LEAVES_1
+#define COL_SCENE_LEAVES_1 COL_WARN
+#endif
+#ifndef COL_SCENE_LEAVES_2
+#define COL_SCENE_LEAVES_2 COL_ALERT
+#endif
+#ifndef COL_SCENE_LEAVES_3
+#define COL_SCENE_LEAVES_3 COL_GLOW
+#endif
+#ifndef COL_SCENE_SNOW_NEAR
+#define COL_SCENE_SNOW_NEAR COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_SNOW_FAR
+#define COL_SCENE_SNOW_FAR COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_LIFE_CELL
+#define COL_SCENE_LIFE_CELL COL_OK
+#endif
+#ifndef COL_SCENE_LIFE_BG
+#define COL_SCENE_LIFE_BG COL_SCENE_BG
+#endif
+
 // --- Music ---
 #ifndef COL_MUSIC_BG
 #define COL_MUSIC_BG COL_BG

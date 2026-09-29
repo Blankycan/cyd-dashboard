@@ -81,6 +81,20 @@ packet). `ui_helpers.h/cpp` has the shared factories used across panels —
 notably `make_bar_row()`, which builds the common "label + value + bar +
 optional reset countdown" row used by the system/claude panels.
 
+**Ambient scenes** (`src/scenes/`) share the calendar's slot. The
+`scene_player` creates a sibling panel over the calendar and alternates
+scene (`SCENE_SHOW_MS`) / calendar (`CAL_PEEK_MS`) from the `CYD_SCENES`
+list in `config.h`, holding the calendar while `calendar_wants_focus()`
+(meeting on or within `CAL_QUIET_MIN`). Each scene is a self-contained
+`Scene` (see `scene.h`): start/tick/request_stop/is_done plus optional
+touch/finish, given an area of any size; the player owns the area and deletes
+it (and every object in it) when the scene ends, cutting it off after
+`SCENE_STOP_GRACE_MS` if it doesn't finish. Touch input from
+`touch_read_cb()` is queued via `scene_player_touch()` and handled in the
+player's frame timer (never inside indev processing): inside the scene → the
+scene, elsewhere → flip. Transitions are logged as `{"log":"scene ..."}`
+lines, which the companion prints as `CYD: ...`.
+
 When disconnected (`DISCONNECT_TIMEOUT_MS` with no packet), `main.cpp` zeroes
 out `state` and calls every widget's `update_*_ui()` directly rather than
 waiting for the next packet — see `show_disconnected()`. Sleep (backlight dim +
@@ -149,8 +163,10 @@ One JSON object per line, newline-delimited, 115200 baud. Firmware boots with
 ram, keys, time, date, active, ip, idle_msg?, music?, claude?, cal?}` — see
 `handle_packet()` in `main.cpp` for the authoritative field list and defaults,
 and `collect_stats()` in `companion/main.py` for how it's assembled. The
-firmware acks each packet with `{"ack":true}` but the companion doesn't depend
-on it (non-blocking read, ignored on timeout). If you add a field to one side,
+firmware acks each packet with `{"ack":true}` and may also send
+`{"log":"..."}` lines; the companion drains every buffered line after each
+packet (reading only one per packet lets log lines pile into a backlog) but
+doesn't otherwise depend on acks. If you add a field to one side,
 update the other by hand — there's no shared schema.
 
 `cal` is `[[start_min, end_min, title], ...]` (minutes since local midnight)

@@ -471,6 +471,57 @@ git.
 
 ---
 
+## Ambient scenes
+
+When no meeting is near, the calendar slot takes turns with small animated
+**scenes**: a scene plays for 3 minutes, the calendar shows for 30 seconds,
+then the next scene, looping. From 30 minutes before a meeting until it ends
+the calendar stays up; the running scene is asked to wrap up and gets a grace
+period to finish (leaves fall out of view, Life dissolves) before it's cut
+off. Scenes pause while the display sleeps.
+
+Pick the scenes and their order next to the theme in `src/config.h`, e.g.
+swap leaves for snow in winter:
+
+```c
+#define CYD_SCENES  SCENE_LEAVES, SCENE_LIFE
+```
+
+| Scene | What it does | Touch |
+|---|---|---|
+| `SCENE_LEAVES` | Autumn leaves tumble down on a wandering breeze | Blow leaves away from your finger |
+| `SCENE_SNOW` | Snow in two depth layers, near flakes bigger and faster | Puff flakes away from your finger |
+| `SCENE_LIFE` | Conway's Game of Life; ends by itself when the colony dies out or gets stuck in a loop | Press or drag to bring cells to life |
+
+**Touch.** While a scene shows, touches inside it go to the scene, and a tap
+anywhere else on the screen flips to the calendar. While the calendar shows,
+a tap anywhere starts the next scene, so two taps skip a scene. A scene
+started by tapping plays its full time even if a meeting is near. The tap
+that wakes a sleeping display only wakes it.
+
+**Timing** (`src/config.h`): `SCENE_SHOW_MS`, `CAL_PEEK_MS`, `CAL_QUIET_MIN`
+(minutes before a meeting when the calendar takes over),
+`SCENE_STOP_GRACE_MS`, and `SCENE_FRAME_MS` (25 fps).
+
+**Colours** are `COL_SCENE_*` tokens in `src/theme.h`. Each falls back to
+the theme's own palette (leaves use the warn/alert/glow colours, snow the
+text colours, Life the OK colour), so every scene matches whichever theme is
+active without any extra work; a theme can override them individually.
+
+**Writing a scene.** A scene is one self-contained file in `src/scenes/`
+that fills in the `Scene` interface from `src/scenes/scene.h`:
+`start(area, w, h)` builds it inside the area it's given (any size, so the
+same scene could run fullscreen later), `tick(dt)` animates it,
+`request_stop()` asks it to wrap up, `is_done()` reports when it has, and the
+optional `touch()` and `finish()` handle input and free non-LVGL memory. The
+player deletes the scene's area and everything in it when the scene ends, so
+a scene can't leave objects behind. Register it in `src/scenes/registry.h`
+and add its `COL_SCENE_<NAME>_*` fallbacks to `theme.h`. Each scene
+transition is logged as `CYD: scene ...` in the companion's output, which is
+handy for checking the rotation.
+
+---
+
 ## Enabling Claude working-session dots
 
 The Claude panel can show a small dot per Claude Code session that's
@@ -579,7 +630,7 @@ companion/          Host-side Python app
   idle_messages.txt Rotating messages shown when no music is playing
 
 src/                ESP32 firmware (Arduino / PlatformIO)
-  config.h          User-tunable settings (timeouts, brightness, session dots)
+  config.h          User-tunable settings (theme, scenes, timeouts, brightness, calendar)
   layout.h          Panel geometry and hardware wiring constants
   state.h           Shared DashState struct populated from serial packets
   theme.h           Colour theme selector (includes the active themes/*.h)
@@ -591,6 +642,13 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     rainbow.h       Diagnostic — every colour token distinct
   ui_helpers.h/cpp  Shared LVGL widget factories and formatters
   main.cpp          Hardware init, sleep overlay, packet handler, setup/loop
+  scenes/           Ambient scenes that take turns with the calendar
+    scene.h         The Scene plug-in interface
+    scene_player.*  Rotation, calendar hand-off, touch routing
+    registry.h      Available scenes and their SCENE_* names
+    leaves.cpp      Falling autumn leaves
+    snow.cpp        Snowfall in two depth layers
+    life.cpp        Conway's Game of Life
   widgets/
     topbar.*        Clock and date bar
     calendar.*      Current/next meeting, countdown, and day timeline

@@ -7,6 +7,7 @@
 //   Topbar   indigo bg / yellow clock / cyan date
 //   Music    dark-green bg / lime text / orange|yellow|sky icons
 //   Calendar dark-crimson bg; pinks/roses, yellow "soon", white-ish now mark
+//   Scenes   near-black blue bg; leaves=orange/brown/olive, snow=ice blues, life=chartreuse
 //   System   dark-violet bg; CPU=reds, RAM=greens
 //   Claude   dark-teal bg / light-blue sessions; H5=violets, W7=teals; working dots=lime/blue-violet/pink
 //   Status   dark-gold bg / lime active / sky-blue idle / red offline / orange keys
@@ -112,6 +113,16 @@
 #define COL_CALENDAR_EVENT_NOW  LVC(0xFF0033)  // red
 #define COL_CALENDAR_NOW_MARK   LVC(0xFFFFAA)  // pale yellow
 #define COL_CALENDAR_HOUR       LVC(0xAA5566)  // muted rose
+
+// Scenes — near-black blue bg
+#define COL_SCENE_BG            LVC(0x00060F)  // near-black blue
+#define COL_SCENE_LEAVES_1      LVC(0xFF7722)  // tangerine
+#define COL_SCENE_LEAVES_2      LVC(0x995522)  // brown
+#define COL_SCENE_LEAVES_3      LVC(0xAAAA22)  // olive
+#define COL_SCENE_SNOW_NEAR     LVC(0xDDF4FF)  // ice white
+#define COL_SCENE_SNOW_FAR      LVC(0x5588AA)  // steel blue
+#define COL_SCENE_LIFE_CELL     LVC(0x99FF00)  // chartreuse
+#define COL_SCENE_LIFE_BG       LVC(0x000F06)  // near-black green
 
 // System — dark violet bg; CPU reds, RAM greens
 #define COL_SYSTEM_BG         LVC(0x0F001A)  // very dark violet
