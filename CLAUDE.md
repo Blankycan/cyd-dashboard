@@ -140,6 +140,11 @@ background thread/state and `collect_stats()` never blocks on them:
   percentages. Auth is whichever of `~/.claude/.credentials.json` (OAuth from a
   `claude` login) or `ANTHROPIC_API_KEY` is available; if neither, rate-limit
   fields are omitted and the firmware hides that section.
+- `audio.py` — `AudioEnergyMonitor`, optional (`AUDIO_ENERGY_ENABLED`, needs
+  numpy): only while the media monitor reports *playing*, captures that
+  player's output with `parec` and emits `beat` and `au` (intensity/bass/bpm)
+  live events. Analysis is timed in audio frames (not wall clock) so it can be
+  tested by feeding it a PCM stream via `_analyse()`.
 - `gcal.py` — `CalendarMonitor` fetches today's timed events from the Google
   Calendar API every 5 min (read-only OAuth token from `gcal_auth.py`, stored
   in `~/.config/cyd-dashboard/` outside the repo) across the calendars listed
@@ -173,6 +178,15 @@ firmware acks each packet with `{"ack":true}` and may also send
 packet (reading only one per packet lets log lines pile into a backlog) but
 doesn't otherwise depend on acks. If you add a field to one side,
 update the other by hand — there's no shared schema.
+
+Besides stats, the companion sends **live event** lines between packets —
+`{"type":"key","k":<category>}`, `{"type":"beat","s":..}`,
+`{"type":"au","i":..,"b":..,"bpm":..}` — queued by the monitor threads
+(`emit_event()` in `main.py`) and written by the session loop, the only
+thread that writes to serial. Key events carry a category only, never the key.
+The firmware turns these, plus changes it detects in stats packets (music
+state, track, Claude working) and the clock (hour), into `SceneEvent`s for the
+running scene via `scene_player_event()`.
 
 `cal` is `[[start_min, end_min, title], ...]` (minutes since local midnight)
 resent in every packet; the firmware derives current/next meeting and all

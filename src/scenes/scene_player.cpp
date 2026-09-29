@@ -3,11 +3,16 @@
 #include "../config.h"
 #include "../theme.h"
 #include "../ui_helpers.h"
+#include "../state.h"
 #include "../widgets/calendar.h"
 
 // Leading nullptr lets CYD_SCENES be left empty; real entries start at [1].
 static const Scene *const playlist[] = { nullptr, CYD_SCENES };
 static const int PLAYLIST_N = sizeof(playlist) / sizeof(playlist[0]) - 1;
+
+// Play order: playlist indices, reshuffled at the start of every cycle when
+// SCENE_SHUFFLE is on
+static int order[PLAYLIST_N > 0 ? PLAYLIST_N : 1];
 
 enum Mode { MODE_CALENDAR, MODE_SCENE };
 
@@ -33,7 +38,15 @@ static TouchEv tq[8];
 static int     tq_len = 0;
 static bool    scene_owns_gesture = false;   // current press started inside the scene
 
+// Host events for the running scene, queued like touches and delivered at the
+// start of the next frame. Audio frames collapse into one entry.
+static SceneEvent   evq[16];
+static int          evq_len = 0;
+static SceneContext ctx = { SCENE_MUSIC_NONE, 0, 0, 0, 0, false, 0, -1, -1 };
+static uint32_t     last_key_ms = 0;
+
 static const uint32_t FLIP_DEBOUNCE_MS = 300;
+static const uint32_t TYPING_MS        = 1500;
 
 // One {"log":"..."} line per transition; the companion prints these, which
 // makes the rotation checkable from `journalctl` without looking at the board.
@@ -43,10 +56,24 @@ static void log_event(const char *what) {
 
 // ---------------------------------------------------------------------------
 
+static void new_cycle() {
+    int last = order[PLAYLIST_N - 1];
+    for (int i = 0; i < PLAYLIST_N; i++) order[i] = i;
+    if (!SCENE_SHUFFLE || PLAYLIST_N < 2) return;
+    for (int i = PLAYLIST_N - 1; i > 0; i--) {   // Fisher-Yates
+        int j = random(0, i + 1);
+        int t = order[i]; order[i] = order[j]; order[j] = t;
+    }
+    // Don't play the same scene twice in a row across the cycle boundary
+    if (order[0] == last) { int t = order[0]; order[0] = order[1]; order[1] = t; }
+}
+
 static void start_scene(bool by_tap) {
     if (PLAYLIST_N == 0) return;
-    cur      = playlist[1 + next_idx];
+    if (next_idx == 0) new_cycle();
+    cur      = playlist[1 + order[next_idx]];
     next_idx = (next_idx + 1) % PLAYLIST_N;
+    evq_len  = 0;   // events from before the scene existed are stale
 
     int w = lv_obj_get_width(scene_panel), h = lv_obj_get_height(scene_panel);
     area = lv_obj_create(scene_panel);
@@ -124,8 +151,21 @@ static void frame_cb(lv_timer_t *) {
     for (int i = 0; i < tq_len; i++) handle_touch(tq[i]);
     tq_len = 0;
 
-    if (paused) return;
+    if (paused) { evq_len = 0; return; }
     mode_ms += dt;
+
+    if (mode == MODE_SCENE && cur->event) {
+        for (int i = 0; i < evq_len; i++) {
+            if (SCENE_EVENT_LOG && evq[i].type != SCENE_EV_AUDIO) {
+                char buf[40];
+                snprintf(buf, sizeof(buf), "event %d (key %d, music %d, s %d, v %d)", evq[i].type,
+                         evq[i].key, evq[i].music, evq[i].strength, evq[i].value);
+                log_event(buf);
+            }
+            cur->event(evq[i]);
+        }
+    }
+    evq_len = 0;
 
     if (mode == MODE_CALENDAR) {
         if (PLAYLIST_N > 0 && mode_ms >= CAL_PEEK_MS && !calendar_wants_focus())
@@ -163,6 +203,7 @@ void scene_player_init(lv_obj_t *calendar_panel) {
                              COL_SCENE_BG);
     lv_obj_add_flag(scene_panel, LV_OBJ_FLAG_HIDDEN);
 
+    for (int i = 0; i < PLAYLIST_N; i++) order[i] = i;
     last_ms = millis();
     lv_timer_create(frame_cb, SCENE_FRAME_MS, nullptr);
 }
@@ -180,4 +221,44 @@ void scene_player_touch(SceneTouch type, int x, int y) {
 
 void scene_player_set_paused(bool p) {
     paused = p;
+}
+
+// ---------------------------------------------------------------------------
+// Host events
+
+static void queue_event(const SceneEvent &e) {
+    if (mode != MODE_SCENE || paused) return;   // nobody to tell
+    if (e.type == SCENE_EV_AUDIO && evq_len > 0 && evq[evq_len - 1].type == SCENE_EV_AUDIO) return;
+    if (evq_len < (int)(sizeof(evq) / sizeof(evq[0]))) evq[evq_len++] = e;
+}
+
+void scene_player_event(const SceneEvent &e) {
+    switch (e.type) {
+        case SCENE_EV_KEY:    last_key_ms = millis(); break;
+        case SCENE_EV_MUSIC:
+            ctx.music = e.music;
+            if (e.music != SCENE_MUSIC_PLAYING) ctx.intensity = ctx.bass = ctx.bpm = 0;
+            break;
+        case SCENE_EV_BEAT:   ctx.last_beat_ms = millis(); break;
+        case SCENE_EV_CLAUDE: ctx.claude_working = e.value; break;
+        default: break;
+    }
+    queue_event(e);
+}
+
+void scene_player_audio(int intensity, int bass, int bpm) {
+    ctx.intensity = (uint8_t)constrain(intensity, 0, 100);
+    ctx.bass      = (uint8_t)constrain(bass, 0, 100);
+    ctx.bpm       = (uint16_t)constrain(bpm, 0, 400);
+    SceneEvent e = {};
+    e.type = SCENE_EV_AUDIO;
+    queue_event(e);
+}
+
+const SceneContext &scene_ctx() {
+    ctx.typing = last_key_ms && millis() - last_key_ms < TYPING_MS;
+    int now = dash_now_min();
+    ctx.hour   = now < 0 ? -1 : now / 60;
+    ctx.minute = now < 0 ? -1 : now % 60;
+    return ctx;
 }

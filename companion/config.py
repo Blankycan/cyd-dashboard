@@ -17,6 +17,13 @@ KEYS_STATE_FILE    = Path.home() / ".local" / "state" / "cyd-dashboard" / "keys.
 # Media --------------------------------------------------------------------
 MEDIA_POLL_INTERVAL = 3.0  # seconds between playerctl metadata polls
 
+# Scene events -------------------------------------------------------------
+# Live events for the board's ambient scenes, sent the moment they happen
+# rather than with the next stats packet.
+KEY_EVENTS_ENABLED   = True   # key-press categories (never which key) — see keyboard.py
+AUDIO_ENERGY_ENABLED = True   # beat / tempo / intensity / bass of playing music — see audio.py
+                              # (needs numpy; captures audio only while something plays)
+
 # Claude token scanner -----------------------------------------------------
 SCAN_INTERVAL  = 60.0    # seconds between JSONL scans for today's session count
 FETCH_INTERVAL = 300.0   # seconds between API calls for rate-limit headers

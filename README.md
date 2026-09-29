@@ -125,6 +125,20 @@ but doesn't otherwise depend on them.
  "cal":[[720,780,"Lunch"],[990,1050,"Sprint planning"]]}
 ```
 
+Between stats packets the companion also sends short **live event** lines the
+moment they happen, for the ambient scenes (none of these are acked):
+
+```json
+{"type":"key","k":"c"}                     key-press category: c char, s space, e enter,
+                                           b backspace/delete, m modifier, o other
+{"type":"beat","s":72}                     a beat in the playing music, strength 1-100
+{"type":"au","i":55,"b":40,"bpm":122}      music intensity / bass (0-100) and tempo, ~10 per second
+```
+
+Only the category of a key is ever sent — never which key — so nothing you
+type (passwords included) leaves the PC. `beat`/`au` come from the optional
+audio energy detection; see [Ambient scenes](#ambient-scenes).
+
 `music`, `idle_msg`, `claude`, and `cal` are optional — each is only sent when
 its source has data, and the firmware keeps its defaults otherwise. The
 authoritative field list is `handle_packet()` in `src/main.cpp`; the
@@ -181,6 +195,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install psutil pyserial evdev unidecode
+
+# Only needed for beat/tempo detection in the ambient scenes
+pip install numpy
 
 # Only needed for the calendar panel
 pip install google-auth google-auth-oauthlib requests
@@ -509,6 +526,29 @@ a tap anywhere starts the next scene, so two taps skip a scene. A scene
 started by tapping plays its full time even if a meeting is near. The tap
 that wakes a sleeping display only wakes it.
 
+**Order.** With `SCENE_SHUFFLE 1` (the default) the list is played in a new
+random order every cycle, never repeating a scene across the boundary; with
+`0` it plays in the order written.
+
+**Events.** Scenes can also react to what's happening on the PC: key presses
+(by category only), music starting/pausing/stopping, track changes, Claude
+sessions starting or finishing work, the hour changing, and — with audio
+energy detection on — the beat, tempo, intensity, and bass of the music
+that's playing. For example, the starfield surges as you type and pulses on
+the beat, leaves gust on Enter and on a new track, the fish startle at
+Enter, and every character you type seeds new cells in the Game of Life.
+
+**Audio energy detection** runs in the companion and is switched with
+`AUDIO_ENERGY_ENABLED` in `companion/config.py` (and key events with
+`KEY_EVENTS_ENABLED`). It needs `numpy`. While music is *playing* it captures
+the output the player is using (via `parec`) at low quality and analyses it:
+beats are sudden rises in the kick/snare frequencies, tempo comes from how
+regularly they repeat, and intensity/bass are measured against the song's own
+recent levels, so the volume knob doesn't affect any of it. It uses about 3%
+of one CPU core while music plays and nothing otherwise. The audio never
+leaves the companion; only those few numbers are sent. `BEAT_THRESHOLD` in
+`companion/audio.py` tunes how eagerly beats are detected.
+
 **Timing** (`src/config.h`): `SCENE_SHOW_MS`, `CAL_PEEK_MS`, `CAL_QUIET_MIN`
 (minutes before a meeting when the calendar takes over),
 `SCENE_STOP_GRACE_MS`, and `SCENE_FRAME_MS` (25 fps).
@@ -523,7 +563,10 @@ that fills in the `Scene` interface from `src/scenes/scene.h`:
 `start(area, w, h)` builds it inside the area it's given (any size, so the
 same scene could run fullscreen later), `tick(dt)` animates it,
 `request_stop()` asks it to wrap up, `is_done()` reports when it has, and the
-optional `touch()` and `finish()` handle input and free non-LVGL memory. The
+optional `touch()`, `finish()`, and `event()` handle input, free non-LVGL
+memory, and react to host events (`scene_ctx()` has the current music/tempo/
+typing state at any time, e.g. to check if music is already playing at start).
+Set `SCENE_EVENT_LOG 1` in `config.h` to log every event a scene receives. The
 player deletes the scene's area and everything in it when the scene ends, so
 a scene can't leave objects behind. Register it in `src/scenes/registry.h`
 and add its `COL_SCENE_<NAME>_*` fallbacks to `theme.h`. Sprite-heavy scenes
@@ -639,7 +682,8 @@ companion/          Host-side Python app
   gcal.py           Google Calendar poller (run directly to list calendars)
   gcal_auth.py      One-time Google login — saves the read-only token
   text_utils.py     Shared helpers for strings sent to the firmware
-  keyboard.py       evdev keypress monitor + daily keystroke count
+  keyboard.py       evdev keypress monitor, daily keystroke count, key categories
+  audio.py          Beat/tempo/intensity detection for the ambient scenes (optional)
   media.py          playerctl MPRIS2 poller
   claude_tokens.py  JSONL scanner + API rate-limit fetcher
   claude_activity.py  Reads the working-session status file (see hooks/ below)

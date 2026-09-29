@@ -6,6 +6,7 @@
 // and "tumble" by squashing their width as they fall. They respawn at the top
 // until asked to stop, then the rest fall out and the scene reports done.
 // Touch: a press or drag blows nearby leaves away from your finger.
+// Events: a gust sweeps across on Enter and whenever the track changes.
 
 static const int   MAX_LEAVES   = 24;
 static const float GUST_RADIUS  = 60.0f;
@@ -144,4 +145,17 @@ static void touch(SceneTouch type, int x, int y) {
     }
 }
 
-const Scene scene_leaves = { "leaves", start, tick, request_stop, is_done, touch, nullptr };
+static void gust() {
+    float dir = random(0, 2) ? 1.0f : -1.0f;
+    for (int i = 0; i < count; i++) {
+        if (!leaves[i].alive) continue;
+        leaves[i].push_vx += dir * scene_randf(40, 80);
+        leaves[i].push_vy -= scene_randf(5, 15);
+    }
+}
+
+static void event(const SceneEvent &e) {
+    if (e.type == SCENE_EV_TRACK || (e.type == SCENE_EV_KEY && e.key == SCENE_KEY_ENTER)) gust();
+}
+
+const Scene scene_leaves = { "leaves", start, tick, request_stop, is_done, touch, nullptr, event };

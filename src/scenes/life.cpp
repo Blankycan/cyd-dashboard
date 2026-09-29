@@ -8,6 +8,8 @@
 // dies out or settles into a short repeating loop it dissolves and reports
 // done by itself; request_stop() dissolves it early.
 // Touch: press or drag to bring cells to life under your finger.
+// Events: every character you type seeds a few cells somewhere, so typing
+// keeps the colony going.
 
 static const int      CELL      = 4;     // px per cell (3px dot + 1px gap)
 static const uint32_t STEP_MS   = 180;
@@ -131,6 +133,11 @@ static void touch(SceneTouch type, int x, int y) {
     lv_obj_invalidate(canvas);
 }
 
+static void event(const SceneEvent &e) {
+    if (done || stop_requested || e.type != SCENE_EV_KEY || e.key != SCENE_KEY_CHAR) return;
+    touch(SCENE_TOUCH_PRESS, ox + random(0, cols) * CELL, oy + random(0, rows) * CELL);
+}
+
 static void finish() {
     free(buf);  buf  = nullptr;
     free(grid); grid = nullptr;
@@ -138,4 +145,4 @@ static void finish() {
     canvas = nullptr;   // already deleted along with the scene area
 }
 
-const Scene scene_life = { "life", start, tick, request_stop, is_done, touch, finish };
+const Scene scene_life = { "life", start, tick, request_stop, is_done, touch, finish, event };

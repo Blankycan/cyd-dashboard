@@ -3,6 +3,7 @@
 # Run: python companion/main.py [--port /dev/ttyUSBx]
 
 import argparse
+import queue
 import glob
 import json
 import random
@@ -18,8 +19,9 @@ import serial
 import serial.tools.list_ports
 
 from claude_activity import ClaudeActivityMonitor
+from audio import AudioEnergyMonitor
 from claude_tokens import ClaudeTokenMonitor
-from config import INTERVAL, IDLE_MSG_INTERVAL
+from config import INTERVAL, IDLE_MSG_INTERVAL, KEY_EVENTS_ENABLED
 from gcal import CalendarMonitor
 from keyboard import KeyboardMonitor
 from media import MediaMonitor
@@ -92,7 +94,7 @@ def collect_stats(kb: KeyboardMonitor | None = None,
         "ip":     get_local_ip(),
     }
     if m:
-        stats["music"] = m
+        stats["music"] = {k: v for k, v in m.items() if k != "player"}
     else:
         stats["idle_msg"] = _get_idle_msg()
     if tok:
@@ -165,6 +167,8 @@ def print_stats(s: dict) -> None:
         now = datetime.now().hour * 60 + datetime.now().minute
         left = sum(1 for st, en, _ in s["cal"] if en > now)
         cal_s = ansi("text_sec", f"{left} mtg left")
+    if _last_audio.get("bpm") and m and m.get("playing"):
+        music_s += ansi("text_dim", f"  {_last_audio['bpm']} BPM")
     print(
         f"  {ansi('text_pri', s['time'])}   "
         f"CPU {ansi(cpu_c, cpu_str)}   "
@@ -178,6 +182,23 @@ def print_stats(s: dict) -> None:
 
 
 RECONNECT_DELAY    = 5
+
+# Live scene events (key presses, beats, audio frames) queued by the monitors'
+# own threads and written by the session loop, so only one thread ever writes
+# to the serial port. Dropped rather than queued up if the board isn't there.
+_events: "queue.Queue[dict]" = queue.Queue(maxsize=256)
+
+
+_last_audio: dict = {}   # latest audio frame, for the status line
+
+
+def emit_event(ev: dict) -> None:
+    if ev.get("type") == "au":
+        _last_audio.update(ev)
+    try:
+        _events.put_nowait(ev)
+    except queue.Full:
+        pass
 BOOT_WARMUP_DELAY  = 10  # seconds
 
 
@@ -232,8 +253,30 @@ def run_session(port: str, kb, media, claude_tok, claude_activity, cal,
         session_start = time.time()
         warmup_pending = force_warmup_reset
 
+        # Anything queued while disconnected is stale
+        while not _events.empty():
+            _events.get_nowait()
+
         no_ack_streak = 0
+        next_stats = 0.0
         while True:
+            # Between stats packets, forward live events as they arrive
+            wait = next_stats - time.monotonic()
+            if wait > 0:
+                try:
+                    batch = [_events.get(timeout=wait)]
+                except queue.Empty:
+                    continue
+                while len(batch) < 32:
+                    try:
+                        batch.append(_events.get_nowait())
+                    except queue.Empty:
+                        break
+                ser.write(b"".join(json.dumps(e, separators=(",", ":")).encode() + b"\n"
+                                   for e in batch))
+                continue
+            next_stats = time.monotonic() + INTERVAL
+
             # On a fresh boot, the board's first tft.init() can silently fail
             # if it races the host's own USB/power settling right after the PC
             # powers on — the ESP32 stays fully alive and keeps acking over
@@ -282,8 +325,6 @@ def run_session(port: str, kb, media, claude_tok, claude_activity, cal,
                 no_ack_streak += 1
                 if no_ack_streak == 3:
                     print(ansi("warn", "  ESP32 not acking — board may be frozen"))
-
-            time.sleep(INTERVAL)
     finally:
         ser.close()
 
@@ -304,10 +345,15 @@ def main():
     time.sleep(0.5)
 
     kb = KeyboardMonitor()
+    if KEY_EVENTS_ENABLED:
+        kb.on_key = lambda cat: emit_event({"type": "key", "k": cat})
     kb.start()
 
     media = MediaMonitor()
     media.start()
+
+    audio = AudioEnergyMonitor(media, emit_event)
+    audio.start()
 
     claude_tok = ClaudeTokenMonitor()
     claude_tok.start()
@@ -343,6 +389,7 @@ def main():
     finally:
         kb.stop()
         media.stop()
+        audio.stop()
         claude_tok.stop()
         claude_activity.stop()
         cal.stop()

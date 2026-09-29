@@ -8,6 +8,7 @@
 // they're all gone.
 // Touch: tap to drop a food pellet; it sinks, and the nearest fish swims over
 // and eats it.
+// Events: pressing Enter startles the fish into a quick dart.
 
 static const int   MAX_FISH    = 5;
 static const int   MAX_BUBBLES = 10;
@@ -275,4 +276,14 @@ static void touch(SceneTouch type, int x, int y) {
     }
 }
 
-const Scene scene_fish = { "fish", start, tick, request_stop, is_done, touch, nullptr };
+static void event(const SceneEvent &e) {
+    if (e.type != SCENE_EV_KEY || e.key != SCENE_KEY_ENTER || stopping) return;
+    for (int i = 0; i < n_fish; i++) {
+        Fish &f = fish[i];
+        f.vx += scene_randf(-45, 45);
+        f.vy += scene_randf(-15, 15);
+        new_target(f);
+    }
+}
+
+const Scene scene_fish = { "fish", start, tick, request_stop, is_done, touch, nullptr, event };

@@ -1,9 +1,15 @@
 """
 Keyboard monitor — evdev (Wayland/Hyprland) with pynput fallback.
 
-Tracks two things: whether the keyboard is currently active (for the status
-dot), and how many keys were pressed today. The daily count is persisted to
-KEYS_STATE_FILE so a companion restart mid-day doesn't reset it to zero.
+Tracks whether the keyboard is currently active (for the status dot) and how
+many keys were pressed today. The daily count is persisted to KEYS_STATE_FILE
+so a companion restart mid-day doesn't reset it to zero.
+
+It can also report each press to `on_key(category)` for the ambient scenes.
+Only a coarse category is passed on — never which key — so nothing typed
+(passwords included) ever leaves this process:
+  "c" character (letters, digits, punctuation)   "s" space
+  "e" enter     "b" backspace/delete     "m" modifier     "o" anything else
 
 Requires membership in the 'input' group for evdev access:
   sudo usermod -aG input $USER   (log out and back in to apply)
@@ -17,6 +23,22 @@ from datetime import date
 
 from config import IDLE_AFTER, KEYS_STATE_FILE, KEYS_SAVE_INTERVAL
 
+# Linux input event codes (linux/input-event-codes.h)
+_CHAR_CODES = set(range(2, 14)) | set(range(16, 28)) | set(range(30, 42)) | {43} \
+            | set(range(44, 54)) | {55} | set(range(71, 84)) | {86, 98}
+_MOD_CODES  = {29, 42, 54, 56, 58, 97, 100, 125, 126}
+_BTN_FIRST  = 0x100   # BTN_* (mouse, gamepad): not typing
+
+
+def _category(code: int) -> str | None:
+    if code >= _BTN_FIRST:     return None
+    if code == 57:             return "s"
+    if code in (28, 96):       return "e"
+    if code in (14, 111):      return "b"
+    if code in _MOD_CODES:     return "m"
+    if code in _CHAR_CODES:    return "c"
+    return "o"
+
 
 class KeyboardMonitor:
     def __init__(self):
@@ -27,6 +49,7 @@ class KeyboardMonitor:
         self._day          = date.today().isoformat()
         self._keys_today   = 0
         self._last_save    = 0.0
+        self.on_key        = None   # optional callable(category), called from the reader thread
         self._load()
 
     # ---- public API -------------------------------------------------------
@@ -56,11 +79,13 @@ class KeyboardMonitor:
 
     # ---- internal ---------------------------------------------------------
 
-    def _press(self):
+    def _press(self, category: str | None = "o"):
         with self._lock:
             self._last_press = time.monotonic()
             self._rollover()
             self._keys_today += 1
+        if category and self.on_key:
+            self.on_key(category)
 
     def _rollover(self):
         """Reset the daily count once the local date changes (call under lock)."""
@@ -149,7 +174,7 @@ class KeyboardMonitor:
                     try:
                         for event in key.fileobj.read():
                             if event.type == ecodes.EV_KEY and event.value == 1:
-                                self._press()
+                                self._press(_category(event.code))
                     except Exception:
                         pass  # device disconnected mid-read; next rescan heals it
 
@@ -163,6 +188,18 @@ class KeyboardMonitor:
     def _pynput_loop(self):
         from pynput import keyboard
 
-        with keyboard.Listener(on_press=lambda _: self._press()):
+        Key = keyboard.Key
+        mods = {Key.shift, Key.shift_r, Key.ctrl, Key.ctrl_r, Key.alt, Key.alt_r,
+                Key.alt_gr, Key.cmd, Key.cmd_r, Key.caps_lock}
+
+        def category(k):
+            if k == Key.space:                    return "s"
+            if k == Key.enter:                    return "e"
+            if k in (Key.backspace, Key.delete):  return "b"
+            if k in mods:                         return "m"
+            if getattr(k, "char", None):          return "c"
+            return "o"
+
+        with keyboard.Listener(on_press=lambda k: self._press(category(k))):
             while self._running:
                 time.sleep(0.1)

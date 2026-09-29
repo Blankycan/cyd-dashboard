@@ -20,3 +20,9 @@ void scene_player_touch(SceneTouch type, int x, int y);
 
 // Freeze scenes and the rotation timers (e.g. while the display sleeps).
 void scene_player_set_paused(bool paused);
+
+// Host events: updates scene_ctx() and passes the event to the running scene
+// (queued, delivered on the next frame; dropped while paused).
+void scene_player_event(const SceneEvent &e);
+// Latest music energy numbers from the host (SCENE_EV_AUDIO)
+void scene_player_audio(int intensity, int bass, int bpm);

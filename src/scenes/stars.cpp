@@ -6,6 +6,7 @@
 // growing and brightening as they get closer. They respawn in the distance
 // until asked to stop, then the remaining stars fly past and it reports done.
 // Touch: press for a warp boost; drag to steer the vanishing point.
+// Events: surges forward as you type, and pulses on the music's beat.
 
 static const int   MAX_STARS  = 48;
 static const float BASE_SPEED = 0.22f;   // depth units per second (depth runs 1 → 0)
@@ -106,4 +107,9 @@ static void touch(SceneTouch type, int x, int y) {
     }
 }
 
-const Scene scene_stars = { "stars", start, tick, request_stop, is_done, touch, nullptr };
+static void event(const SceneEvent &e) {
+    if (e.type == SCENE_EV_KEY)  boost += 0.4f;
+    if (e.type == SCENE_EV_BEAT) boost += 1.5f * e.strength / 100.0f;
+}
+
+const Scene scene_stars = { "stars", start, tick, request_stop, is_done, touch, nullptr, event };

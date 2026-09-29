@@ -19,6 +19,7 @@ class MediaMonitor:
     def __init__(self):
         self._lock    = threading.Lock()
         self._info    = None   # dict {title, artist, playing} or None
+        self._player  = None   # playerctl name of the player _info came from
         self._running = False
         self._thread  = None
 
@@ -35,11 +36,19 @@ class MediaMonitor:
         with self._lock:
             return self._info
 
+    def player(self) -> str | None:
+        """playerctl name of the current player (e.g. "spotify",
+        "firefox.instance_1_42"), or None. Lets the audio monitor find which
+        audio output the music is actually playing on."""
+        with self._lock:
+            return self._player
+
     def _run(self):
         while self._running:
-            info = self._poll()
+            info, player = self._poll()
             with self._lock:
-                self._info = info
+                self._info   = info
+                self._player = player
             time.sleep(MEDIA_POLL_INTERVAL)
 
     def _query(self, player: str) -> dict | None:
@@ -63,7 +72,7 @@ class MediaMonitor:
             "playing": status == "Playing",
         }
 
-    def _poll(self) -> dict | None:
+    def _poll(self) -> tuple[dict | None, str | None]:
         try:
             players = subprocess.check_output(
                 ["playerctl", "-l"],
@@ -72,13 +81,13 @@ class MediaMonitor:
             ).decode().strip().splitlines()
             players = [p.strip() for p in players if p.strip()]
             if not players:
-                return None
+                return None, None
 
             # Multiple players can be registered at once (e.g. a paused
             # browser tab left in the background). Prefer whichever one is
             # actually playing over the first player playerctl happens to
             # list, falling back to the first player with any metadata.
-            fallback = None
+            fallback = (None, None)
             for player in players:
                 try:
                     info = self._query(player)
@@ -87,9 +96,9 @@ class MediaMonitor:
                 if info is None:
                     continue
                 if info["playing"]:
-                    return info
-                if fallback is None:
-                    fallback = info
+                    return info, player
+                if fallback[0] is None:
+                    fallback = (info, player)
             return fallback
         except Exception:
-            return None
+            return None, None

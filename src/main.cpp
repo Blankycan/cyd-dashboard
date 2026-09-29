@@ -202,6 +202,17 @@ static void clock_tick_cb(lv_timer_t *) {
     snprintf(state.time_str, sizeof(state.time_str), "%02d:%02d", total / 60, total % 60);
     update_topbar_ui();
     update_calendar_ui();
+
+    static int last_hour = -1;
+    if (total / 60 != last_hour) {
+        if (last_hour >= 0) {
+            SceneEvent e = {};
+            e.type  = SCENE_EV_HOUR;
+            e.value = total / 60;
+            scene_player_event(e);
+        }
+        last_hour = total / 60;
+    }
     if (sleep_state == SS_ASLEEP) {
         lv_label_set_text(lbl_sleep_time, state.time_str);
         char away[24];
@@ -280,19 +291,74 @@ static void show_disconnected() {
     update_music_ui();
     update_claude_ui();
     update_status_ui();
+
+    // Scenes hear that the music and Claude went quiet too
+    SceneEvent e = {};
+    if (scene_ctx().music != SCENE_MUSIC_NONE) {
+        e.type  = SCENE_EV_MUSIC;
+        e.music = SCENE_MUSIC_NONE;
+        scene_player_event(e);
+    }
+    if (scene_ctx().claude_working != 0) {
+        e.type  = SCENE_EV_CLAUDE;
+        e.value = 0;
+        scene_player_event(e);
+    }
 }
 
 // Parse one JSON line from serial and update state + UI widgets.
 // Expected shape: {"type":"stats","cpu":..,"ram":..,"keys":..,"time":"..","date":"..",
 //   "active":bool,"idle_msg":"..","ip":"..","music":{..},"claude":{..},
 //   "cal":[[start_min,end_min,"title"],..]}
+static SceneMusic music_state() {
+    if (!state.connected || !state.music_active) return SCENE_MUSIC_NONE;
+    return state.music_playing ? SCENE_MUSIC_PLAYING : SCENE_MUSIC_PAUSED;
+}
+
+// Live events sent between stats packets: key presses, beats, audio frames.
+// Returns false if `type` isn't one of them.
+static bool handle_live_event(const char *type, JsonDocument &doc) {
+    if (strcmp(type, "key") == 0) {
+        SceneEvent e = {};
+        e.type = SCENE_EV_KEY;
+        const char *k = doc["k"] | "o";
+        e.key = k[0] == 'c' ? SCENE_KEY_CHAR     : k[0] == 's' ? SCENE_KEY_SPACE
+              : k[0] == 'e' ? SCENE_KEY_ENTER    : k[0] == 'b' ? SCENE_KEY_BACKSPACE
+              : k[0] == 'm' ? SCENE_KEY_MODIFIER : SCENE_KEY_OTHER;
+        scene_player_event(e);
+        // Typing is activity: wake right away instead of on the next stats packet
+        last_keyboard_ms = last_active_ms = millis();
+        if (sleep_state == SS_ASLEEP) exit_sleep();
+        return true;
+    }
+    if (strcmp(type, "beat") == 0) {
+        SceneEvent e = {};
+        e.type     = SCENE_EV_BEAT;
+        e.strength = (uint8_t)constrain((int)(doc["s"] | 50), 1, 100);
+        scene_player_event(e);
+        return true;
+    }
+    if (strcmp(type, "au") == 0) {
+        scene_player_audio(doc["i"] | 0, doc["b"] | 0, doc["bpm"] | 0);
+        return true;
+    }
+    return false;
+}
+
 static void handle_packet(const String &line) {
     JsonDocument doc;
     if (deserializeJson(doc, line) != DeserializationError::Ok) return;
 
     const char *type = doc["type"] | "";
+    if (handle_live_event(type, doc)) return;
 
     if (strcmp(type, "stats") == 0) {
+        // For change events after the packet is applied
+        SceneMusic prev_music   = music_state();
+        int        prev_working = state.claude_working;
+        char       prev_title[sizeof(state.music_title)];
+        strlcpy(prev_title, state.music_title, sizeof(prev_title));
+
         bool was_connected = state.connected;
         last_packet_ms     = millis();
         state.connected    = true;
@@ -360,6 +426,22 @@ static void handle_packet(const String &line) {
                 e.end_min   = ev[1] | 0;
                 strlcpy(e.title, ev[2] | "", sizeof(e.title));
             }
+        }
+
+        SceneEvent e = {};
+        if (music_state() != prev_music) {
+            e.type  = SCENE_EV_MUSIC;
+            e.music = music_state();
+            scene_player_event(e);
+        }
+        if (state.music_active && prev_title[0] && strcmp(prev_title, state.music_title) != 0) {
+            e.type = SCENE_EV_TRACK;
+            scene_player_event(e);
+        }
+        if (state.claude_working != prev_working) {
+            e.type  = SCENE_EV_CLAUDE;
+            e.value = state.claude_working;
+            scene_player_event(e);
         }
 
         update_topbar_ui();
