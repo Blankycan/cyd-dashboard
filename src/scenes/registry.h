@@ -9,6 +9,9 @@ extern const Scene scene_life;     // Conway's Game of Life; draw cells with you
 extern const Scene scene_stars;    // starfield flight; press to warp, drag to steer
 extern const Scene scene_fish;     // fish tank; tap to drop food
 extern const Scene scene_quote;    // quote of the day, typed out; tap for another
+extern const Scene scene_invaders; // Space Invaders demo; drag to move, tap to fire
+extern const Scene scene_asteroids;// Asteroids demo; hold to steer, thrust and fire
+extern const Scene scene_pacman;   // Pac-Man demo in a generated mini maze; tap a side to steer
 
 #define SCENE_LEAVES  (&scene_leaves)
 #define SCENE_SNOW    (&scene_snow)
@@ -16,3 +19,6 @@ extern const Scene scene_quote;    // quote of the day, typed out; tap for anoth
 #define SCENE_STARS   (&scene_stars)
 #define SCENE_FISH    (&scene_fish)
 #define SCENE_QUOTE   (&scene_quote)
+#define SCENE_INVADERS  (&scene_invaders)
+#define SCENE_ASTEROIDS (&scene_asteroids)
+#define SCENE_PACMAN    (&scene_pacman)

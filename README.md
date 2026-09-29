@@ -484,7 +484,8 @@ Pick the scenes and their order next to the theme in `src/config.h`, e.g.
 swap leaves for snow in winter:
 
 ```c
-#define CYD_SCENES  SCENE_LEAVES, SCENE_FISH, SCENE_SNOW, SCENE_STARS, SCENE_QUOTE, SCENE_LIFE
+#define CYD_SCENES  SCENE_LEAVES, SCENE_PACMAN, SCENE_FISH, SCENE_INVADERS, SCENE_SNOW, \
+                    SCENE_STARS, SCENE_ASTEROIDS, SCENE_QUOTE, SCENE_LIFE
 ```
 
 | Scene | What it does | Touch |
@@ -495,6 +496,12 @@ swap leaves for snow in winter:
 | `SCENE_STARS` | Starfield flight, stars streaming out from a vanishing point | Press for a warp boost, drag to steer |
 | `SCENE_FISH` | Fish tank with seaweed and bubbles; the fish swim off screen when it ends | Tap to drop food; the nearest fish eats it |
 | `SCENE_QUOTE` | Quote of the day, typed out, then fades out by itself. Quotes live in `src/scenes/quotes.h` | Tap for a different quote |
+| `SCENE_PACMAN` | Pac-Man in a mini maze generated to fit the area, with chasing ghosts and power pellets. Ends by itself when the maze is cleared or the lives run out | Tap on a side of Pac-Man to steer that way |
+| `SCENE_INVADERS` | Space Invaders: a marching formation, bombs, and a cannon. On stop the remaining aliens chain-explode | Drag to move the cannon, tap to fire |
+| `SCENE_ASTEROIDS` | Vector-outline asteroids that split when shot. On stop the ship warps out and the rocks drift away | Hold to steer toward your finger, thrust, and fire |
+
+The arcade scenes play themselves. Touching one takes over the controls, and
+the computer takes them back 5 seconds after your last touch.
 
 **Touch.** While a scene shows, touches inside it go to the scene, and a tap
 anywhere else on the screen flips to the calendar. While the calendar shows,
@@ -519,9 +526,17 @@ same scene could run fullscreen later), `tick(dt)` animates it,
 optional `touch()` and `finish()` handle input and free non-LVGL memory. The
 player deletes the scene's area and everything in it when the scene ends, so
 a scene can't leave objects behind. Register it in `src/scenes/registry.h`
-and add its `COL_SCENE_<NAME>_*` fallbacks to `theme.h`. Each scene
-transition is logged as `CYD: scene ...` in the companion's output, which is
-handy for checking the rotation.
+and add its `COL_SCENE_<NAME>_*` fallbacks to `theme.h`. Sprite-heavy scenes
+can draw into a single pixel canvas with `src/scenes/pixfb.h` (fills, lines,
+1-bit sprites) instead of creating an object per sprite; it batches each
+frame's changes into a few redraw areas. Each scene
+transition is logged as `CYD: scene ...` in the companion's output, together
+with the scene's average frame time (target 40 ms), which is handy for
+checking the rotation and spotting a scene that's too heavy to draw.
+
+The firmware also runs a 5-second loop watchdog: if the main loop ever stalls
+(e.g. a scene stuck in an endless loop), the board reboots itself and prints a
+backtrace, which shows up in the companion's log, instead of freezing.
 
 ---
 
@@ -655,6 +670,10 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     stars.cpp       Starfield flight
     fish.cpp        Fish tank
     quote.cpp       Quote of the day (quotes in quotes.h)
+    pacman.cpp      Pac-Man demo in a generated mini maze
+    invaders.cpp    Space Invaders demo
+    asteroids.cpp   Asteroids demo
+    pixfb.*         Pixel-canvas drawing helper shared by the arcade scenes
   widgets/
     topbar.*        Clock and date bar
     calendar.*      Current/next meeting, countdown, and day timeline

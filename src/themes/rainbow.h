@@ -8,7 +8,8 @@
 //   Music    dark-green bg / lime text / orange|yellow|sky icons
 //   Calendar dark-crimson bg; pinks/roses, yellow "soon", white-ish now mark
 //   Scenes   near-black blue bg; leaves=orange/brown/olive, snow=ice blues, life=chartreuse,
-//            stars=lavenders, fish=coral/gold/purple, quote=mint/sage
+//            stars=lavenders, fish=coral/gold/purple, quote=mint/sage,
+//            arcade: invaders=reds/limes, asteroids=greys/cyan, pacman=blue walls/classic ghosts
 //   System   dark-violet bg; CPU=reds, RAM=greens
 //   Claude   dark-teal bg / light-blue sessions; H5=violets, W7=teals; working dots=lime/blue-violet/pink
 //   Status   dark-gold bg / lime active / sky-blue idle / red offline / orange keys
@@ -136,6 +137,30 @@
 #define COL_SCENE_FISH_FOOD     LVC(0xCC9966)  // tan
 #define COL_SCENE_QUOTE_TEXT    LVC(0xAAFFCC)  // mint
 #define COL_SCENE_QUOTE_AUTHOR  LVC(0x779988)  // sage
+#define COL_SCENE_ARCADE_BG     LVC(0x050505)  // near-black
+#define COL_SCENE_INV_ALIEN_1   LVC(0xFF3355)  // red-pink
+#define COL_SCENE_INV_ALIEN_2   LVC(0xFFAA33)  // amber
+#define COL_SCENE_INV_ALIEN_3   LVC(0x66FF33)  // lime
+#define COL_SCENE_INV_CANNON    LVC(0x33FFAA)  // spring green
+#define COL_SCENE_INV_SHOT      LVC(0xEEFFEE)  // off-white
+#define COL_SCENE_INV_BOMB      LVC(0xFF66FF)  // pink
+#define COL_SCENE_INV_BOOM      LVC(0xFFFF66)  // light yellow
+#define COL_SCENE_AST_ROCK      LVC(0xAAAAAA)  // grey
+#define COL_SCENE_AST_SHIP      LVC(0x55FFFF)  // cyan
+#define COL_SCENE_AST_SHOT      LVC(0xFFFFFF)  // white
+#define COL_SCENE_AST_THRUST    LVC(0xFF6600)  // orange
+#define COL_SCENE_AST_DEBRIS    LVC(0x777766)  // khaki grey
+#define COL_SCENE_PAC_WALL      LVC(0x2233FF)  // arcade blue
+#define COL_SCENE_PAC_FLASH     LVC(0xCCDDFF)  // pale blue
+#define COL_SCENE_PAC_DOT       LVC(0xFFCCAA)  // peach
+#define COL_SCENE_PAC_PACMAN    LVC(0xFFFF00)  // yellow
+#define COL_SCENE_PAC_GHOST_1   LVC(0xFF0000)  // Blinky red
+#define COL_SCENE_PAC_GHOST_2   LVC(0xFFB8FF)  // Pinky pink
+#define COL_SCENE_PAC_GHOST_3   LVC(0x00FFFF)  // Inky cyan
+#define COL_SCENE_PAC_GHOST_4   LVC(0xFFB852)  // Clyde orange
+#define COL_SCENE_PAC_FRIGHT    LVC(0x2121DE)  // frightened blue
+#define COL_SCENE_PAC_EYES      LVC(0x0000AA)  // dark blue
+#define COL_SCENE_PAC_EATEN     LVC(0xF0F0F0)  // white
 
 // System — dark violet bg; CPU reds, RAM greens
 #define COL_SYSTEM_BG         LVC(0x0F001A)  // very dark violet

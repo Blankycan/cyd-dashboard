@@ -93,7 +93,12 @@ it (and every object in it) when the scene ends, cutting it off after
 `touch_read_cb()` is queued via `scene_player_touch()` and handled in the
 player's frame timer (never inside indev processing): inside the scene → the
 scene, elsewhere → flip. Transitions are logged as `{"log":"scene ..."}`
-lines, which the companion prints as `CYD: ...`.
+lines (with the scene's average frame time), which the companion prints as
+`CYD: ...`. The arcade scenes draw into one canvas via `pixfb.h`, which
+coalesces each frame's changes into ≤16 rects on `pixfb_flush()`: per-sprite
+invalidation overflows LVGL's 32-entry invalidation list and forces a
+full-screen redraw every frame. `setup()` enables the Arduino loop watchdog
+(5 s), so a hung loop reboots the board with a backtrace on serial.
 
 When disconnected (`DISCONNECT_TIMEOUT_MS` with no packet), `main.cpp` zeroes
 out `state` and calls every widget's `update_*_ui()` directly rather than

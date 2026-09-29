@@ -24,6 +24,7 @@ static uint32_t     mode_ms     = 0;         // time in the current mode, exclud
 static uint32_t     stop_ms     = 0;         // time since request_stop()
 static uint32_t     last_ms     = 0;
 static uint32_t     last_flip_ms = 0;
+static uint32_t     frames = 0, frame_ms_sum = 0;   // actual frame pacing of the current scene
 
 // Touch queue: filled from the indev read callback, drained in the frame
 // timer, so scenes never create/delete objects mid-input-processing.
@@ -58,6 +59,7 @@ static void start_scene(bool by_tap) {
 
     mode     = MODE_SCENE;
     mode_ms  = 0;
+    frames   = frame_ms_sum = 0;
     stopping = false;
     manual   = by_tap;
     cur->start(area, w, h);
@@ -65,7 +67,12 @@ static void start_scene(bool by_tap) {
 }
 
 static void end_scene(const char *why) {
-    log_event(why);
+    // Report how well the scene kept up: well above SCENE_FRAME_MS means the
+    // board is struggling to draw it
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%s, avg frame %lu ms", why,
+             (unsigned long)(frames ? frame_ms_sum / frames : 0));
+    log_event(buf);
     lv_obj_del(area);           // takes every object the scene made with it
     area = nullptr;
     if (cur->finish) cur->finish();
@@ -111,6 +118,7 @@ static void frame_cb(lv_timer_t *) {
     uint32_t now = millis();
     uint32_t dt  = now - last_ms;
     last_ms = now;
+    if (mode == MODE_SCENE && !paused) { frames++; frame_ms_sum += dt; }
     if (dt > 200) dt = 200;   // don't jump after a long stall
 
     for (int i = 0; i < tq_len; i++) handle_touch(tq[i]);

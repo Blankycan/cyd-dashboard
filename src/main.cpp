@@ -421,6 +421,10 @@ void setup() {
     last_active_ms = millis();
 
     Serial.println("{\"boot\":true,\"version\":\"0.8\"}");
+
+    // Reboot (with a backtrace on serial) if loop() ever stalls for 5 s, rather
+    // than leaving a frozen screen until someone power-cycles the board.
+    enableLoopWDT();
 }
 
 // LVGL tick, serial RX, disconnect detection, and auto-sleep
