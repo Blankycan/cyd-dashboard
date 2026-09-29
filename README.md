@@ -1,14 +1,17 @@
 # CYD Dashboard
 
 A desk companion for the **ESP32-2432S028R** ("Cheap Yellow Display") — a 2.8 inch
-240×320 touchscreen that shows live stats from your PC: system usage, keystrokes,
-now-playing music, Claude AI usage, and connection status.
+240×320 touchscreen that shows live stats from your PC: your next meeting,
+system usage, keystrokes, now-playing music, Claude AI usage, and connection status.
 
 ```
 ┌────────────────────────┐
 │ 14:32       Sat 12 Jul │  ← clock + date
 ├────────────────────────┤
-│        calendar        │  ← reserved for the calendar panel
+│ 14:30 Standup   in 12m │  ← next meeting + countdown
+│ then 16:00 1:1 w/ Kim  │
+│ ▁██▁▁▁│▁▁▁▁▁██▁▁▁▁▁▁▁  │  ← today's timeline, │ = now
+│ 7  9  11  13  15       │
 ├────────────────────────┤
 │ ● Lofi Hip Hop Radio   │  ← now-playing (artist scrolls)
 │   chill beats        ♫ │
@@ -88,6 +91,7 @@ seconds. The ESP32 parses it and updates the display.
 | Panel              | Source                                                                  |
 | ------------------ | ----------------------------------------------------------------------- |
 | Clock / date       | `datetime.now()` on the host                                            |
+| Calendar           | Google Calendar API (read-only) — see [Setting up the calendar](#setting-up-the-calendar) |
 | CPU / RAM          | `psutil`                                                                |
 | Keystrokes today   | evdev keypress count since local midnight (survives restarts)           |
 | Music              | `playerctl metadata` (MPRIS2)                                           |
@@ -103,7 +107,49 @@ seconds. The ESP32 parses it and updates the display.
 - OAuth token from `~/.claude/.credentials.json` (Claude Code login, no setup needed)
 - `ANTHROPIC_API_KEY` environment variable
 
-If neither is present, the rate-limit view is hidden and only token counts are shown.
+If neither is present, the rate-limit bars show `--`.
+
+### Serial protocol
+
+One JSON object per line (newline-terminated), 115200 baud, sent every
+`INTERVAL` seconds (2 s by default, `companion/config.py`). The firmware
+announces itself on boot with `{"boot":true,"version":"..."}` and acks every
+stats packet with `{"ack":true}`; the companion logs a warning if acks stop
+but doesn't otherwise depend on them.
+
+```json
+{"type":"stats","cpu":3,"ram":25,"time":"15:02","date":"Tue 29 Sep",
+ "keys":4120,"active":true,"ip":"10.0.0.12","idle_msg":"...",
+ "music":{"title":"...","artist":"...","playing":true},
+ "claude":{"sessions":4,"working":1,"h5_pct":34,"h5_secs":7800,"w7_pct":12,"w7_secs":356400},
+ "cal":[[720,780,"Lunch"],[990,1050,"Sprint planning"]]}
+```
+
+`music`, `idle_msg`, `claude`, and `cal` are optional — each is only sent when
+its source has data, and the firmware keeps its defaults otherwise. The
+authoritative field list is `handle_packet()` in `src/main.cpp`; the
+companion side is `collect_stats()` in `companion/main.py`. Nothing enforces
+the schema, so a field added on one side has to be added to the other by hand.
+
+**Calendar data.** `cal` is today's timed events as
+`[start_min, end_min, title]`, with times in minutes since local midnight
+(16:30 → `990`), sorted by start. The companion fetches from Google every 5
+minutes (`CALENDAR_POLL_INTERVAL`) but resends the latest list in every
+packet, which keeps the firmware stateless about it and costs only a few
+percent of the link. Countdowns aren't sent — the firmware derives the
+current / next meeting and every countdown from its own clock, so they keep
+ticking between packets and while the companion is offline. At most 12
+events (`CAL_MAX_EVENTS` in `src/config.h`, `MAX_EVENTS` in
+`companion/gcal.py`) are sent, with titles trimmed to 39 bytes of UTF-8 to fit
+the firmware's buffer.
+
+**Receive buffer.** At 115200 baud bytes arrive at roughly 11.5 per
+millisecond, and `loop()` only reads serial between LVGL redraws, which can
+take tens of milliseconds. The ESP32's default 256-byte UART receive buffer
+would overflow on a long packet mid-redraw (the JSON then fails to parse and
+that packet is silently dropped), so `setup()` raises it to 2 KB with
+`Serial.setRxBufferSize()` — enough for a worst-case ~1 KB packet with a full
+calendar.
 
 ---
 
@@ -134,7 +180,10 @@ Use a virtualenv so dependencies stay isolated from system Python:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
-pip install psutil pyserial evdev
+pip install psutil pyserial evdev unidecode
+
+# Only needed for the calendar panel
+pip install google-auth google-auth-oauthlib requests
 ```
 
 `playerctl` for music info (optional — the music panel just shows "no media"
@@ -318,6 +367,100 @@ re-run; does nothing if the service was never installed.
 
 ---
 
+## Setting up the calendar
+
+The calendar panel under the clock shows your current or next meeting with a
+live countdown, the meeting after that, and a timeline of the day. It reads
+Google Calendar through the official API with **read-only** access. This
+works even when your Google Workspace admin has disabled "Secret address in
+iCal format", and a single login covers every calendar that account can see
+(for example a private calendar shared into your work account).
+
+Without this set up the panel just says "no calendar"; nothing else is
+affected.
+
+### 1. Create a Google Cloud OAuth client (once per Google account)
+
+In the [Google Cloud Console](https://console.cloud.google.com/), signed in
+with the account whose calendars you want:
+
+1. **Create a project**, e.g. `cyd-dashboard`.
+2. **Enable the Google Calendar API** (APIs & Services → Library →
+   "Google Calendar API" → Enable).
+3. **Configure the OAuth consent screen** (Google Auth Platform → Get started).
+   Any app name and your own email for the contact fields. For a Workspace
+   account pick **Internal** as the audience — only your organisation can use
+   it and Google doesn't need to review it. A personal Gmail account has to
+   use External and add itself as a test user.
+4. **Create an OAuth client** (Clients → Create client → Application type
+   **Desktop app**) and click **Download JSON** before closing the dialog.
+
+Save that file as `~/.config/cyd-dashboard/google_client.json` and keep it
+private:
+
+```bash
+mkdir -p ~/.config/cyd-dashboard && chmod 700 ~/.config/cyd-dashboard
+mv ~/Downloads/client_secret_*.json ~/.config/cyd-dashboard/google_client.json
+chmod 600 ~/.config/cyd-dashboard/google_client.json
+```
+
+### 2. Log in (once per machine)
+
+```bash
+cd companion && python gcal_auth.py
+```
+
+A browser tab opens asking for read-only calendar access; pick the account
+and click **Allow**. A refresh token is saved to
+`~/.config/cyd-dashboard/google_token.json` (owner-only), and the companion
+renews access from it by itself from then on. Re-run this only if the token
+is revoked (e.g. from your Google account's security settings).
+
+### 3. Pick which calendars to show
+
+By default only the logged-in account's own calendar is shown. To merge in
+others, list them one per line in `~/.config/cyd-dashboard/calendars.txt`
+(`primary` means the account's own calendar; `#` starts a comment):
+
+```
+primary
+someone@gmail.com   # private calendar shared into this account
+```
+
+It lives outside the repo because calendar IDs are often email addresses.
+To see every calendar the account can read, with the IDs to put there:
+
+```bash
+cd companion && python gcal.py
+```
+
+Changes are picked up on the next fetch (within 5 minutes), no restart
+needed. Events that appear on several calendars (the same meeting on
+work and private) are shown once; all-day, cancelled, and declined events are
+skipped.
+
+### Tuning (firmware, `src/config.h`)
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `CAL_DAY_START_H` / `CAL_DAY_END_H` | `7` / `16` | Default timeline span in hours. It widens automatically to fit any meeting outside it. |
+| `CAL_SOON_MIN` | `5` | Minutes before a meeting when the countdown turns to the "soon" colour and pulses. |
+
+Every calendar colour is a `COL_CALENDAR_*` token in `src/theme.h`, so themes
+can restyle it like any other panel.
+
+### On another computer
+
+The OAuth client file isn't tied to one machine. Copy
+`~/.config/cyd-dashboard/google_client.json` and `calendars.txt` over
+(keeping them `chmod 600`),
+install the calendar Python packages, and run `python gcal_auth.py` there
+to give that machine its own token. You could copy `google_token.json`
+instead and skip the login, but a separate token per machine means you can
+revoke one without breaking the other. Neither file belongs in git.
+
+---
+
 ## Enabling Claude working-session dots
 
 The Claude panel can show a small dot per Claude Code session that's
@@ -384,8 +527,8 @@ cream text (the original theme).
 
 **Grape Ember** — `src/themes/grape-ember.h` — deep plum/violet with rose-pink
 text. The topbar inverts to the primary rose-pink as its background (dark
-plum/violet text for contrast), and the music icons, Claude token number/bar,
-and the generic "active" dot colour all use an orange accent instead of the
+plum/violet text for contrast), and the music icons and the generic
+"active" dot colour all use an orange accent instead of the
 violet OK colour — see the Level-3 overrides at the bottom of the file.
 
 **Neon Rose** — `src/themes/neon-rose.h` — black background with a hot-pink
@@ -412,8 +555,11 @@ matching `#include` branch in `theme.h`.
 
 ```
 companion/          Host-side Python app
-  config.py         User-tunable settings (intervals, keyboard idle threshold)
+  config.py         User-tunable settings (intervals, calendars, keyboard idle threshold)
   main.py           Entry point — serial loop, packet assembly
+  gcal.py           Google Calendar poller (run directly to list calendars)
+  gcal_auth.py      One-time Google login — saves the read-only token
+  text_utils.py     Shared helpers for strings sent to the firmware
   keyboard.py       evdev keypress monitor + daily keystroke count
   media.py          playerctl MPRIS2 poller
   claude_tokens.py  JSONL scanner + API rate-limit fetcher
@@ -437,6 +583,7 @@ src/                ESP32 firmware (Arduino / PlatformIO)
   main.cpp          Hardware init, sleep overlay, packet handler, setup/loop
   widgets/
     topbar.*        Clock and date bar
+    calendar.*      Current/next meeting, countdown, and day timeline
     music.*         Now-playing panel with animated icon
     system.*        CPU and RAM bars
     claude.*        Session count, working dots, and rate-limit bars

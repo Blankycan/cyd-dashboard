@@ -35,23 +35,6 @@ static lv_timer_t  *work_hold_timer   = nullptr;
 static const int WORK_DOT_RIGHT_X = PANEL_W - 8 - 6;  // rightmost dot's x (6px dot, 8px margin)
 static const int WORK_DOT_PITCH   = 12;               // px between dot centers
 
-static void dot_breathe_cb(void *obj, int32_t val) {
-    lv_obj_set_style_bg_opa((lv_obj_t*)obj, (lv_opa_t)val, 0);
-}
-
-static void start_breathe(lv_obj_t *obj) {
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, obj);
-    lv_anim_set_exec_cb(&a, dot_breathe_cb);
-    lv_anim_set_values(&a, LV_OPA_30, LV_OPA_COVER);
-    lv_anim_set_time(&a, CLAUDE_SESSION_BREATH_MS / 2);
-    lv_anim_set_playback_time(&a, CLAUDE_SESSION_BREATH_MS / 2);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
-    lv_anim_start(&a);
-}
-
 // Right-align every currently-visible (non-EMPTY) slot, in index order, and
 // show/hide the "+" overflow label at the true rightmost position.
 static void layout_dots(bool overflow) {
@@ -97,7 +80,7 @@ static void sync_work_dots(int raw_target) {
             if (work_dots[i].state == DOT_HOLDING) {
                 work_dots[i].state = DOT_ACTIVE;
                 lv_obj_set_style_bg_color(work_dots[i].obj, COL_CLAUDE_WORK_DOT_ACTIVE, 0);
-                start_breathe(work_dots[i].obj);
+                start_breathe(work_dots[i].obj, CLAUDE_SESSION_BREATH_MS, BREATHE_BG);
                 need--;
             }
         }
@@ -106,7 +89,7 @@ static void sync_work_dots(int raw_target) {
                 work_dots[i].state = DOT_ACTIVE;
                 lv_obj_set_style_bg_color(work_dots[i].obj, COL_CLAUDE_WORK_DOT_ACTIVE, 0);
                 lv_obj_set_style_bg_opa(work_dots[i].obj, LV_OPA_COVER, 0);
-                start_breathe(work_dots[i].obj);
+                start_breathe(work_dots[i].obj, CLAUDE_SESSION_BREATH_MS, BREATHE_BG);
                 need--;
             }
         }
@@ -116,8 +99,7 @@ static void sync_work_dots(int raw_target) {
             if (work_dots[i].state == DOT_ACTIVE) {
                 work_dots[i].state         = DOT_HOLDING;
                 work_dots[i].hold_start_ms = millis();
-                lv_anim_del(work_dots[i].obj, NULL);
-                lv_obj_set_style_bg_opa(work_dots[i].obj, LV_OPA_COVER, 0);
+                stop_breathe(work_dots[i].obj, BREATHE_BG);
                 lv_obj_set_style_bg_color(work_dots[i].obj, COL_CLAUDE_WORK_DOT_IDLE, 0);
                 drop--;
             }

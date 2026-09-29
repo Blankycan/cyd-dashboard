@@ -19,6 +19,7 @@ import serial.tools.list_ports
 from claude_activity import ClaudeActivityMonitor
 from claude_tokens import ClaudeTokenMonitor
 from config import INTERVAL, IDLE_MSG_INTERVAL
+from gcal import CalendarMonitor
 from keyboard import KeyboardMonitor
 from media import MediaMonitor
 from theme import ansi
@@ -74,9 +75,11 @@ def find_port() -> str | None:
 def collect_stats(kb: KeyboardMonitor | None = None,
                   media: MediaMonitor | None = None,
                   claude_tok: ClaudeTokenMonitor | None = None,
-                  claude_activity: ClaudeActivityMonitor | None = None) -> dict:
+                  claude_activity: ClaudeActivityMonitor | None = None,
+                  cal: CalendarMonitor | None = None) -> dict:
     m   = media.get()      if media      else None
     tok = claude_tok.get() if claude_tok else None
+    ev  = cal.get()        if cal        else None
     stats: dict = {
         "type":   "stats",
         "cpu":    int(psutil.cpu_percent()),
@@ -95,6 +98,8 @@ def collect_stats(kb: KeyboardMonitor | None = None,
         tok = dict(tok)  # sessions, h5_pct, h5_secs, w7_pct, w7_secs
         tok["working"] = claude_activity.working_count() if claude_activity else 0
         stats["claude"] = tok
+    if ev is not None:
+        stats["cal"] = ev  # [[start_min, end_min, title], ...] for today
     return stats
 
 
@@ -154,6 +159,11 @@ def print_stats(s: dict) -> None:
             tok_s = ansi("glow", tok_tok)
     else:
         tok_s = ""
+    cal_s = ""
+    if "cal" in s:
+        now = datetime.now().hour * 60 + datetime.now().minute
+        left = sum(1 for st, en, _ in s["cal"] if en > now)
+        cal_s = ansi("text_sec", f"{left} mtg left")
     print(
         f"  {ansi('text_pri', s['time'])}   "
         f"CPU {ansi(cpu_c, cpu_str)}   "
@@ -162,6 +172,7 @@ def print_stats(s: dict) -> None:
         f"{ansi('text_sec', keys_str)} keys   "
         f"{music_s}"
         + (f"   {tok_s}" if tok_s else "")
+        + (f"   {cal_s}" if cal_s else "")
     )
 
 
@@ -169,7 +180,7 @@ RECONNECT_DELAY    = 5
 BOOT_WARMUP_DELAY  = 10  # seconds
 
 
-def run_session(port: str, kb, media, claude_tok, claude_activity,
+def run_session(port: str, kb, media, claude_tok, claude_activity, cal,
                  force_warmup_reset: bool = False) -> None:
     """Connect to `port` and stream stats until the link drops or errors out."""
     print()
@@ -236,7 +247,7 @@ def run_session(port: str, kb, media, claude_tok, claude_activity,
                            "cold-boot display glitch...\n"))
                 return
 
-            stats = collect_stats(kb, media, claude_tok, claude_activity)
+            stats = collect_stats(kb, media, claude_tok, claude_activity, cal)
             ser.write((json.dumps(stats) + "\n").encode())
             print_stats(stats)
 
@@ -287,6 +298,9 @@ def main():
     claude_activity = ClaudeActivityMonitor()
     claude_activity.start()
 
+    cal = CalendarMonitor()
+    cal.start()
+
     try:
         # Loop forever: a missing board at startup (USB not yet enumerated —
         # common right after boot) or a serial error mid-session (board reset,
@@ -301,7 +315,7 @@ def main():
                 continue
 
             try:
-                run_session(port, kb, media, claude_tok, claude_activity,
+                run_session(port, kb, media, claude_tok, claude_activity, cal,
                             force_warmup_reset=first_connection)
             except serial.SerialException as e:
                 print(ansi("alert", f"\n  Serial error: {e}"))
@@ -314,6 +328,7 @@ def main():
         media.stop()
         claude_tok.stop()
         claude_activity.stop()
+        cal.stop()
 
 
 if __name__ == "__main__":

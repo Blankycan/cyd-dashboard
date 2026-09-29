@@ -32,6 +32,11 @@ void       set_ellipsis_text(lv_obj_t *label, const char *text);
 // (between x-height and cap-height) rather than the line box, which also
 // reserves space for descenders/accents. Call after the label's font and y are set.
 void       align_dot_to_label(lv_obj_t *dot, lv_obj_t *label);
+// Looping opacity fade (e.g. an "in progress" dot or an urgent countdown).
+// Restarting on an already-breathing object just restarts the cycle.
+enum BreatheProp { BREATHE_BG, BREATHE_TEXT };
+void       start_breathe(lv_obj_t *obj, uint32_t period_ms, BreatheProp prop);
+void       stop_breathe(lv_obj_t *obj, BreatheProp prop);                             // back to fully opaque
 // Label y that puts the top of `font`'s capital letters at `cap_top`
 // (the line box has extra room above the caps, which varies per font).
 int        cap_top_y(const lv_font_t *font, int cap_top);

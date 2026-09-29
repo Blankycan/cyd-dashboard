@@ -28,7 +28,7 @@ if ! "$PYTHON" -c 'import psutil, serial, evdev, unidecode' 2>/dev/null; then
     echo "Error: $PYTHON is missing one of psutil/pyserial/evdev/unidecode." >&2
     echo "Create a venv and install deps first:" >&2
     echo "  python3 -m venv $SCRIPT_DIR/.venv" >&2
-    echo "  $SCRIPT_DIR/.venv/bin/pip install psutil pyserial evdev unidecode" >&2
+    echo "  $SCRIPT_DIR/.venv/bin/pip install psutil pyserial evdev unidecode google-auth google-auth-oauthlib requests" >&2
     exit 1
 fi
 

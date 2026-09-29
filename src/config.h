@@ -27,6 +27,17 @@
 // Silence from the companion app before the display shows "offline" (ms)
 #define DISCONNECT_TIMEOUT_MS 5000
 
+// Calendar panel -------------------------------------------------------------
+// Default span of the day timeline (hours, local time). It widens on its own to
+// fit any meeting outside this range.
+#define CAL_DAY_START_H       7
+#define CAL_DAY_END_H         16
+// Countdown turns to the "soon" colour and pulses this many minutes before a meeting
+#define CAL_SOON_MIN          5
+#define CAL_PULSE_MS          1500
+// Events kept per day — must be >= MAX_EVENTS in companion/gcal.py
+#define CAL_MAX_EVENTS        12
+
 // Claude working-session dots ------------------------------------------------
 // One small dot per currently-active Claude Code session, shown to the
 // right of the "claude" label. Requires the hooks installed by

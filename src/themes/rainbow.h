@@ -6,7 +6,7 @@
 // fires shows the wrong hue immediately. Widget families each own a hue band:
 //   Topbar   indigo bg / yellow clock / cyan date
 //   Music    dark-green bg / lime text / orange|yellow|sky icons
-//   Calendar dark-crimson bg
+//   Calendar dark-crimson bg; pinks/roses, yellow "soon", white-ish now mark
 //   System   dark-violet bg; CPU=reds, RAM=greens
 //   Claude   dark-teal bg / light-blue sessions; H5=violets, W7=teals; working dots=lime/blue-violet/pink
 //   Status   dark-gold bg / lime active / sky-blue idle / red offline / orange keys
@@ -97,6 +97,21 @@
 
 // Calendar — dark crimson bg
 #define COL_CALENDAR_BG         LVC(0x1A0008)  // very dark crimson
+#define COL_CALENDAR_TIME       LVC(0xFF6688)  // pink-red
+#define COL_CALENDAR_TITLE      LVC(0xFFCCDD)  // pale pink
+#define COL_CALENDAR_NOW        LVC(0xFF0055)  // crimson
+#define COL_CALENDAR_COUNTDOWN  LVC(0xFF99AA)  // salmon pink
+#define COL_CALENDAR_COUNTDOWN_SOON LVC(0xFFEE00) // yellow
+#define COL_CALENDAR_NEXT       LVC(0xCC6677)  // dusty rose
+#define COL_CALENDAR_DONE       LVC(0x884455)  // dark rose
+#define COL_CALENDAR_PROGRESS_BG   LVC(0x330011)  // dark crimson
+#define COL_CALENDAR_PROGRESS_FILL LVC(0xFF3366)  // raspberry
+#define COL_CALENDAR_TRACK      LVC(0x2A0010)  // deep crimson
+#define COL_CALENDAR_EVENT      LVC(0xFF7799)  // rose
+#define COL_CALENDAR_EVENT_PAST LVC(0x662233)  // dim wine
+#define COL_CALENDAR_EVENT_NOW  LVC(0xFF0033)  // red
+#define COL_CALENDAR_NOW_MARK   LVC(0xFFFFAA)  // pale yellow
+#define COL_CALENDAR_HOUR       LVC(0xAA5566)  // muted rose
 
 // System — dark violet bg; CPU reds, RAM greens
 #define COL_SYSTEM_BG         LVC(0x0F001A)  // very dark violet

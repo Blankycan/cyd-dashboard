@@ -10,6 +10,7 @@
 #include "ui_helpers.h"
 #include "theme.h"
 #include "widgets/topbar.h"
+#include "widgets/calendar.h"
 #include "widgets/music.h"
 #include "widgets/system.h"
 #include "widgets/claude.h"
@@ -183,12 +184,11 @@ static void exit_sleep() {
 // so the display keeps ticking even when the companion is disconnected.
 // ---------------------------------------------------------------------------
 static void clock_tick_cb(lv_timer_t *) {
-    if (state.time_h < 0) return;
-    uint32_t elapsed_m = (millis() - state.time_set_ms) / 60000UL;
-    int total = state.time_h * 60 + state.time_m + (int)elapsed_m;
-    snprintf(state.time_str, sizeof(state.time_str), "%02d:%02d",
-             (total / 60) % 24, total % 60);
+    int total = dash_now_min();
+    if (total < 0) return;
+    snprintf(state.time_str, sizeof(state.time_str), "%02d:%02d", total / 60, total % 60);
     update_topbar_ui();
+    update_calendar_ui();
     if (sleep_state == SS_ASLEEP) {
         lv_label_set_text(lbl_sleep_time, state.time_str);
         char away[24];
@@ -205,9 +205,8 @@ static void build_panels(lv_obj_t *scr) {
 
     lv_obj_t *p;
 
-    // Reserved for the upcoming calendar widget
     p = make_panel(scr, 0, y, SCREEN_W, CALENDAR_H, COL_CALENDAR_BG);
-    make_placeholder(p, "calendar");
+    build_calendar_panel(p);
     y += CALENDAR_H;
 
     make_hdiv(scr, y, 0, SCREEN_W, COL_DIVIDER);
@@ -271,7 +270,8 @@ static void show_disconnected() {
 
 // Parse one JSON line from serial and update state + UI widgets.
 // Expected shape: {"type":"stats","cpu":..,"ram":..,"keys":..,"time":"..","date":"..",
-//   "active":bool,"idle_msg":"..","ip":"..","music":{..},"claude":{..}}
+//   "active":bool,"idle_msg":"..","ip":"..","music":{..},"claude":{..},
+//   "cal":[[start_min,end_min,"title"],..]}
 static void handle_packet(const String &line) {
     JsonDocument doc;
     if (deserializeJson(doc, line) != DeserializationError::Ok) return;
@@ -335,7 +335,21 @@ static void handle_packet(const String &line) {
             state.claude_w7_secs  = claude_obj["w7_secs"] | -1;
         }
 
+        JsonArray cal = doc["cal"];
+        if (cal) {
+            state.cal_available = true;
+            state.cal_count     = 0;
+            for (JsonArray ev : cal) {
+                if (state.cal_count >= CAL_MAX_EVENTS) break;
+                CalEvent &e = state.cal_events[state.cal_count++];
+                e.start_min = ev[0] | 0;
+                e.end_min   = ev[1] | 0;
+                strlcpy(e.title, ev[2] | "", sizeof(e.title));
+            }
+        }
+
         update_topbar_ui();
+        update_calendar_ui();
         update_system_ui();
         update_music_ui();
         update_claude_ui();
@@ -350,6 +364,9 @@ static void handle_packet(const String &line) {
 
 // Init display, touch, LVGL, build UI, announce boot on serial
 void setup() {
+    // Packets with a full calendar run past the default 256-byte RX buffer,
+    // which can overflow while lv_timer_handler() is busy redrawing.
+    Serial.setRxBufferSize(2048);
     Serial.begin(115200);
 
     tft.init();

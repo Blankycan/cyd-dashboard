@@ -148,6 +148,32 @@ static float glyph_center_y(const lv_font_t *font, uint32_t ch) {
     return baseline - (g.ofs_y + g.box_h / 2.0f);
 }
 
+static void breathe_bg_cb(void *obj, int32_t v)   { lv_obj_set_style_bg_opa((lv_obj_t*)obj, (lv_opa_t)v, 0); }
+static void breathe_text_cb(void *obj, int32_t v) { lv_obj_set_style_text_opa((lv_obj_t*)obj, (lv_opa_t)v, 0); }
+
+void start_breathe(lv_obj_t *obj, uint32_t period_ms, BreatheProp prop) {
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, obj);
+    lv_anim_set_exec_cb(&a, prop == BREATHE_BG ? breathe_bg_cb : breathe_text_cb);
+    lv_anim_set_values(&a, LV_OPA_30, LV_OPA_COVER);
+    lv_anim_set_time(&a, period_ms / 2);
+    lv_anim_set_playback_time(&a, period_ms / 2);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+    lv_anim_start(&a);
+}
+
+void stop_breathe(lv_obj_t *obj, BreatheProp prop) {
+    if (prop == BREATHE_BG) {
+        lv_anim_del(obj, breathe_bg_cb);
+        lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, 0);
+    } else {
+        lv_anim_del(obj, breathe_text_cb);
+        lv_obj_set_style_text_opa(obj, LV_OPA_COVER, 0);
+    }
+}
+
 int cap_top_y(const lv_font_t *font, int cap_top) {
     lv_font_glyph_dsc_t g;
     if (!lv_font_get_glyph_dsc(font, &g, 'H', 0)) return cap_top;

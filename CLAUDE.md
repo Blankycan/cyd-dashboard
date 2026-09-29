@@ -8,8 +8,8 @@ Two programs that talk over USB serial:
 
 - **`src/`** — ESP32 firmware (Arduino framework, PlatformIO, LVGL UI) that runs on
   a CYD ("Cheap Yellow Display", ESP32-2432S028R) board and renders the dashboard.
-- **`companion/`** — a Python app that runs on the host PC, gathers stats (CPU/RAM,
-  keystrokes today, now-playing media, Claude sessions and rate limits), and pushes them to the board
+- **`companion/`** — a Python app that runs on the host PC, gathers stats (calendar,
+  CPU/RAM, keystrokes today, now-playing media, Claude sessions and rate limits), and pushes them to the board
   as a JSON line every `INTERVAL` seconds (`companion/config.py`).
 
 There is no build step linking the two — they're independent programs that agree on
@@ -67,7 +67,8 @@ systemctl --user start cyd-dashboard
 between the packet handler and every widget's update function.
 
 Panels live under `src/widgets/`, stacked top-to-bottom by `build_panels()` in
-`main.cpp`: `topbar` (clock/date) → calendar slot (placeholder for now) →
+`main.cpp`: `topbar` (clock/date) → `calendar` (current/next meeting,
+countdown, day timeline) →
 `music` (now-playing + animated icon) → `system` (CPU/RAM bars) → `claude`
 (today's session count, rate-limit bars, and opt-in working-session dots) →
 `status` (connection dot, idle time, keystrokes today, IP). Each widget pairs a `.h`/`.cpp`: the `.h`
@@ -117,6 +118,14 @@ background thread/state and `collect_stats()` never blocks on them:
   percentages. Auth is whichever of `~/.claude/.credentials.json` (OAuth from a
   `claude` login) or `ANTHROPIC_API_KEY` is available; if neither, rate-limit
   fields are omitted and the firmware hides that section.
+- `gcal.py` — `CalendarMonitor` fetches today's timed events from the Google
+  Calendar API every 5 min (read-only OAuth token from `gcal_auth.py`, stored
+  in `~/.config/cyd-dashboard/` outside the repo) across the calendars listed
+in `~/.config/cyd-dashboard/calendars.txt` (also outside the repo — the IDs
+are email addresses and this repo is public), and
+  dedupes meetings that appear on several calendars. Not named `calendar.py`
+  because that would shadow the stdlib `calendar` module `requests` imports.
+  Without a token it stays disabled and `cal` is never sent.
 - `claude_activity.py` — `ClaudeActivityMonitor`, unlike the others, needs no
   background thread: it just reads (mtime-cached) the small status file that
   Claude Code itself keeps current via hooks (`hooks/session_touch.py`,
@@ -134,12 +143,19 @@ ignored.
 
 One JSON object per line, newline-delimited, 115200 baud. Firmware boots with
 `{"boot":true,"version":"..."}`; each stats packet is `{"type":"stats", cpu,
-ram, keys, time, date, active, ip, idle_msg?, music?, claude?}` — see
+ram, keys, time, date, active, ip, idle_msg?, music?, claude?, cal?}` — see
 `handle_packet()` in `main.cpp` for the authoritative field list and defaults,
 and `collect_stats()` in `companion/main.py` for how it's assembled. The
 firmware acks each packet with `{"ack":true}` but the companion doesn't depend
 on it (non-blocking read, ignored on timeout). If you add a field to one side,
 update the other by hand — there's no shared schema.
+
+`cal` is `[[start_min, end_min, title], ...]` (minutes since local midnight)
+resent in every packet; the firmware derives current/next meeting and all
+countdowns from its own clock (`dash_now_min()` in `state.h`), so the calendar
+widget is also refreshed from the 10 s clock tick, not just on packets. The
+firmware raises its UART RX buffer to 2 KB in `setup()` because a packet with
+a full calendar overflows the default 256 bytes if it arrives mid-redraw.
 
 The `claude` sub-object's `working` field (count of sessions currently
 mid-turn, from `claude_activity.py`) is unrelated to its `sessions` field
