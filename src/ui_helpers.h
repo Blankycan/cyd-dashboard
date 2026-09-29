@@ -32,6 +32,9 @@ void       set_ellipsis_text(lv_obj_t *label, const char *text);
 // (between x-height and cap-height) rather than the line box, which also
 // reserves space for descenders/accents. Call after the label's font and y are set.
 void       align_dot_to_label(lv_obj_t *dot, lv_obj_t *label);
+// Label y that puts the top of `font`'s capital letters at `cap_top`
+// (the line box has extra room above the caps, which varies per font).
+int        cap_top_y(const lv_font_t *font, int cap_top);
 lv_color_t pct_color3(int pct, lv_color_t fill, lv_color_t warn, lv_color_t alert);  // OK / WARN / ALERT with custom colours
 lv_color_t pct_col3(int pct, lv_color_t fill, lv_color_t warn, lv_color_t alert);    // same, but returns fill when pct < 0 (unavailable)
 lv_color_t pct_color(int pct);                                                         // backward compat: pct_color3 with default colours

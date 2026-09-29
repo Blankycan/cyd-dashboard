@@ -42,12 +42,14 @@ static lv_obj_t *ma_rect(lv_obj_t *p, int x, int y, int w, int h,
     return o;
 }
 
-// Bouncing eighth-note icon — shown while music is playing
+// Bouncing eighth-note icon — shown while music is playing. The shapes span
+// y=4..28 within their group, so this group y centres them in the panel.
+static const int NOTE_BOB_MID = MUSIC_H / 2 - 16;
 static void build_ma_notes(lv_obj_t *ctr) {
     lv_obj_t *grp = lv_obj_create(ctr);
     lv_obj_remove_style_all(grp);
-    lv_obj_set_size(grp, MA_W, 40);
-    lv_obj_set_pos(grp, 0, 12);
+    lv_obj_set_size(grp, MA_W, 32);
+    lv_obj_set_pos(grp, 0, NOTE_BOB_MID);
     lv_obj_set_style_bg_opa(grp, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(grp, 0, 0);
     lv_obj_clear_flag(grp, LV_OBJ_FLAG_SCROLLABLE);
@@ -62,7 +64,7 @@ static void build_ma_notes(lv_obj_t *ctr) {
     lv_anim_init(&a);
     lv_anim_set_var(&a, grp);
     lv_anim_set_exec_cb(&a, note_bob_cb);
-    lv_anim_set_values(&a, 8, 16);
+    lv_anim_set_values(&a, NOTE_BOB_MID - 4, NOTE_BOB_MID + 4);
     lv_anim_set_time(&a, 1500);
     lv_anim_set_playback_time(&a, 1500);
     lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
@@ -128,14 +130,15 @@ static void set_music_anim(MusicAnim next) {
 }
 
 void build_music_panel(lv_obj_t *parent) {
-    lbl_music_title = make_ellipsis_label(parent, 22, 8, MUSIC_LABEL_W, &font_ui_14);
+    int title_y = cap_top_y(&font_ui_14, PANEL_PAD_Y);
+    lbl_music_title = make_ellipsis_label(parent, 22, title_y, MUSIC_LABEL_W, &font_ui_14);
     set_ellipsis_text(lbl_music_title, "nothing playing");
     lv_obj_set_style_text_color(lbl_music_title, COL_MUSIC_DOT_IDLE, 0);
 
     dot_music = make_dot(parent, 8, 0, COL_MUSIC_DOT_IDLE);
     align_dot_to_label(dot_music, lbl_music_title);
 
-    lbl_music_artist = make_ellipsis_label(parent, 22, 30, MUSIC_LABEL_W, &font_ui_12);
+    lbl_music_artist = make_ellipsis_label(parent, 22, title_y + 22, MUSIC_LABEL_W, &font_ui_12);
     lv_obj_set_style_text_color(lbl_music_artist, COL_MUSIC_TEXT, 0);
 
     music_anim_ctr = lv_obj_create(parent);

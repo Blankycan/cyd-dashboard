@@ -14,9 +14,10 @@ void build_system_panel(lv_obj_t *parent) {
         { "CPU", COL_SYSTEM_CPU_LABEL, COL_SYSTEM_CPU_BAR_FILL, COL_SYSTEM_CPU_BAR_BG, &row_cpu },
         { "RAM", COL_SYSTEM_RAM_LABEL, COL_SYSTEM_RAM_BAR_FILL, COL_SYSTEM_RAM_BAR_BG, &row_ram },
     };
+    int top_y = cap_top_y(&lv_font_montserrat_12, PANEL_PAD_Y);
     for (int i = 0; i < 2; i++) {
         // lbl_val (near-left) unused; percentage goes in lbl_extra (right-aligned)
-        *defs[i].row = make_bar_row(parent, 8, 4 + i * STATS_ROW_H, PANEL_W - 16,
+        *defs[i].row = make_bar_row(parent, 8, top_y + i * STATS_ROW_H, PANEL_W - 16,
                                     defs[i].key, defs[i].key_col, defs[i].fill_col,
                                     defs[i].fill_col, defs[i].bar_bg);
         lv_label_set_text(defs[i].row->lbl_val, "");

@@ -148,6 +148,13 @@ static float glyph_center_y(const lv_font_t *font, uint32_t ch) {
     return baseline - (g.ofs_y + g.box_h / 2.0f);
 }
 
+int cap_top_y(const lv_font_t *font, int cap_top) {
+    lv_font_glyph_dsc_t g;
+    if (!lv_font_get_glyph_dsc(font, &g, 'H', 0)) return cap_top;
+    int baseline = lv_font_get_line_height(font) - font->base_line;
+    return cap_top - (baseline - (g.ofs_y + g.box_h));
+}
+
 void align_dot_to_label(lv_obj_t *dot, lv_obj_t *label) {
     const lv_font_t *font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
     float center = (glyph_center_y(font, 'x') + glyph_center_y(font, 'H')) / 2.0f;

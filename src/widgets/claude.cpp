@@ -150,7 +150,7 @@ void build_claude_panel(lv_obj_t *parent) {
     lv_label_set_text(lbl_hdr, "claude");
     lv_obj_set_style_text_color(lbl_hdr, COL_CLAUDE_TITLE, 0);
     lv_obj_set_style_text_font(lbl_hdr, &lv_font_montserrat_14, 0);
-    lv_obj_set_pos(lbl_hdr, 20, 3);
+    lv_obj_set_pos(lbl_hdr, 20, cap_top_y(&lv_font_montserrat_14, PANEL_PAD_Y));
 
     dot_claude = make_dot(parent, 8, 0, COL_CLAUDE_DOT_IDLE);
     align_dot_to_label(dot_claude, lbl_hdr);

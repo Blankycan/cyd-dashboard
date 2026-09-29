@@ -16,11 +16,16 @@
 
 #define PANEL_W     SCREEN_W
 
-#define MUSIC_H     52
+// Every stacked panel keeps PANEL_PAD_Y between its top edge and the top of
+// its first line's capital letters, and between its last content (text
+// baseline or bar) and its bottom edge.
+#define PANEL_PAD_Y 6
+
+#define MUSIC_H     42
 #define STATS_H     50
 #define STATS_ROW_H 22
-#define CLAUDE_H    72
-#define INDICATOR_H 36
+#define CLAUDE_H    73
+#define INDICATOR_H TOPBAR_H
 // CALENDAR_H consumes all remaining space between the topbar and the status bar
 // (four DIV_W dividers: below calendar, music, stats, and claude).
 #define CALENDAR_H  (CONTENT_H - MUSIC_H - STATS_H - CLAUDE_H - INDICATOR_H - 4 * DIV_W)
