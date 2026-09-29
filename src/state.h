@@ -13,7 +13,7 @@ struct DashState {
     char last_active_str[6] = "";   // HH:MM of last keyboard activity
     int  cpu              = 0;
     int  ram              = 0;
-    int  wpm              = 0;
+    int32_t keys_today    = 0;       // keypresses since local midnight
     bool active           = false;   // host user is actively typing/working
     bool connected        = false;   // receiving serial packets from host
 
@@ -28,8 +28,6 @@ struct DashState {
     char ip_str[16]       = "";
 
     // Claude usage (optional sub-object in stats packet)
-    int32_t claude_out      = 0;     // output tokens today
-    int32_t claude_inp      = 0;     // input tokens today
     int     claude_sessions = 0;     // distinct sessions with token activity *today* (JSONL scan)
     int     claude_working  = 0;     // sessions *currently* mid-turn, live (hook-based, unrelated to claude_sessions)
     int  claude_h5_pct  = -1;          // 5-hour rate limit % (-1 = unavailable)

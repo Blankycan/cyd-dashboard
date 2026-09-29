@@ -97,9 +97,6 @@
 #define COL_MUSIC_TITLE       LVC(PAL_TEXT_SEC)
 #define COL_MUSIC_TEXT        LVC(PAL_TEXT_PRI)
 
-#define COL_CLAUDE_TOKENS_OUT   LVC(PAL_GLOW)
-#define COL_CLAUDE_TOK_BAR_FILL LVC(PAL_GLOW)
-
 // -----------------------------------------------------------------------------
 // RGB565 MACROS  (use these for any direct TFT_eSPI drawing outside LVGL)
 // -----------------------------------------------------------------------------

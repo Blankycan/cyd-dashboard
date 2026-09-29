@@ -1,31 +1,28 @@
 # CYD Dashboard
 
 A desk companion for the **ESP32-2432S028R** ("Cheap Yellow Display") — a 2.8 inch
-240×320 touchscreen that shows live stats from your PC: system usage, typing speed,
+240×320 touchscreen that shows live stats from your PC: system usage, keystrokes,
 now-playing music, Claude AI usage, and connection status.
 
 ```
 ┌────────────────────────┐
 │ 14:32       Sat 12 Jul │  ← clock + date
 ├────────────────────────┤
+│        calendar        │  ← reserved for the calendar panel
+├────────────────────────┤
 │ ● Lofi Hip Hop Radio   │  ← now-playing (artist scrolls)
 │   chill beats        ♫ │
 ├────────────────────────┤
-│ CPU  43%  ██████░░░░░  │
-│ RAM  61%  █████████░░  │  ← system stats
-│ WPM  72   ████████░░░  │
+│ CPU  43%  ██████░░░░░  │  ← system stats
+│ RAM  61%  █████████░░  │
 ├────────────────────────┤
-│ ● claude    1.2k out   │
-│             today      │  ← token counts
-│ ████████████░░░░░░░░░  │
-│ in 8.4k      3 sess    │
-│ ·······················│
-│ 5h  23%    resets 2h4m │  ← rate-limit bars
+│ ● claude 3 sessions ●● │  ← sessions today + working dots
+│ 5h  23%          2h 4m │  ← rate-limit bars
 │ █████░░░░░░░░░░░░░░░░  │
-│ 7d   8%    resets 4d3h │
+│ 7d   8%          4d 3h │
 │ ██░░░░░░░░░░░░░░░░░░░  │
 ├────────────────────────┤
-│ ● active   192.168.1.5 │  ← connection status + host IP
+│ ● idle 14:20 ⌨12k .1.5 │  ← status, keystrokes today, host IP
 └────────────────────────┘
 ```
 
@@ -92,9 +89,9 @@ seconds. The ESP32 parses it and updates the display.
 | ------------------ | ----------------------------------------------------------------------- |
 | Clock / date       | `datetime.now()` on the host                                            |
 | CPU / RAM          | `psutil`                                                                |
-| WPM                | evdev keypress timestamps, rolling 10 s window                          |
+| Keystrokes today   | evdev keypress count since local midnight (survives restarts)           |
 | Music              | `playerctl metadata` (MPRIS2)                                           |
-| Claude tokens      | Scans `~/.claude/projects/**/*.jsonl` for today's usage                 |
+| Claude sessions    | Scans `~/.claude/projects/**/*.jsonl` for sessions active today         |
 | Claude rate limits | Single minimal API call to `api.anthropic.com` (reads response headers) |
 | Claude working     | Opt-in Claude Code hooks — see [Enabling Claude working-session dots](#enabling-claude-working-session-dots) |
 | Host IP            | `socket` — routes toward 8.8.8.8 to pick the right interface            |
@@ -253,7 +250,7 @@ The port is auto-detected. To specify it manually:
 python main.py --port /dev/ttyUSB1
 ```
 
-The terminal shows a live status line with CPU, RAM, WPM, and now-playing info.
+The terminal shows a live status line with CPU, RAM, keystrokes, and now-playing info.
 
 ---
 
@@ -415,9 +412,9 @@ matching `#include` branch in `theme.h`.
 
 ```
 companion/          Host-side Python app
-  config.py         User-tunable settings (intervals, WPM tuning)
+  config.py         User-tunable settings (intervals, keyboard idle threshold)
   main.py           Entry point — serial loop, packet assembly
-  keyboard.py       evdev keypress monitor + WPM calculation
+  keyboard.py       evdev keypress monitor + daily keystroke count
   media.py          playerctl MPRIS2 poller
   claude_tokens.py  JSONL scanner + API rate-limit fetcher
   claude_activity.py  Reads the working-session status file (see hooks/ below)
@@ -426,7 +423,7 @@ companion/          Host-side Python app
   idle_messages.txt Rotating messages shown when no music is playing
 
 src/                ESP32 firmware (Arduino / PlatformIO)
-  config.h          User-tunable settings (timeouts, brightness, token bar ceiling)
+  config.h          User-tunable settings (timeouts, brightness, session dots)
   layout.h          Panel geometry and hardware wiring constants
   state.h           Shared DashState struct populated from serial packets
   theme.h           Colour theme selector (includes the active themes/*.h)
@@ -441,8 +438,8 @@ src/                ESP32 firmware (Arduino / PlatformIO)
   widgets/
     topbar.*        Clock and date bar
     music.*         Now-playing panel with animated icon
-    system.*        CPU, RAM, and WPM bars
-    claude.*        Token usage and rate-limit panels
-    status.*        Connection dot, label, and host IP
+    system.*        CPU and RAM bars
+    claude.*        Session count, working dots, and rate-limit bars
+    status.*        Connection dot, idle time, keystrokes, and host IP
 ```
 

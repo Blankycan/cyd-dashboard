@@ -6,9 +6,10 @@
 // fires shows the wrong hue immediately. Widget families each own a hue band:
 //   Topbar   indigo bg / yellow clock / cyan date
 //   Music    dark-green bg / lime text / orange|yellow|sky icons
-//   System   dark-violet bg; CPU=reds, RAM=greens, WPM=blues
-//   Claude   dark-teal bg / gold tokens; H5=violets, W7=teals; working dots=lime/blue-violet/pink
-//   Status   dark-gold bg / lime active / sky-blue idle / red offline
+//   Calendar dark-crimson bg
+//   System   dark-violet bg; CPU=reds, RAM=greens
+//   Claude   dark-teal bg / light-blue sessions; H5=violets, W7=teals; working dots=lime/blue-violet/pink
+//   Status   dark-gold bg / lime active / sky-blue idle / red offline / orange keys
 //
 // Selected via CYD_THEME_RAINBOW in config.h (see theme.h for the dispatch).
 // =============================================================================
@@ -94,7 +95,10 @@
 #define COL_MUSIC_DOT_PLAYING LVC(0xFF4400)  // red-orange
 #define COL_MUSIC_DOT_IDLE    LVC(0x0044FF)  // bright blue
 
-// System — dark violet bg; CPU reds, RAM greens, WPM blues
+// Calendar — dark crimson bg
+#define COL_CALENDAR_BG         LVC(0x1A0008)  // very dark crimson
+
+// System — dark violet bg; CPU reds, RAM greens
 #define COL_SYSTEM_BG         LVC(0x0F001A)  // very dark violet
 #define COL_SYSTEM_LABEL      LVC(0xFF00FF)  // magenta (widget-level fallback)
 #define COL_SYSTEM_BAR_BG     LVC(0x150015)  // very dark magenta (widget fallback)
@@ -114,14 +118,8 @@
 #define COL_SYSTEM_RAM_BAR_WARN LVC(0x88FF00)  // yellow-green
 #define COL_SYSTEM_RAM_BAR_ALERT LVC(0xFF8800) // orange
 
-#define COL_SYSTEM_WPM_LABEL    LVC(0x4488FF)  // sky blue
-#define COL_SYSTEM_WPM_BAR_BG   LVC(0x000022)  // very dark blue
-#define COL_SYSTEM_WPM_BAR_FILL LVC(0x4488FF)  // sky blue
-#define COL_SYSTEM_WPM_BAR_WARN LVC(0x8844FF)  // purple
-#define COL_SYSTEM_WPM_BAR_ALERT LVC(0xFF44FF) // magenta
-#define COL_SYSTEM_WPM_INACTIVE  LVC(0x222244) // dark slate blue
 
-// Claude — dark teal bg; gold tokens; H5=violets, W7=teals
+// Claude — dark teal bg; light-blue sessions; H5=violets, W7=teals
 #define COL_CLAUDE_BG           LVC(0x001A1A)  // very dark teal
 #define COL_CLAUDE_TITLE        LVC(0x00FFFF)  // cyan
 #define COL_CLAUDE_DOT_OK       LVC(0x00FF88)  // bright mint
@@ -131,13 +129,7 @@
 #define COL_CLAUDE_WORK_DOT_ACTIVE   LVC(0x33FF00)  // yellow-green
 #define COL_CLAUDE_WORK_DOT_IDLE     LVC(0x6633FF)  // blue-violet
 #define COL_CLAUDE_WORK_DOT_OVERFLOW LVC(0xFF3399)  // hot pink
-#define COL_CLAUDE_TOKENS_OUT   LVC(0xFFDD00)  // gold
-#define COL_CLAUDE_TOK_BAR_BG   LVC(0x1A1400)  // dark gold
-#define COL_CLAUDE_TOK_BAR_FILL LVC(0xFFDD00)  // gold
-#define COL_CLAUDE_TOK_BAR_WARN LVC(0xFF8800)  // orange
-#define COL_CLAUDE_TOK_BAR_ALERT LVC(0xFF2200) // red-orange
-#define COL_CLAUDE_META         LVC(0x88CCFF)  // light blue
-#define COL_CLAUDE_DIVIDER      LVC(0xFF00FF)  // magenta
+#define COL_CLAUDE_SESSIONS     LVC(0x88CCFF)  // light blue
 
 #define COL_CLAUDE_H5_LABEL     LVC(0xAA44FF)  // violet
 #define COL_CLAUDE_H5_RESET     LVC(0xCC88FF)  // light violet
@@ -159,6 +151,7 @@
 #define COL_STATUS_IDLE         LVC(0x4488FF)  // sky blue
 #define COL_STATUS_OFFLINE      LVC(0xFF2222)  // red
 #define COL_STATUS_IDLE_TIME    LVC(0xFFDD44)  // gold
+#define COL_STATUS_KEYS         LVC(0xFF8844)  // orange
 #define COL_STATUS_IP           LVC(0xFF88CC)  // pink
 
 // -----------------------------------------------------------------------------

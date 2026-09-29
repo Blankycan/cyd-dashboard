@@ -1,8 +1,8 @@
 """
 Claude usage monitor — two data sources:
 
-  1. JSONL scan (always): reads ~/.claude/projects/**/*.jsonl for today's
-     output/input token counts and session count.  Runs every 60 s.
+  1. JSONL scan (always): reads ~/.claude/projects/**/*.jsonl for the number
+     of sessions with activity today.  Runs every 60 s.
 
   2. Rate-limit fetch: makes a minimal Haiku API call (~8 input tokens) to
      read the 5h and 7d unified rate-limit headers.  Runs every 300 s.
@@ -119,7 +119,7 @@ class ClaudeTokenMonitor:
     def __init__(self):
         self._lock    = threading.Lock()
         self._data    = {
-            "out": 0, "inp": 0, "sessions": 0,
+            "sessions": 0,
             "h5_pct": -1, "h5_secs": -1,
             "w7_pct": -1, "w7_secs": -1,
         }
@@ -164,13 +164,10 @@ class ClaudeTokenMonitor:
         candidates  = [f for f in glob.glob(pattern, recursive=True)
                        if os.path.getmtime(f) >= today_start]
 
-        out_today = 0
-        inp_today = 0
         sessions: set[str] = set()
 
         for fpath in candidates:
             try:
-                active = False
                 with open(fpath, errors="replace") as f:
                     for line in f:
                         try:
@@ -187,22 +184,14 @@ class ClaudeTokenMonitor:
                                     continue
                             except (ValueError, TypeError):
                                 continue
-                            u = d.get("message", {}).get("usage", {})
-                            out_today += u.get("output_tokens", 0)
-                            inp_today += (u.get("input_tokens", 0)
-                                        + u.get("cache_creation_input_tokens", 0)
-                                        + u.get("cache_read_input_tokens", 0))
-                            active = True
+                            sessions.add(fpath)
+                            break  # one assistant message today is enough
                         except Exception:
                             pass
-                if active:
-                    sessions.add(fpath)
             except Exception:
                 pass
 
         with self._lock:
-            self._data["out"]      = out_today
-            self._data["inp"]      = inp_today
             self._data["sessions"] = len(sessions)
 
     # ------------------------------------------------------------------

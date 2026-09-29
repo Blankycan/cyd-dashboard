@@ -1,7 +1,7 @@
 #pragma once
 #include <lvgl.h>
 
-// System panel — CPU, RAM, and typing speed (WPM) with progress bars.
+// System panel — CPU and RAM with progress bars.
 
 void build_system_panel(lv_obj_t *parent);
 void update_system_ui();

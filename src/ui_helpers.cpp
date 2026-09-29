@@ -1,6 +1,7 @@
 #include "ui_helpers.h"
 #include "theme.h"
 #include <stdio.h>
+#include <string.h>
 
 // ---------------------------------------------------------------------------
 // LVGL widget factories
@@ -97,6 +98,62 @@ void make_placeholder(lv_obj_t *parent, const char *text) {
     lv_obj_set_style_text_color(lbl, COL_TEXT_DIM, 0);
     lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
     lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
+}
+
+lv_obj_t *make_ellipsis_label(lv_obj_t *parent, int x, int y, int w, const lv_font_t *font) {
+    lv_obj_t *lbl = lv_label_create(parent);
+    lv_label_set_text(lbl, "");
+    lv_obj_set_style_text_font(lbl, font, 0);
+    lv_obj_set_pos(lbl, x, y);
+    lv_obj_set_width(lbl, w);
+    lv_label_set_long_mode(lbl, LV_LABEL_LONG_CLIP);
+    return lbl;
+}
+
+void set_ellipsis_text(lv_obj_t *label, const char *text) {
+    const lv_font_t *font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
+    lv_coord_t ls  = lv_obj_get_style_text_letter_space(label, LV_PART_MAIN);
+    lv_coord_t max = lv_obj_get_style_width(label, LV_PART_MAIN);
+    uint32_t   len = strlen(text);
+
+    if (lv_txt_get_width(text, len, font, ls, LV_TEXT_FLAG_NONE) <= max) {
+        lv_label_set_text(label, text);
+        return;
+    }
+
+    // Keep the longest whole-character prefix that still fits with the dots.
+    static const char DOTS[] = "...";
+    lv_coord_t avail = max - lv_txt_get_width(DOTS, 3, font, ls, LV_TEXT_FLAG_NONE);
+    uint32_t fit = 0, i = 0;
+    while (i < len) {
+        uint32_t next = i;
+        _lv_txt_encoded_next(text, &next);
+        if (lv_txt_get_width(text, next, font, ls, LV_TEXT_FLAG_NONE) > avail) break;
+        fit = i = next;
+    }
+    while (fit > 0 && text[fit - 1] == ' ') fit--;  // no "word ..." gap
+
+    char buf[128];
+    if (fit > sizeof(buf) - sizeof(DOTS)) fit = sizeof(buf) - sizeof(DOTS);
+    memcpy(buf, text, fit);
+    memcpy(buf + fit, DOTS, sizeof(DOTS));
+    lv_label_set_text(label, buf);
+}
+
+// Distance from the top of a line box down to the vertical centre of glyph `ch`.
+static float glyph_center_y(const lv_font_t *font, uint32_t ch) {
+    lv_font_glyph_dsc_t g;
+    if (!lv_font_get_glyph_dsc(font, &g, ch, 0)) return lv_font_get_line_height(font) / 2.0f;
+    float baseline = lv_font_get_line_height(font) - font->base_line;
+    return baseline - (g.ofs_y + g.box_h / 2.0f);
+}
+
+void align_dot_to_label(lv_obj_t *dot, lv_obj_t *label) {
+    const lv_font_t *font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
+    float center = (glyph_center_y(font, 'x') + glyph_center_y(font, 'H')) / 2.0f;
+    lv_coord_t dot_h = lv_obj_get_style_height(dot, LV_PART_MAIN);
+    lv_obj_update_layout(label);
+    lv_obj_set_y(dot, lv_obj_get_y(label) + (lv_coord_t)(center - dot_h / 2.0f + 0.5f));
 }
 
 lv_color_t pct_color3(int pct, lv_color_t fill, lv_color_t warn, lv_color_t alert) {

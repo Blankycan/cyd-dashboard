@@ -17,12 +17,13 @@
 #define PANEL_W     SCREEN_W
 
 #define MUSIC_H     52
-#define STATS_H     72
+#define STATS_H     50
 #define STATS_ROW_H 22
-// CLAUDE_H is sized to consume all remaining space between stats and indicator.
-// Formula: SCREEN_H - CONTENT_Y - MUSIC_H - DIV_W - STATS_H - DIV_W - DIV_W - INDICATOR_H
-#define CLAUDE_H    126
+#define CLAUDE_H    72
 #define INDICATOR_H 36
+// CALENDAR_H consumes all remaining space between the topbar and the status bar
+// (four DIV_W dividers: below calendar, music, stats, and claude).
+#define CALENDAR_H  (CONTENT_H - MUSIC_H - STATS_H - CLAUDE_H - INDICATOR_H - 4 * DIV_W)
 
 // Music panel — right-side animation area
 #define MA_W          38

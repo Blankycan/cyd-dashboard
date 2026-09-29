@@ -9,7 +9,7 @@ Two programs that talk over USB serial:
 - **`src/`** — ESP32 firmware (Arduino framework, PlatformIO, LVGL UI) that runs on
   a CYD ("Cheap Yellow Display", ESP32-2432S028R) board and renders the dashboard.
 - **`companion/`** — a Python app that runs on the host PC, gathers stats (CPU/RAM,
-  keyboard WPM, now-playing media, Claude token usage), and pushes them to the board
+  keystrokes today, now-playing media, Claude sessions and rate limits), and pushes them to the board
   as a JSON line every `INTERVAL` seconds (`companion/config.py`).
 
 There is no build step linking the two — they're independent programs that agree on
@@ -67,9 +67,10 @@ systemctl --user start cyd-dashboard
 between the packet handler and every widget's update function.
 
 Panels live under `src/widgets/`, stacked top-to-bottom by `build_panels()` in
-`main.cpp`: `topbar` (clock/date) → `music` (now-playing + animated icon) →
-`system` (CPU/RAM/WPM bars) → `claude` (token counts, rate-limit bars, and opt-in working-session dots) →
-`status` (connection dot + IP). Each widget pairs a `.h`/`.cpp`: the `.h`
+`main.cpp`: `topbar` (clock/date) → calendar slot (placeholder for now) →
+`music` (now-playing + animated icon) → `system` (CPU/RAM bars) → `claude`
+(today's session count, rate-limit bars, and opt-in working-session dots) →
+`status` (connection dot, idle time, keystrokes today, IP). Each widget pairs a `.h`/`.cpp`: the `.h`
 declares `build_<name>_panel()` and `update_<name>_ui()`; the `.cpp` builds LVGL
 objects once and mutates them in place on update (no rebuilding widgets per
 packet). `ui_helpers.h/cpp` has the shared factories used across panels —
@@ -106,11 +107,12 @@ constructed once in `main()` and read from on each tick — they run their own
 background thread/state and `collect_stats()` never blocks on them:
 
 - `keyboard.py` — `KeyboardMonitor` watches evdev (`/dev/input/`) for keypresses
-  and computes WPM over a rolling window; also derives `active`/idle for the
-  status dot.
+  and counts keypresses since local midnight (persisted to
+  `~/.local/state/cyd-dashboard/keys.json` so restarts don't reset it); also
+  derives `active`/idle for the status dot.
 - `media.py` — `MediaMonitor` polls `playerctl` (MPRIS2) for now-playing info.
 - `claude_tokens.py` — `ClaudeTokenMonitor` scans `~/.claude/projects/**/*.jsonl`
-  for today's token usage, and separately calls `api.anthropic.com` (reading
+  for the number of sessions active today, and separately calls `api.anthropic.com` (reading
   rate-limit response headers, not the response body) to get 5-hour/7-day usage
   percentages. Auth is whichever of `~/.claude/.credentials.json` (OAuth from a
   `claude` login) or `ANTHROPIC_API_KEY` is available; if neither, rate-limit
@@ -124,7 +126,7 @@ background thread/state and `collect_stats()` never blocks on them:
   is printed once at startup.
 
 `config.py` holds the tunables (poll `INTERVAL`, idle-message rotation
-interval, WPM window). `idle_messages.txt` is the pool of strings shown in the
+interval, keyboard idle threshold). `idle_messages.txt` is the pool of strings shown in the
 music panel when nothing is playing — one message per line, `#`-prefixed lines
 ignored.
 
@@ -132,7 +134,7 @@ ignored.
 
 One JSON object per line, newline-delimited, 115200 baud. Firmware boots with
 `{"boot":true,"version":"..."}`; each stats packet is `{"type":"stats", cpu,
-ram, wpm, time, date, active, ip, idle_msg?, music?, claude?}` — see
+ram, keys, time, date, active, ip, idle_msg?, music?, claude?}` — see
 `handle_packet()` in `main.cpp` for the authoritative field list and defaults,
 and `collect_stats()` in `companion/main.py` for how it's assembled. The
 firmware acks each packet with `{"ack":true}` but the companion doesn't depend

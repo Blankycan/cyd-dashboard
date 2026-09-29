@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# CYD Dashboard companion — Phase 5: stats + WPM + media + idle messages
+# CYD Dashboard companion — stats + keystrokes + media + Claude usage
 # Run: python companion/main.py [--port /dev/ttyUSBx]
 
 import argparse
@@ -83,7 +83,7 @@ def collect_stats(kb: KeyboardMonitor | None = None,
         "ram":    int(psutil.virtual_memory().percent),
         "time":   datetime.now().strftime("%H:%M"),
         "date":   datetime.now().strftime("%a %d %b"),
-        "wpm":    kb.wpm() if kb else 0,
+        "keys":   kb.keys_today() if kb else 0,
         "active": kb.is_active() if kb else False,
         "ip":     get_local_ip(),
     }
@@ -92,7 +92,7 @@ def collect_stats(kb: KeyboardMonitor | None = None,
     else:
         stats["idle_msg"] = _get_idle_msg()
     if tok:
-        tok = dict(tok)  # out, inp, sessions, h5_pct, h5_secs, w7_pct, w7_secs
+        tok = dict(tok)  # sessions, h5_pct, h5_secs, w7_pct, w7_secs
         tok["working"] = claude_activity.working_count() if claude_activity else 0
         stats["claude"] = tok
     return stats
@@ -110,10 +110,10 @@ def print_stats(s: dict) -> None:
     cpu_str = f"{s['cpu']:>3}%"
     ram_str = f"{s['ram']:>3}%"
     act     = s.get("active", False)
-    wpm     = s.get("wpm", 0)
+    keys    = s.get("keys", 0)
     act_c   = "ok" if act else "text_dim"
     act_str = "ACT" if act else "IDL"
-    wpm_str = f"{wpm:>3}"
+    keys_str = f"{keys / 1000:.1f}k" if keys >= 1000 else str(keys)
     m       = s.get("music")
     if m:
         play_c   = "ok" if m["playing"] else "text_dim"
@@ -137,8 +137,7 @@ def print_stats(s: dict) -> None:
             if p >= 90: return "alert"
             if p >= 70: return "warn"
             return "ok"
-        out_k = tok["out"] / 1000.0
-        tok_tok = f"{out_k:.1f}k out  {tok['sessions']} sess"
+        tok_tok = f"{tok['sessions']} sess"
         if tok.get("working"):
             working_lbl = f"{tok['working']} working"
             tok_tok += f"  {ansi('ok', working_lbl)}"
@@ -160,7 +159,7 @@ def print_stats(s: dict) -> None:
         f"CPU {ansi(cpu_c, cpu_str)}   "
         f"RAM {ansi(ram_c, ram_str)}   "
         f"{ansi(act_c, act_str)}  "
-        f"{ansi('text_sec', wpm_str)} WPM   "
+        f"{ansi('text_sec', keys_str)} keys   "
         f"{music_s}"
         + (f"   {tok_s}" if tok_s else "")
     )

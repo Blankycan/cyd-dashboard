@@ -1,26 +1,33 @@
 """
 Keyboard monitor — evdev (Wayland/Hyprland) with pynput fallback.
 
+Tracks two things: whether the keyboard is currently active (for the status
+dot), and how many keys were pressed today. The daily count is persisted to
+KEYS_STATE_FILE so a companion restart mid-day doesn't reset it to zero.
+
 Requires membership in the 'input' group for evdev access:
   sudo usermod -aG input $USER   (log out and back in to apply)
 """
 
+import json
 import selectors
 import threading
 import time
-from collections import deque
+from datetime import date
 
-from config import WPM_WINDOW, IDLE_AFTER, WPM_ALPHA
+from config import IDLE_AFTER, KEYS_STATE_FILE, KEYS_SAVE_INTERVAL
 
 
 class KeyboardMonitor:
     def __init__(self):
         self._lock         = threading.Lock()
-        self._timestamps   = deque()  # monotonic times of recent keypresses
         self._last_press   = 0.0
-        self._smooth_wpm   = 0.0
         self._thread       = None
         self._running      = False
+        self._day          = date.today().isoformat()
+        self._keys_today   = 0
+        self._last_save    = 0.0
+        self._load()
 
     # ---- public API -------------------------------------------------------
 
@@ -31,12 +38,16 @@ class KeyboardMonitor:
 
     def stop(self):
         self._running = False
-
-    def wpm(self) -> int:
-        """Current smoothed WPM, decayed toward 0 when idle."""
         with self._lock:
-            self._recalc(time.monotonic())
-            return int(self._smooth_wpm)
+            self._save()
+
+    def keys_today(self) -> int:
+        """Keypresses since local midnight."""
+        with self._lock:
+            self._rollover()
+            if time.monotonic() - self._last_save >= KEYS_SAVE_INTERVAL:
+                self._save()
+            return self._keys_today
 
     def is_active(self) -> bool:
         """True if a key was pressed within IDLE_AFTER seconds."""
@@ -46,25 +57,36 @@ class KeyboardMonitor:
     # ---- internal ---------------------------------------------------------
 
     def _press(self):
-        now = time.monotonic()
         with self._lock:
-            self._last_press = now
-            self._timestamps.append(now)
-            self._recalc(now)
+            self._last_press = time.monotonic()
+            self._rollover()
+            self._keys_today += 1
 
-    def _recalc(self, now: float):
-        """Prune stale timestamps and update smoothed WPM (call under lock)."""
-        cutoff = now - WPM_WINDOW
-        while self._timestamps and self._timestamps[0] < cutoff:
-            self._timestamps.popleft()
+    def _rollover(self):
+        """Reset the daily count once the local date changes (call under lock)."""
+        today = date.today().isoformat()
+        if today != self._day:
+            self._day        = today
+            self._keys_today = 0
 
-        count   = len(self._timestamps)
-        raw_wpm = (count / 5.0) / (WPM_WINDOW / 60.0)
+    def _load(self):
+        try:
+            d = json.loads(KEYS_STATE_FILE.read_text())
+            if d.get("date") == self._day:
+                self._keys_today = int(d.get("count", 0))
+        except Exception:
+            pass  # missing or corrupt — start today from zero
 
-        # Adaptive alpha: converge faster on large changes
-        delta = abs(raw_wpm - self._smooth_wpm)
-        alpha = min(WPM_ALPHA + delta * 0.006, 0.85)
-        self._smooth_wpm = alpha * raw_wpm + (1.0 - alpha) * self._smooth_wpm
+    def _save(self):
+        """Persist today's count (call under lock). Best-effort."""
+        self._last_save = time.monotonic()
+        try:
+            KEYS_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            tmp = KEYS_STATE_FILE.with_suffix(".tmp")
+            tmp.write_text(json.dumps({"date": self._day, "count": self._keys_today}))
+            tmp.replace(KEYS_STATE_FILE)
+        except Exception:
+            pass
 
     def _run(self):
         try:
@@ -74,7 +96,7 @@ class KeyboardMonitor:
             try:
                 self._pynput_loop()
             except Exception as e2:
-                print(f"  [keyboard] pynput also failed ({e2}), WPM disabled")
+                print(f"  [keyboard] pynput also failed ({e2}), keyboard tracking disabled")
 
     def _evdev_loop(self):
         import evdev

@@ -128,23 +128,15 @@ static void set_music_anim(MusicAnim next) {
 }
 
 void build_music_panel(lv_obj_t *parent) {
-    dot_music = make_dot(parent, 8, 12, COL_MUSIC_DOT_IDLE);
-
-    lbl_music_title = lv_label_create(parent);
-    lv_label_set_text(lbl_music_title, "nothing playing");
+    lbl_music_title = make_ellipsis_label(parent, 22, 8, MUSIC_LABEL_W, &font_ui_14);
+    set_ellipsis_text(lbl_music_title, "nothing playing");
     lv_obj_set_style_text_color(lbl_music_title, COL_MUSIC_DOT_IDLE, 0);
-    lv_obj_set_style_text_font(lbl_music_title, &font_ui_14, 0);
-    lv_obj_set_pos(lbl_music_title, 22, 8);
-    lv_obj_set_width(lbl_music_title, MUSIC_LABEL_W);
-    lv_label_set_long_mode(lbl_music_title, LV_LABEL_LONG_DOT);
 
-    lbl_music_artist = lv_label_create(parent);
-    lv_label_set_text(lbl_music_artist, "");
+    dot_music = make_dot(parent, 8, 0, COL_MUSIC_DOT_IDLE);
+    align_dot_to_label(dot_music, lbl_music_title);
+
+    lbl_music_artist = make_ellipsis_label(parent, 22, 30, MUSIC_LABEL_W, &font_ui_12);
     lv_obj_set_style_text_color(lbl_music_artist, COL_MUSIC_TEXT, 0);
-    lv_obj_set_style_text_font(lbl_music_artist, &font_ui_12, 0);
-    lv_obj_set_pos(lbl_music_artist, 22, 30);
-    lv_obj_set_width(lbl_music_artist, MUSIC_LABEL_W);
-    lv_label_set_long_mode(lbl_music_artist, LV_LABEL_LONG_DOT);
 
     music_anim_ctr = lv_obj_create(parent);
     lv_obj_remove_style_all(music_anim_ctr);
@@ -173,16 +165,16 @@ void update_music_ui() {
     if (state.music_active) {
         lv_color_t dc = state.music_playing ? COL_MUSIC_DOT_PLAYING : COL_MUSIC_DOT_IDLE;
         lv_obj_set_style_bg_color(dot_music, dc, 0);
-        lv_label_set_text(lbl_music_title, state.music_title);
+        set_ellipsis_text(lbl_music_title, state.music_title);
         lv_obj_set_style_text_color(lbl_music_title,
             state.music_playing ? COL_MUSIC_TITLE : COL_MUSIC_DOT_IDLE, 0);
-        lv_label_set_text(lbl_music_artist, state.music_artist);
+        set_ellipsis_text(lbl_music_artist, state.music_artist);
         lv_obj_set_style_text_color(lbl_music_artist, COL_MUSIC_TEXT, 0);
     } else {
         lv_obj_set_style_bg_color(dot_music, COL_MUSIC_DOT_IDLE, 0);
-        lv_label_set_text(lbl_music_title, "nothing playing");
+        set_ellipsis_text(lbl_music_title, "nothing playing");
         lv_obj_set_style_text_color(lbl_music_title, COL_MUSIC_DOT_IDLE, 0);
-        lv_label_set_text(lbl_music_artist, state.idle_msg);
+        set_ellipsis_text(lbl_music_artist, state.idle_msg);
         lv_obj_set_style_text_color(lbl_music_artist, COL_MUSIC_DOT_IDLE, 0);
     }
 }

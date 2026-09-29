@@ -198,12 +198,20 @@ static void clock_tick_cb(lv_timer_t *) {
 }
 
 // ---------------------------------------------------------------------------
-// Dashboard layout — stacks music, stats, claude, and status panels vertically
+// Dashboard layout — stacks calendar, music, stats, claude, and status panels vertically
 // ---------------------------------------------------------------------------
 static void build_panels(lv_obj_t *scr) {
     int y = CONTENT_Y;
 
     lv_obj_t *p;
+
+    // Reserved for the upcoming calendar widget
+    p = make_panel(scr, 0, y, SCREEN_W, CALENDAR_H, COL_CALENDAR_BG);
+    make_placeholder(p, "calendar");
+    y += CALENDAR_H;
+
+    make_hdiv(scr, y, 0, SCREEN_W, COL_DIVIDER);
+    y += DIV_W;
 
     p = make_panel(scr, 0, y, SCREEN_W, MUSIC_H, COL_MUSIC_BG);
     build_music_panel(p);
@@ -248,9 +256,9 @@ static uint32_t last_packet_ms = 0;
 
 // Clear numeric values and refresh UI when host stops sending packets
 static void show_disconnected() {
-    state.cpu = 0; state.ram = 0; state.wpm = 0;
+    state.cpu = 0; state.ram = 0; state.keys_today = 0;
     state.active = false; state.music_active = false;
-    state.claude_out = 0; state.claude_inp = 0; state.claude_sessions = 0;
+    state.claude_sessions = 0;
     state.claude_working = 0;
     state.claude_h5_pct = -1; state.claude_h5_secs = -1;
     state.claude_w7_pct = -1; state.claude_w7_secs = -1;
@@ -262,7 +270,7 @@ static void show_disconnected() {
 }
 
 // Parse one JSON line from serial and update state + UI widgets.
-// Expected shape: {"type":"stats","cpu":..,"ram":..,"wpm":..,"time":"..","date":"..",
+// Expected shape: {"type":"stats","cpu":..,"ram":..,"keys":..,"time":"..","date":"..",
 //   "active":bool,"idle_msg":"..","ip":"..","music":{..},"claude":{..}}
 static void handle_packet(const String &line) {
     JsonDocument doc;
@@ -277,7 +285,7 @@ static void handle_packet(const String &line) {
 
         state.cpu    = doc["cpu"]    | 0;
         state.ram    = doc["ram"]    | 0;
-        state.wpm    = doc["wpm"]    | 0;
+        state.keys_today = doc["keys"] | (int32_t)0;
         state.active = doc["active"] | false;
         strlcpy(state.time_str, doc["time"] | "--:--", sizeof(state.time_str));
         strlcpy(state.date_str, doc["date"] | "",     sizeof(state.date_str));
@@ -319,8 +327,6 @@ static void handle_packet(const String &line) {
 
         JsonObject claude_obj = doc["claude"];
         if (claude_obj) {
-            state.claude_out      = claude_obj["out"]      | (int32_t)0;
-            state.claude_inp      = claude_obj["inp"]      | (int32_t)0;
             state.claude_sessions = claude_obj["sessions"] | 0;
             state.claude_working  = claude_obj["working"]  | 0;
             state.claude_h5_pct   = claude_obj["h5_pct"]  | -1;

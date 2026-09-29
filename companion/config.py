@@ -1,16 +1,18 @@
 # companion/config.py — user-tunable settings for the CYD Dashboard companion.
 # Edit these without touching the rest of the code.
 
+from pathlib import Path
+
 # Serial / packet timing ---------------------------------------------------
 INTERVAL          = 2.0    # seconds between stats packets sent to the ESP32
 
 # Idle messages ------------------------------------------------------------
 IDLE_MSG_INTERVAL = 30.0   # seconds before rotating to the next idle message
 
-# Keyboard / WPM -----------------------------------------------------------
-WPM_WINDOW  = 10.0   # rolling window for WPM calculation (seconds)
-IDLE_AFTER  = 2.5    # seconds without a keypress before marking keyboard idle
-WPM_ALPHA   = 0.35   # EMA smoothing factor (0 = frozen, 1 = raw instantaneous)
+# Keyboard -----------------------------------------------------------------
+IDLE_AFTER         = 2.5   # seconds without a keypress before marking keyboard idle
+KEYS_SAVE_INTERVAL = 30.0  # seconds between writes of today's keystroke count
+KEYS_STATE_FILE    = Path.home() / ".local" / "state" / "cyd-dashboard" / "keys.json"
 
 # Media --------------------------------------------------------------------
 MEDIA_POLL_INTERVAL = 3.0  # seconds between playerctl metadata polls

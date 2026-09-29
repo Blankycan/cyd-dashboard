@@ -24,6 +24,14 @@ BarRow     make_bar_row(lv_obj_t *parent, int x, int y, int w, const char *key,
                         lv_color_t key_col, lv_color_t val_col,
                         lv_color_t extra_col, lv_color_t bar_bg);
 void       make_placeholder(lv_obj_t *parent, const char *text);                      // centered dim label
+// Single-line label that truncates with "..." at the full label width. Use instead
+// of LV_LABEL_LONG_DOT, which word-wraps first and dots at the first line break.
+lv_obj_t  *make_ellipsis_label(lv_obj_t *parent, int x, int y, int w, const lv_font_t *font);
+void       set_ellipsis_text(lv_obj_t *label, const char *text);
+// Move a dot vertically so it sits on the optical centre of the label's glyphs
+// (between x-height and cap-height) rather than the line box, which also
+// reserves space for descenders/accents. Call after the label's font and y are set.
+void       align_dot_to_label(lv_obj_t *dot, lv_obj_t *label);
 lv_color_t pct_color3(int pct, lv_color_t fill, lv_color_t warn, lv_color_t alert);  // OK / WARN / ALERT with custom colours
 lv_color_t pct_col3(int pct, lv_color_t fill, lv_color_t warn, lv_color_t alert);    // same, but returns fill when pct < 0 (unavailable)
 lv_color_t pct_color(int pct);                                                         // backward compat: pct_color3 with default colours
