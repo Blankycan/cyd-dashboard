@@ -7,7 +7,8 @@
 //   Topbar   indigo bg / yellow clock / cyan date
 //   Music    dark-green bg / lime text / orange|yellow|sky icons
 //   Calendar dark-crimson bg; pinks/roses, yellow "soon", white-ish now mark
-//   Scenes   near-black blue bg; leaves=orange/brown/olive, snow=ice blues, life=chartreuse
+//   Scenes   near-black blue bg; leaves=orange/brown/olive, snow=ice blues, life=chartreuse,
+//            stars=lavenders, fish=coral/gold/purple, quote=mint/sage
 //   System   dark-violet bg; CPU=reds, RAM=greens
 //   Claude   dark-teal bg / light-blue sessions; H5=violets, W7=teals; working dots=lime/blue-violet/pink
 //   Status   dark-gold bg / lime active / sky-blue idle / red offline / orange keys
@@ -123,6 +124,18 @@
 #define COL_SCENE_SNOW_FAR      LVC(0x5588AA)  // steel blue
 #define COL_SCENE_LIFE_CELL     LVC(0x99FF00)  // chartreuse
 #define COL_SCENE_LIFE_BG       LVC(0x000F06)  // near-black green
+#define COL_SCENE_STARS_NEAR    LVC(0xF0E0FF)  // pale lavender
+#define COL_SCENE_STARS_MID     LVC(0xB090E0)  // lavender
+#define COL_SCENE_STARS_FAR     LVC(0x604880)  // dim purple
+#define COL_SCENE_FISH_1        LVC(0xFF7F50)  // coral
+#define COL_SCENE_FISH_2        LVC(0xFFC020)  // gold
+#define COL_SCENE_FISH_3        LVC(0xC040FF)  // purple
+#define COL_SCENE_FISH_EYE      LVC(0x101010)  // near-black
+#define COL_SCENE_FISH_WEED     LVC(0x228855)  // sea green
+#define COL_SCENE_FISH_BUBBLE   LVC(0x66CCDD)  // aqua
+#define COL_SCENE_FISH_FOOD     LVC(0xCC9966)  // tan
+#define COL_SCENE_QUOTE_TEXT    LVC(0xAAFFCC)  // mint
+#define COL_SCENE_QUOTE_AUTHOR  LVC(0x779988)  // sage
 
 // System — dark violet bg; CPU reds, RAM greens
 #define COL_SYSTEM_BG         LVC(0x0F001A)  // very dark violet

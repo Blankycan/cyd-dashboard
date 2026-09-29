@@ -484,7 +484,7 @@ Pick the scenes and their order next to the theme in `src/config.h`, e.g.
 swap leaves for snow in winter:
 
 ```c
-#define CYD_SCENES  SCENE_LEAVES, SCENE_LIFE
+#define CYD_SCENES  SCENE_LEAVES, SCENE_FISH, SCENE_STARS, SCENE_QUOTE, SCENE_LIFE
 ```
 
 | Scene | What it does | Touch |
@@ -492,6 +492,9 @@ swap leaves for snow in winter:
 | `SCENE_LEAVES` | Autumn leaves tumble down on a wandering breeze | Blow leaves away from your finger |
 | `SCENE_SNOW` | Snow in two depth layers, near flakes bigger and faster | Puff flakes away from your finger |
 | `SCENE_LIFE` | Conway's Game of Life; ends by itself when the colony dies out or gets stuck in a loop | Press or drag to bring cells to life |
+| `SCENE_STARS` | Starfield flight, stars streaming out from a vanishing point | Press for a warp boost, drag to steer |
+| `SCENE_FISH` | Fish tank with seaweed and bubbles; the fish swim off screen when it ends | Tap to drop food; the nearest fish eats it |
+| `SCENE_QUOTE` | Quote of the day, typed out, then fades out by itself. Quotes live in `src/scenes/quotes.h` | Tap for a different quote |
 
 **Touch.** While a scene shows, touches inside it go to the scene, and a tap
 anywhere else on the screen flips to the calendar. While the calendar shows,
@@ -649,6 +652,9 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     leaves.cpp      Falling autumn leaves
     snow.cpp        Snowfall in two depth layers
     life.cpp        Conway's Game of Life
+    stars.cpp       Starfield flight
+    fish.cpp        Fish tank
+    quote.cpp       Quote of the day (quotes in quotes.h)
   widgets/
     topbar.*        Clock and date bar
     calendar.*      Current/next meeting, countdown, and day timeline
