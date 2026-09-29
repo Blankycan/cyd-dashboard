@@ -484,7 +484,7 @@ Pick the scenes and their order next to the theme in `src/config.h`, e.g.
 swap leaves for snow in winter:
 
 ```c
-#define CYD_SCENES  SCENE_LEAVES, SCENE_FISH, SCENE_STARS, SCENE_QUOTE, SCENE_LIFE
+#define CYD_SCENES  SCENE_LEAVES, SCENE_FISH, SCENE_SNOW, SCENE_STARS, SCENE_QUOTE, SCENE_LIFE
 ```
 
 | Scene | What it does | Touch |
