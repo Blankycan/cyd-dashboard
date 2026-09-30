@@ -101,10 +101,11 @@ greyscale light mask) is hand-painted PNGs in `assets/lofi/`, converted by
 The converter also works out the handwriting's reveal order (`INK_ORDER`).
 Transitions are logged as `{"log":"scene ..."}`
 lines (with the scene's average frame time), which the companion prints as
-`CYD: ...`. The arcade scenes draw into one canvas via `pixfb.h`, which
+`CYD: ...`. Scenes with many moving things (arcade, leaves, snow, stars, ...) draw into one canvas via `pixfb.h`, which
 coalesces each frame's changes into ≤16 rects on `pixfb_flush()`: per-sprite
 invalidation overflows LVGL's 32-entry invalidation list and forces a
-full-screen redraw every frame. `setup()` enables the Arduino loop watchdog
+full-screen redraw every frame (~120 ms frames instead of the 40 ms target, which also
+starves the serial loop). Prefer pixfb over per-sprite LVGL objects for new scenes. `setup()` enables the Arduino loop watchdog
 (5 s), so a hung loop reboots the board with a backtrace on serial.
 
 When disconnected (`DISCONNECT_TIMEOUT_MS` with no packet), `main.cpp` zeroes

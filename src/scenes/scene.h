@@ -37,6 +37,14 @@
 // scene_<name>`, declare it and a SCENE_<NAME> macro in registry.h, and list
 // it in CYD_SCENES in config.h. Colours go through COL_SCENE_<NAME>_* tokens
 // with fallbacks in theme.h.
+//
+// Anything with more than a handful of moving things should draw into a
+// pixfb.h canvas, not one LVGL object per sprite. Each moved object queues
+// its old and new area for redraw; past LVGL's 32 pending areas it redraws
+// the whole screen, every frame. Leaves, snow and stars did that and ran at
+// ~120 ms a frame (vs the 40 ms target), slow enough for the main loop to
+// fall behind on serial and drop stats packets. On pixfb they run at ~44 ms.
+// Check the "avg frame" in the scene's "done" log line.
 // =============================================================================
 
 enum SceneTouch { SCENE_TOUCH_PRESS, SCENE_TOUCH_DRAG, SCENE_TOUCH_RELEASE };

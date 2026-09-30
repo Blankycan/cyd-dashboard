@@ -2,8 +2,9 @@
 #include <lvgl.h>
 #include <stdint.h>
 
-// Pixel framebuffer for sprite-style scenes (the arcade games): one LVGL
-// canvas the scene draws into directly, instead of one object per sprite.
+// Pixel framebuffer for scenes with many moving things (the arcade games,
+// leaves, snow, stars...): one LVGL canvas the scene draws into directly,
+// instead of one object per sprite — see scene.h for why that matters.
 //
 // Draw calls record the rectangle they touched; pixfb_flush() hands those to
 // LVGL once per frame, merged into at most PIXFB_MAX_DIRTY rects. Invalidating
