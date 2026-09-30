@@ -501,8 +501,9 @@ Pick the scenes and their order next to the theme in `src/config.h`, e.g.
 swap leaves for snow in winter:
 
 ```c
-#define CYD_SCENES  SCENE_LEAVES, SCENE_PACMAN, SCENE_FISH, SCENE_INVADERS, SCENE_SNOW, \
-                    SCENE_STARS, SCENE_ASTEROIDS, SCENE_QUOTE, SCENE_LIFE
+#define CYD_SCENES  SCENE_LEAVES, SCENE_PACMAN, SCENE_FISH, SCENE_LOFI, SCENE_INVADERS, SCENE_SNOW,   \
+                    SCENE_SYNTHWAVE, SCENE_STARS, SCENE_ASTEROIDS, SCENE_FIREWORKS, SCENE_QUOTE, \
+                    SCENE_CAMPFIRE, SCENE_LIFE
 ```
 
 | Scene | What it does | Touch |
