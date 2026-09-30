@@ -221,3 +221,4 @@ static void touch(SceneTouch type, int x, int y) {
 static void finish() { pixfb_free(fb); }
 
 const Scene scene_snow = { "snow", start, tick, request_stop, is_done, touch, finish };
+SCENE_REGISTER(scene_snow, "Snow");

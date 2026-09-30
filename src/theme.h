@@ -83,6 +83,38 @@
 #ifndef COL_TOPBAR_DATE
 #define COL_TOPBAR_DATE COL_TEXT_DIM
 #endif
+#ifndef COL_TOPBAR_MENU
+#define COL_TOPBAR_MENU COL_TOPBAR_DATE
+#endif
+
+// --- Settings menu (covers the panels below the scene slot) ---
+#ifndef COL_MENU_BG
+#define COL_MENU_BG COL_BG
+#endif
+#ifndef COL_MENU_TEXT
+#define COL_MENU_TEXT COL_TEXT_PRI
+#endif
+#ifndef COL_MENU_HINT
+#define COL_MENU_HINT COL_TEXT_DIM
+#endif
+#ifndef COL_MENU_HEADING
+#define COL_MENU_HEADING COL_TEXT_SEC
+#endif
+#ifndef COL_MENU_ACCENT
+#define COL_MENU_ACCENT COL_OK
+#endif
+#ifndef COL_MENU_TRACK
+#define COL_MENU_TRACK COL_BAR_TRACK
+#endif
+#ifndef COL_MENU_KNOB
+#define COL_MENU_KNOB COL_TEXT_PRI
+#endif
+#ifndef COL_MENU_ROW_SEL
+#define COL_MENU_ROW_SEL COL_PANEL
+#endif
+#ifndef COL_MENU_DIVIDER
+#define COL_MENU_DIVIDER COL_DIVIDER
+#endif
 
 // --- Calendar ---
 #ifndef COL_CALENDAR_BG

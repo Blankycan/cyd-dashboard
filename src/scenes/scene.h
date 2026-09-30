@@ -34,9 +34,9 @@
 // statics and must fully reset it in start().
 //
 // To add a scene: create src/scenes/<name>.cpp defining `const Scene
-// scene_<name>`, declare it and a SCENE_<NAME> macro in registry.h, and list
-// it in CYD_SCENES in config.h. Colours go through COL_SCENE_<NAME>_* tokens
-// with fallbacks in theme.h.
+// scene_<name>`, with `SCENE_REGISTER(scene_<name>, "Menu title");` under it
+// (registry.h) — that's all it takes to appear in the menu and the rotation.
+// Colours go through COL_SCENE_<NAME>_* tokens with fallbacks in theme.h.
 //
 // Anything with more than a handful of moving things should draw into a
 // pixfb.h canvas, not one LVGL object per sprite. Each moved object queues

@@ -287,3 +287,4 @@ static void event(const SceneEvent &e) {
 }
 
 const Scene scene_fish = { "fish", start, tick, request_stop, is_done, touch, nullptr, event };
+SCENE_REGISTER(scene_fish, "Fish tank");

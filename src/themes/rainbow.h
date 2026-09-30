@@ -88,6 +88,16 @@
 #define COL_TOPBAR_BG         LVC(0x2200AA)  // deep indigo
 #define COL_TOPBAR_CLOCK      LVC(0xFFFF00)  // yellow
 #define COL_TOPBAR_DATE       LVC(0x00FFFF)  // cyan
+#define COL_TOPBAR_MENU       LVC(0xFF8800)  // orange
+#define COL_MENU_BG           LVC(0x101030)  // near-black navy
+#define COL_MENU_TEXT         LVC(0xFFFFFF)  // white
+#define COL_MENU_HINT         LVC(0x888888)  // grey
+#define COL_MENU_HEADING      LVC(0xFF00FF)  // magenta
+#define COL_MENU_ACCENT       LVC(0x00FF00)  // green
+#define COL_MENU_TRACK        LVC(0x440000)  // dark red
+#define COL_MENU_KNOB         LVC(0xFFFF88)  // pale yellow
+#define COL_MENU_ROW_SEL      LVC(0x004444)  // dark teal
+#define COL_MENU_DIVIDER      LVC(0x0000FF)  // blue
 
 // Music — green family for bg/text, icons spread across orange/yellow/sky
 #define COL_MUSIC_BG          LVC(0x001A00)  // very dark green

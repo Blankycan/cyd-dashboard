@@ -491,40 +491,58 @@ git.
 ## Ambient scenes
 
 When no meeting is near, the calendar slot takes turns with small animated
-**scenes**: a scene plays for 3 minutes, the calendar shows for 30 seconds,
-then the next scene, looping. From 30 minutes before a meeting until it ends
-the calendar stays up; the running scene is asked to wrap up and gets a grace
-period to finish (leaves fall out of view, Life dissolves) before it's cut
-off. Scenes pause while the display sleeps.
+**scenes**: by default a scene plays for 3 minutes, the calendar shows for 30
+seconds, then the next scene, looping. From 10 minutes before a meeting until
+it ends the calendar stays up, whatever the settings below; the running scene
+is asked to wrap up and gets a grace period to finish (leaves fall out of
+view, Life dissolves) before it's cut off. Scenes pause while the display
+sleeps.
 
-Pick the scenes and their order next to the theme in `src/config.h`, e.g.
-swap leaves for snow in winter:
+### Settings menu
 
-```c
-#define CYD_SCENES  SCENE_LEAVES, SCENE_PACMAN, SCENE_FISH, SCENE_LOFI, SCENE_INVADERS, SCENE_SNOW,   \
-                    SCENE_SYNTHWAVE, SCENE_STARS, SCENE_ASTEROIDS, SCENE_FIREWORKS, SCENE_QUOTE, \
-                    SCENE_CAMPFIRE, SCENE_LIFE
-```
+The gear at the right end of the topbar opens the settings menu. It covers the
+panels below the scene slot and leaves the slot itself showing, so you can see
+what you're changing:
+
+- **Scenes**: off means calendar only.
+- **Calendar between**: on, the calendar shows for 30 s between scenes;
+  off, scenes follow each other directly.
+- **Shuffle**: a new random order every cycle (never repeating a scene across
+  the boundary), or alphabetical.
+- **Scene length**: 1 to 10 minutes.
+- **The scene list**: tick the scenes to include in the rotation (All / None
+  at the top). With several ticked they take turns; with one ticked only that
+  one plays (and with the calendar between off, it just keeps going); with
+  none ticked it's calendar only. Tap a scene's **name** to play it right now
+  in the slot above, which works as a preview; it plays its full time (unless
+  a meeting gets near), then the rotation carries on.
+
+Changes apply straight away and are saved to the board's flash when the menu
+closes (the ✕, a minute untouched, or the display going to sleep), so they
+survive reboots and reflashes. The defaults for the first boot are in
+`src/config.h` (`SCENES_DEFAULT_ON`, `CAL_BETWEEN_DEFAULT`, ...).
+
+### The scenes
 
 | Scene | What it does | Touch |
 |---|---|---|
-| `SCENE_LEAVES` | Autumn leaves tumble down on a wandering breeze | Blow leaves away from your finger |
-| `SCENE_SNOW` | Snow in two depth layers, near flakes bigger and faster | Puff flakes away from your finger |
-| `SCENE_LIFE` | Conway's Game of Life; ends by itself when the colony dies out or gets stuck in a loop | Press or drag to bring cells to life |
-| `SCENE_STARS` | Starfield flight, stars streaming out from a vanishing point | Press for a warp boost, drag to steer |
-| `SCENE_FISH` | Fish tank with seaweed and bubbles; the fish swim off screen when it ends | Tap to drop food; the nearest fish eats it |
-| `SCENE_QUOTE` | Quote of the day, typed out, then fades out by itself. Quotes live in `src/scenes/quotes.h` | Tap for a different quote |
-| `SCENE_PACMAN` | Pac-Man in a mini maze generated to fit the area, with chasing ghosts and power pellets. Ends by itself when the maze is cleared or the lives run out | Tap on a side of Pac-Man to steer that way |
-| `SCENE_INVADERS` | Space Invaders: a marching formation, bombs, and a cannon. On stop the remaining aliens chain-explode | Drag to move the cannon, tap to fire |
-| `SCENE_ASTEROIDS` | Vector-outline asteroids that split when shot. On stop the ship warps out and the rocks drift away | Hold to steer toward your finger, thrust, and fire |
+| Autumn leaves | Autumn leaves tumble down on a wandering breeze | Blow leaves away from your finger |
+| Snow | Snow in two depth layers, near flakes bigger and faster | Puff flakes away from your finger |
+| Game of Life | Conway's Game of Life; ends by itself when the colony dies out or gets stuck in a loop | Press or drag to bring cells to life |
+| Starfield | Starfield flight, stars streaming out from a vanishing point | Press for a warp boost, drag to steer |
+| Fish tank | Fish tank with seaweed and bubbles; the fish swim off screen when it ends | Tap to drop food; the nearest fish eats it |
+| Quote of the day | Quote of the day, typed out, then fades out by itself. Quotes live in `src/scenes/quotes.h` | Tap for a different quote |
+| Pac-Man | Pac-Man in a mini maze generated to fit the area, with chasing ghosts and power pellets. Ends by itself when the maze is cleared or the lives run out | Tap on a side of Pac-Man to steer that way |
+| Space Invaders | Space Invaders: a marching formation, bombs, and a cannon. On stop the remaining aliens chain-explode | Drag to move the cannon, tap to fire |
+| Asteroids | Vector-outline asteroids that split when shot. On stop the ship warps out and the rocks drift away | Hold to steer toward your finger, thrust, and fire |
 
-| `SCENE_SYNTHWAVE` | Sunset drive: striped sun, mountains, a neon grid rushing toward you. With music the grid scrolls one line per beat and flashes on every beat. On stop the sun sets and the car drives off | Steer the car toward your finger; press for a burst of speed |
-| `SCENE_LOFI` | A silhouetted girl with headphones writing by a rainy window over the city. Nods to the beat while music plays, notes drift up, and every character you type becomes ink in her notebook | Tap the window for lightning, tap the lamp to switch it |
-| `SCENE_FIREWORKS` | Rockets burst into peonies, rings, and golden willows over a skyline. Launches on the beat with music playing; Enter fires a big one; a Claude session finishing earns a golden willow | Tap to launch a rocket that bursts where you tapped |
-| `SCENE_CAMPFIRE` | A campfire under the stars with sparks and a flickering ground glow. The flames surge with the bass and beats throw sparks; on stop it dies down to embers | Tap to toss on a log |
+| Synthwave drive | Sunset drive: striped sun, mountains, a neon grid rushing toward you. With music the grid scrolls one line per beat and flashes on every beat. On stop the sun sets and the car drives off | Steer the car toward your finger; press for a burst of speed |
+| Lofi girl | A silhouetted girl with headphones writing by a rainy window over the city. Nods to the beat while music plays, notes drift up, and every character you type becomes ink in her notebook | Tap the window for lightning, tap the lamp to switch it |
+| Fireworks | Rockets burst into peonies, rings, and golden willows over a skyline. Launches on the beat with music playing; Enter fires a big one; a Claude session finishing earns a golden willow | Tap to launch a rocket that bursts where you tapped |
+| Campfire | A campfire under the stars with sparks and a flickering ground glow. The flames surge with the bass and beats throw sparks; on stop it dies down to embers | Tap to toss on a log |
 
-| `SCENE_CITY` | A night skyline in three depths, windows switching on and off, a train on an elevated track, a blinking plane. The sky follows the real clock (day, dusk, night) with the sun or moon arcing across it. Birds live on the rooftops: a murmuration wheels over the city at dusk and dawn, roosts on the skyline at night (the train startles the ones on the rail), and by day a few pigeons hop between roofs. Typing switches office lights on; a Claude session finishing sends a shooting star; beats make the flock swerve | Tap near birds to scatter them, a building to light all its windows, the sky for a shooting star |
-| `SCENE_LAVA` | A lava lamp: blobs rest on the heater, rise, pause at the top and sink, merging as they pass. They swell with the bass | Tap to add a blob, drag to push them |
+| Night city | A night skyline in three depths, windows switching on and off, a train on an elevated track, a blinking plane. The sky follows the real clock (day, dusk, night) with the sun or moon arcing across it. Birds live on the rooftops: a murmuration wheels over the city at dusk and dawn, roosts on the skyline at night (the train startles the ones on the rail), and by day a few pigeons hop between roofs. Typing switches office lights on; a Claude session finishing sends a shooting star; beats make the flock swerve | Tap near birds to scatter them, a building to light all its windows, the sky for a shooting star |
+| Lava lamp | A lava lamp: blobs rest on the heater, rise, pause at the top and sink, merging as they pass. They swell with the bass | Tap to add a blob, drag to push them |
 
 The arcade scenes play themselves. Touching one takes over the controls, and
 the computer takes them back 5 seconds after your last touch.
@@ -532,12 +550,9 @@ the computer takes them back 5 seconds after your last touch.
 **Touch.** While a scene shows, touches inside it go to the scene, and a tap
 anywhere else on the screen flips to the calendar. While the calendar shows,
 a tap anywhere starts the next scene, so two taps skip a scene. A scene
-started by tapping plays its full time even if a meeting is near. The tap
-that wakes a sleeping display only wakes it.
-
-**Order.** With `SCENE_SHUFFLE 1` (the default) the list is played in a new
-random order every cycle, never repeating a scene across the boundary; with
-`0` it plays in the order written.
+started by tapping (or from the menu) while a meeting is already near plays
+its full time; one started earlier still gives way when the meeting gets
+near. The tap that wakes a sleeping display only wakes it.
 
 **Events.** Scenes can also react to what's happening on the PC: key presses
 (by category only), music starting/pausing/stopping, track changes, Claude
@@ -581,7 +596,7 @@ running):
 strength. `bpm` stays 0 for the first few seconds until enough beats have
 been heard to estimate the tempo.
 
-**Timing** (`src/config.h`): `SCENE_SHOW_MS`, `CAL_PEEK_MS`, `CAL_QUIET_MIN`
+**Timing** (`src/config.h`): `CAL_PEEK_MS`, `CAL_QUIET_MIN`
 (minutes before a meeting when the calendar takes over),
 `SCENE_STOP_GRACE_MS`, and `SCENE_FRAME_MS` (25 fps).
 
@@ -600,8 +615,9 @@ memory, and react to host events (`scene_ctx()` has the current music/tempo/
 typing state at any time, e.g. to check if music is already playing at start).
 Set `SCENE_EVENT_LOG 1` in `config.h` to log every event a scene receives. The
 player deletes the scene's area and everything in it when the scene ends, so
-a scene can't leave objects behind. Register it in `src/scenes/registry.h`
-and add its `COL_SCENE_<NAME>_*` fallbacks to `theme.h`. Sprite-heavy scenes
+a scene can't leave objects behind. Register it with one line under its
+`Scene` definition, `SCENE_REGISTER(scene_<name>, "Menu title");`, and it
+shows up in the menu and the rotation on its own; add its `COL_SCENE_<NAME>_*` fallbacks to `theme.h`. Sprite-heavy scenes
 can draw into a single pixel canvas with `src/scenes/pixfb.h` (fills, lines,
 circles, triangles, 1-bit sprites, colour mixing) instead of creating an
 object per sprite; it batches each frame's changes into a few redraw areas.
@@ -738,10 +754,11 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     rainbow.h       Diagnostic — every colour token distinct
   ui_helpers.h/cpp  Shared LVGL widget factories and formatters
   main.cpp          Hardware init, sleep overlay, packet handler, setup/loop
+  settings.*        Menu settings, kept in NVS flash across reboots
   scenes/           Ambient scenes that take turns with the calendar
     scene.h         The Scene plug-in interface
     scene_player.*  Rotation, calendar hand-off, touch routing
-    registry.h      Available scenes and their SCENE_* names
+    registry.*      Every scene, each added by SCENE_REGISTER in its own file
     leaves.cpp      Falling autumn leaves
     snow.cpp        Snowfall in two depth layers
     life.cpp        Conway's Game of Life
@@ -759,7 +776,8 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     lava.cpp        Lava lamp
     pixfb.*         Pixel-canvas drawing helper (shapes, sprites, saved backdrop)
   widgets/
-    topbar.*        Clock and date bar
+    topbar.*        Clock, date, and the settings menu button
+    menu.*          Settings menu: scenes on/off, calendar between, length, scene list
     calendar.*      Current/next meeting, countdown, and day timeline
     music.*         Now-playing panel with animated icon
     system.*        CPU and RAM bars

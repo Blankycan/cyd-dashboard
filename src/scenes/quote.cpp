@@ -165,3 +165,4 @@ static void touch(SceneTouch type, int, int) {
 }
 
 const Scene scene_quote = { "quote", start, tick, request_stop, is_done, touch, nullptr };
+SCENE_REGISTER(scene_quote, "Quote of the day");

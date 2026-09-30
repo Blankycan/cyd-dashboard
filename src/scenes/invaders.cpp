@@ -290,3 +290,4 @@ static void touch(SceneTouch type, int x, int) {
 static void finish() { pixfb_free(fb); }
 
 const Scene scene_invaders = { "invaders", start, tick, request_stop, is_done, touch, finish };
+SCENE_REGISTER(scene_invaders, "Space Invaders");

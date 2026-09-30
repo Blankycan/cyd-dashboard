@@ -264,3 +264,4 @@ static void event(const SceneEvent &e) {
 static void finish() { pixfb_free(fb); }
 
 const Scene scene_leaves = { "leaves", start, tick, request_stop, is_done, touch, finish, event };
+SCENE_REGISTER(scene_leaves, "Autumn leaves");

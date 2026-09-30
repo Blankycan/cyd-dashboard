@@ -561,3 +561,4 @@ static void event(const SceneEvent &e) {
 static void finish() { pixfb_free(fb); }
 
 const Scene scene_city = { "city", start, tick, request_stop, is_done, touch, finish, event };
+SCENE_REGISTER(scene_city, "Night city");

@@ -86,9 +86,17 @@ optional reset countdown" row used by the system/claude panels.
 
 **Ambient scenes** (`src/scenes/`) share the calendar's slot. The
 `scene_player` creates a sibling panel over the calendar and alternates
-scene (`SCENE_SHOW_MS`) / calendar (`CAL_PEEK_MS`) from the `CYD_SCENES`
-list in `config.h`, holding the calendar while `calendar_wants_focus()`
-(meeting on or within `CAL_QUIET_MIN`). Each scene is a self-contained
+scene / calendar (`CAL_PEEK_MS`, or back to back if "calendar between" is
+off) over the scenes switched on in the **settings menu**, holding the
+calendar while `calendar_wants_focus()` (meeting on or within
+`CAL_QUIET_MIN`) regardless of settings. Scenes register themselves with
+`SCENE_REGISTER(scene_x, "Title")` in their own file (`registry.h`) — no
+central list. The menu (`widgets/menu.cpp`, gear in the topbar) covers the
+panels below the slot, is built on open and deleted on close, and previews a
+scene by playing it in the real slot; its settings (`settings.h`) live in
+NVS flash, keyed by `Scene::name`, with first-boot defaults in `config.h`.
+`touch_read_cb()` keeps gestures that start on the menu or its button away
+from the scene player's tap-to-flip. Each scene is a self-contained
 `Scene` (see `scene.h`): start/tick/request_stop/is_done plus optional
 touch/finish, given an area of any size; the player owns the area and deletes
 it (and every object in it) when the scene ends, cutting it off after

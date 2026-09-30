@@ -146,3 +146,4 @@ static void finish() {
 }
 
 const Scene scene_life = { "life", start, tick, request_stop, is_done, touch, finish, event };
+SCENE_REGISTER(scene_life, "Game of Life");

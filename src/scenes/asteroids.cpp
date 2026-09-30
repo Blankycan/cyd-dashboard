@@ -350,3 +350,4 @@ static void touch(SceneTouch type, int x, int y) {
 static void finish() { pixfb_free(fb); }
 
 const Scene scene_asteroids = { "asteroids", start, tick, request_stop, is_done, touch, finish };
+SCENE_REGISTER(scene_asteroids, "Asteroids");

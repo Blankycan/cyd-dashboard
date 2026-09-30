@@ -17,22 +17,22 @@
 #define CYD_THEME  CYD_THEME_COZYFALL
 
 // Ambient scenes -------------------------------------------------------------
-// Played in the calendar slot, in this order and looping, whenever no meeting
-// is near. Available: SCENE_LEAVES, SCENE_SNOW, SCENE_LIFE, SCENE_STARS,
-// SCENE_FISH, SCENE_QUOTE, SCENE_INVADERS, SCENE_ASTEROIDS, SCENE_PACMAN,
-// SCENE_SYNTHWAVE, SCENE_LOFI, SCENE_FIREWORKS, SCENE_CAMPFIRE, SCENE_CITY, SCENE_LAVA
-// (see src/scenes/registry.h). Leave empty to always show the calendar.
-#define CYD_SCENES  SCENE_LEAVES, SCENE_PACMAN, SCENE_FISH, SCENE_LOFI, SCENE_INVADERS, SCENE_CITY, \
-                    SCENE_SNOW, SCENE_SYNTHWAVE, SCENE_STARS, SCENE_LAVA, SCENE_ASTEROIDS, \
-                    SCENE_FIREWORKS, SCENE_QUOTE, SCENE_CAMPFIRE, SCENE_LIFE
+// Played in the calendar slot whenever no meeting is near. Which scenes play,
+// and how, is picked on the board itself in the settings menu (gear icon, top
+// right) and kept across reboots and reflashes. These are only the first-boot
+// defaults. Every scene in src/scenes/ is available and starts out switched on.
+#define SCENES_DEFAULT_ON        1   // play scenes at all (0 = calendar only)
+#define CAL_BETWEEN_DEFAULT      1   // show the calendar for CAL_PEEK_MS between scenes
+#define SCENE_SHUFFLE_DEFAULT    1   // 1 = random order each cycle, 0 = alphabetical
+#define SCENE_MIN_DEFAULT        3   // how long each scene plays (minutes)...
+#define SCENE_MIN_MAX            10  // ...settable in the menu from 1 to this
 
-#define SCENE_SHUFFLE         1                // 1 = random order each cycle, 0 = the order above
-#define SCENE_SHOW_MS         (3 * 60 * 1000)  // how long each scene plays
 #define CAL_PEEK_MS           (30 * 1000)      // calendar shown between scenes
-#define CAL_QUIET_MIN         30               // calendar only from this many minutes before a meeting until it ends
+#define CAL_QUIET_MIN         10               // calendar only from this many minutes before a meeting until it ends
 #define SCENE_STOP_GRACE_MS   (12 * 1000)      // time a scene gets to wrap up before it's cut off
 #define SCENE_FRAME_MS        40               // scene frame period (25 fps)
 #define SCENE_EVENT_LOG       0                // 1 = log every host event a scene receives (debugging)
+#define MENU_IDLE_CLOSE_MS    (60 * 1000)      // the settings menu closes itself after this long untouched
 
 // Sleep & backlight --------------------------------------------------------
 // Inactivity time before the display dims (milliseconds)

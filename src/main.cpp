@@ -15,6 +15,8 @@
 #include "widgets/system.h"
 #include "widgets/claude.h"
 #include "widgets/status.h"
+#include "widgets/menu.h"
+#include "settings.h"
 #include "scenes/scene_player.h"
 
 // CYD Dashboard firmware entry point.
@@ -60,9 +62,10 @@ static void exit_sleep();   // forward decl
 
 // LVGL touch input callback — maps raw ADC coords to screen pixels and
 // forwards press/drag/release to the scene player. A touch that wakes the
-// display is swallowed, so waking never also flips or pokes a scene.
+// display is swallowed, so waking never also flips or pokes a scene. A
+// gesture that starts on the settings menu or its button is LVGL's alone.
 static void touch_read_cb(lv_indev_drv_t *, lv_indev_data_t *data) {
-    static bool down = false, swallow = false;
+    static bool down = false, swallow = false, ui = false;
     static int  last_x = 0, last_y = 0;
     if (ts.tirqTouched() && ts.touched()) {
         TS_Point p = ts.getPoint();
@@ -73,12 +76,14 @@ static void touch_read_cb(lv_indev_drv_t *, lv_indev_data_t *data) {
         data->state   = LV_INDEV_STATE_PRESSED;
         last_active_ms = millis();
         if (sleep_state == SS_ASLEEP) { exit_sleep(); swallow = true; }
-        if (!swallow) scene_player_touch(down ? SCENE_TOUCH_DRAG : SCENE_TOUCH_PRESS, last_x, last_y);
+        if (swallow) data->state = LV_INDEV_STATE_RELEASED;   // nor does it press a button
+        if (!down) ui = menu_owns_point(last_x, last_y);
+        if (!swallow && !ui) scene_player_touch(down ? SCENE_TOUCH_DRAG : SCENE_TOUCH_PRESS, last_x, last_y);
         down = true;
     } else {
         data->state = LV_INDEV_STATE_RELEASED;
-        if (down && !swallow) scene_player_touch(SCENE_TOUCH_RELEASE, last_x, last_y);
-        down = swallow = false;
+        if (down && !swallow && !ui) scene_player_touch(SCENE_TOUCH_RELEASE, last_x, last_y);
+        down = swallow = ui = false;
     }
 }
 
@@ -178,6 +183,7 @@ static void enter_sleep() {
     lv_label_set_text(lbl_sleep_away, away);
     lv_obj_clear_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
     bl_set(BL_DIM);
+    menu_close();
     scene_player_set_paused(true);
     zzz_timer = lv_timer_create(zzz_cb, 700, nullptr);
 }
@@ -271,6 +277,7 @@ static void build_dashboard() {
 
     build_topbar(scr);
     build_panels(scr);
+    build_menu(scr);
 }
 
 // ---------------------------------------------------------------------------
@@ -497,6 +504,7 @@ void setup() {
     indev_drv.read_cb = touch_read_cb;
     lv_indev_drv_register(&indev_drv);
 
+    settings_load();   // before the scene player builds its rotation
     build_dashboard();
     build_sleep_overlay();
     lv_timer_create(clock_tick_cb, 10000, nullptr);
