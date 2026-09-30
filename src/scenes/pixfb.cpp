@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 static PixFb *active = nullptr;   // the running scene's buffer, if it has one
 
@@ -115,6 +116,57 @@ void pixfb_sprite(PixFb &fb, int x, int y, const uint16_t *rows, int w, int h, l
         for (int col = 0; col < w; col++)
             if (rows[r] & (1u << (w - 1 - col))) pixfb_px(fb, x + col, y + r, c);
     pixfb_touch(fb, x, y, w, h);
+}
+
+void pixfb_art(PixFb &fb, int x, int y, const char *const *rows, int h, const lv_color_t *pal, bool flip) {
+    int w = 0;
+    for (int r = 0; r < h; r++) {
+        int n = strlen(rows[r]);
+        if (n > w) w = n;
+        for (int col = 0; col < n; col++) {
+            char ch = rows[r][col];
+            if (ch >= '1' && ch <= '9') pixfb_px(fb, flip ? x + n - 1 - col : x + col, y + r, pal[ch - '1']);
+        }
+    }
+    pixfb_touch(fb, x, y, w, h);
+}
+
+// 5x7 digits, one byte per row, bit 4 = leftmost column
+static const uint8_t DIGITS[10][7] = {
+    { 0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E }, { 0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E },
+    { 0x0E, 0x11, 0x01, 0x06, 0x08, 0x10, 0x1F }, { 0x1F, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0E },
+    { 0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02 }, { 0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E },
+    { 0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E }, { 0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08 },
+    { 0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E }, { 0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C },
+};
+
+static int number_digits(long value, int pad, char *buf) {
+    int n = snprintf(buf, 16, "%0*ld", pad > 0 ? pad : 1, value < 0 ? 0 : value);
+    return n;
+}
+
+int pixfb_number_width(long value, int pad) {
+    char buf[16];
+    return number_digits(value, pad, buf) * PIXFB_DIGIT_PITCH - (PIXFB_DIGIT_PITCH - PIXFB_DIGIT_W);
+}
+
+int pixfb_number(PixFb &fb, int x0, int y0, long value, lv_color_t c, int pad, const lv_color_t *outline) {
+    char buf[16];
+    int n = number_digits(value, pad, buf);
+    for (int pass = outline ? 0 : 1; pass < 2; pass++)   // the outline first, then the digits over it
+        for (int i = 0; i < n; i++) {
+            const uint8_t *d = DIGITS[buf[i] - '0'];
+            for (int r = 0; r < PIXFB_DIGIT_H; r++)
+                for (int col = 0; col < PIXFB_DIGIT_W; col++) {
+                    if (!(d[r] & (0x10 >> col))) continue;
+                    int x = x0 + i * PIXFB_DIGIT_PITCH + col, y = y0 + r;
+                    if (pass == 0) { for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) pixfb_px(fb, x + dx, y + dy, *outline); }
+                    else pixfb_px(fb, x, y, c);
+                }
+        }
+    int w = n * PIXFB_DIGIT_PITCH - (PIXFB_DIGIT_PITCH - PIXFB_DIGIT_W);
+    pixfb_touch(fb, x0 - 1, y0 - 1, w + 2, PIXFB_DIGIT_H + 2);
+    return w;
 }
 
 static void hline(PixFb &fb, int x0, int x1, int y, lv_color_t c) {

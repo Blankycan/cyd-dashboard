@@ -614,6 +614,133 @@
 #ifndef COL_SCENE_LAVA_RIM
 #define COL_SCENE_LAVA_RIM COL_WARN
 #endif
+// Dino runner
+#ifndef COL_SCENE_DINO_INK
+#define COL_SCENE_DINO_INK COL_TEXT_SEC
+#endif
+#ifndef COL_SCENE_DINO_CLOUD
+#define COL_SCENE_DINO_CLOUD COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_DINO_STAR
+#define COL_SCENE_DINO_STAR COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_DINO_MOON
+#define COL_SCENE_DINO_MOON COL_TEXT_PRI
+#endif
+// Flappy Bird (its own daylight colours, toned toward the theme's background)
+#ifndef COL_SCENE_FLAPPY_SKY_TOP
+#define COL_SCENE_FLAPPY_SKY_TOP lv_color_mix(lv_color_hex(0x4EC0CA), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_SKY_LOW
+#define COL_SCENE_FLAPPY_SKY_LOW lv_color_mix(lv_color_hex(0xA8E4E0), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_CLOUD
+#define COL_SCENE_FLAPPY_CLOUD lv_color_mix(lv_color_hex(0xE4F6EE), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_CITY
+#define COL_SCENE_FLAPPY_CITY lv_color_mix(lv_color_hex(0x9CD6B4), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_BUSH
+#define COL_SCENE_FLAPPY_BUSH lv_color_mix(lv_color_hex(0x5EC85A), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_PIPE
+#define COL_SCENE_FLAPPY_PIPE lv_color_mix(lv_color_hex(0x74BF2E), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_PIPE_LIGHT
+#define COL_SCENE_FLAPPY_PIPE_LIGHT lv_color_mix(lv_color_hex(0xA8E860), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_PIPE_DARK
+#define COL_SCENE_FLAPPY_PIPE_DARK lv_color_mix(lv_color_hex(0x4F8A20), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_OUTLINE
+#define COL_SCENE_FLAPPY_OUTLINE lv_color_mix(lv_color_hex(0x3A2A30), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_GRASS
+#define COL_SCENE_FLAPPY_GRASS lv_color_mix(lv_color_hex(0x8FD85A), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_GRASS_DARK
+#define COL_SCENE_FLAPPY_GRASS_DARK lv_color_mix(lv_color_hex(0x62B03A), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_GROUND
+#define COL_SCENE_FLAPPY_GROUND lv_color_mix(lv_color_hex(0xDED895), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_BIRD
+#define COL_SCENE_FLAPPY_BIRD lv_color_mix(lv_color_hex(0xF8C838), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_EYE
+#define COL_SCENE_FLAPPY_EYE lv_color_mix(lv_color_hex(0xFFFFFF), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_BEAK
+#define COL_SCENE_FLAPPY_BEAK lv_color_mix(lv_color_hex(0xF06A30), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_WING
+#define COL_SCENE_FLAPPY_WING lv_color_mix(lv_color_hex(0xFCF0C8), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_FLAPPY_SCORE
+#define COL_SCENE_FLAPPY_SCORE lv_color_mix(lv_color_hex(0xFFFFFF), COL_BG, 235)
+#endif
+// Breakout
+#ifndef COL_SCENE_BRK_ROW_1
+#define COL_SCENE_BRK_ROW_1 COL_ALERT
+#endif
+#ifndef COL_SCENE_BRK_ROW_2
+#define COL_SCENE_BRK_ROW_2 COL_GLOW
+#endif
+#ifndef COL_SCENE_BRK_ROW_3
+#define COL_SCENE_BRK_ROW_3 COL_WARN
+#endif
+#ifndef COL_SCENE_BRK_ROW_4
+#define COL_SCENE_BRK_ROW_4 COL_OK
+#endif
+#ifndef COL_SCENE_BRK_ROW_5
+#define COL_SCENE_BRK_ROW_5 COL_TEXT_SEC
+#endif
+#ifndef COL_SCENE_BRK_ROW_6
+#define COL_SCENE_BRK_ROW_6 COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_BRK_SHINE
+#define COL_SCENE_BRK_SHINE COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_BRK_PADDLE
+#define COL_SCENE_BRK_PADDLE COL_TEXT_SEC
+#endif
+#ifndef COL_SCENE_BRK_BALL
+#define COL_SCENE_BRK_BALL COL_TEXT_PRI
+#endif
+// Missile Command
+#ifndef COL_SCENE_MC_GROUND
+#define COL_SCENE_MC_GROUND lv_color_mix(COL_TEXT_DIM, COL_BG, 150)
+#endif
+#ifndef COL_SCENE_MC_CITY
+#define COL_SCENE_MC_CITY COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_MC_WINDOW
+#define COL_SCENE_MC_WINDOW COL_WARN
+#endif
+#ifndef COL_SCENE_MC_BASE
+#define COL_SCENE_MC_BASE COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_MC_ENEMY
+#define COL_SCENE_MC_ENEMY COL_ALERT
+#endif
+#ifndef COL_SCENE_MC_HEAD
+#define COL_SCENE_MC_HEAD COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_MC_SHOT
+#define COL_SCENE_MC_SHOT COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_MC_FLASH
+#define COL_SCENE_MC_FLASH COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_MC_BLAST_1
+#define COL_SCENE_MC_BLAST_1 COL_WARN
+#endif
+#ifndef COL_SCENE_MC_BLAST_2
+#define COL_SCENE_MC_BLAST_2 COL_GLOW
+#endif
+#ifndef COL_SCENE_MC_BLAST_3
+#define COL_SCENE_MC_BLAST_3 COL_TEXT_PRI
+#endif
 #ifndef COL_SCENE_QUOTE_TEXT
 #define COL_SCENE_QUOTE_TEXT COL_TEXT_PRI
 #endif

@@ -64,3 +64,18 @@ inline lv_color_t pixfb_mix(lv_color_t c1, lv_color_t c2, float t) {
 // 1-bit sprite: `rows[r]` holds row r, bit (w-1-c) = column c (so the
 // literal reads left to right). Only set bits are drawn.
 void pixfb_sprite(PixFb &fb, int x, int y, const uint16_t *rows, int w, int h, lv_color_t c);
+
+// Multi-colour sprite drawn from text art, one string per row: '1'..'9' pick
+// pal[0..8], anything else ('.', ' ') is transparent. Easy to author and read:
+//     static const char *const MUG[] = { ".11.", "1221", "1221", ".11." };
+//     pixfb_art(fb, x, y, MUG, 4, pal);
+// `flip` mirrors it left to right.
+void pixfb_art(PixFb &fb, int x, int y, const char *const *rows, int h, const lv_color_t *pal, bool flip = false);
+
+// Numbers in a 5x7 pixel font (digits 7 px apart), for scores and counters.
+// `pad` zero-pads to at least that many digits; `outline`, if given, draws a
+// 1 px border in that colour around every stroke (readable over busy art).
+// Returns the width in pixels (pixfb_number_width() gives it without drawing).
+static const int PIXFB_DIGIT_W = 5, PIXFB_DIGIT_H = 7, PIXFB_DIGIT_PITCH = 7;
+int pixfb_number(PixFb &fb, int x, int y, long value, lv_color_t c, int pad = 0, const lv_color_t *outline = nullptr);
+int pixfb_number_width(long value, int pad = 0);

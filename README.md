@@ -535,6 +535,10 @@ survive reboots and reflashes. The defaults for the first boot are in
 | Pac-Man | Pac-Man in a mini maze generated to fit the area, with chasing ghosts and power pellets. Ends by itself when the maze is cleared or the lives run out | Tap on a side of Pac-Man to steer that way |
 | Space Invaders | Space Invaders: a marching formation, bombs, and a cannon. On stop the remaining aliens chain-explode | Drag to move the cannon, tap to fire |
 | Asteroids | Vector-outline asteroids that split when shot. On stop the ship warps out and the rocks drift away | Hold to steer toward your finger, thrust, and fire |
+| Dino runner | The offline-browser T-rex jumps cacti and ducks pterodactyls as the pace picks up, with the distance counter and best run at the top right. A moon and stars come out at night. Space on the keyboard jumps. On stop the dino sprints off | Tap to jump |
+| Flappy Bird | The bird flaps through gaps between pipes over a skyline, the score counting up at the top. Space on the keyboard flaps. On stop it flies up and away | Tap to flap |
+| Breakout | A wall of bricks that shatter into falling chips, a new pattern for each wall, scored 1/4/7 by row with three balls a game. A Claude session finishing splits the ball in three. On stop the bricks crumble | Drag to move the paddle |
+| Missile Command | Enemy missiles (some splitting mid-air) rain on six cities; three bases with 10 missiles a wave each fire back, and fireballs chain. Arcade scoring and wave multipliers, a city back every 10,000 points, THE END when the last one falls. A Claude session finishing clears the sky | Tap to fire at that spot |
 
 | Synthwave drive | Sunset drive: striped sun, mountains, a neon grid rushing toward you. With music the grid scrolls one line per beat and flashes on every beat. On stop the sun sets and the car drives off | Steer the car toward your finger; press for a burst of speed |
 | Lofi girl | A silhouetted girl with headphones writing by a rainy window over the city. Nods to the beat while music plays, notes drift up, and every character you type becomes ink in her notebook | Tap the window for lightning, tap the lamp to switch it |
@@ -619,7 +623,8 @@ a scene can't leave objects behind. Register it with one line under its
 `Scene` definition, `SCENE_REGISTER(scene_<name>, "Menu title");`, and it
 shows up in the menu and the rotation on its own; add its `COL_SCENE_<NAME>_*` fallbacks to `theme.h`. Sprite-heavy scenes
 can draw into a single pixel canvas with `src/scenes/pixfb.h` (fills, lines,
-circles, triangles, 1-bit sprites, colour mixing) instead of creating an
+circles, triangles, 1-bit sprites, multi-colour sprites from text art,
+5x7 numbers for scores, colour mixing) instead of creating an
 object per sprite; it batches each frame's changes into a few redraw areas.
 Painted scenes can draw a backdrop once, `pixfb_bg_save()` it, and erase
 moving things with `pixfb_bg_restore()`. Each scene
@@ -774,7 +779,11 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     campfire.cpp    Campfire night
     city.cpp        Night city skyline that follows the clock, with its birds
     lava.cpp        Lava lamp
-    pixfb.*         Pixel-canvas drawing helper (shapes, sprites, saved backdrop)
+    dino.cpp        Dino runner
+    flappy.cpp      Flappy Bird
+    breakout.cpp    Breakout
+    missile.cpp     Missile Command
+    pixfb.*         Pixel-canvas drawing helper (shapes, sprites, text art, numbers, saved backdrop)
   widgets/
     topbar.*        Clock, date, and the settings menu button
     menu.*          Settings menu: scenes on/off, calendar between, length, scene list
