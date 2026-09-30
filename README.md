@@ -558,6 +558,29 @@ of one CPU core while music plays and nothing otherwise. The audio never
 leaves the companion; only those few numbers are sent. `BEAT_THRESHOLD` in
 `companion/audio.py` tunes how eagerly beats are detected.
 
+To see what it detects, play something and run:
+
+```bash
+.venv/bin/python tools/watch_audio.py        # Ctrl+C to stop; or pass a duration in seconds
+```
+
+It runs the same monitors as the companion but prints the events instead of
+sending them (it doesn't open the serial port, so the service can keep
+running):
+
+```
+   2.99s  {"type": "beat", "s": 76}
+   3.02s  {"type": "au", "i": 41, "b": 86, "bpm": 0}
+   3.13s  {"type": "au", "i": 39, "b": 78, "bpm": 0}
+   3.36s  {"type": "beat", "s": 100}
+   ...
+   6.10s  {"type": "au", "i": 46, "b": 73, "bpm": 78}
+```
+
+`au` arrives about 10 times a second; `beat` whenever one hits, with its
+strength. `bpm` stays 0 for the first few seconds until enough beats have
+been heard to estimate the tempo.
+
 **Timing** (`src/config.h`): `SCENE_SHOW_MS`, `CAL_PEEK_MS`, `CAL_QUIET_MIN`
 (minutes before a meeting when the calendar takes over),
 `SCENE_STOP_GRACE_MS`, and `SCENE_FRAME_MS` (25 fps).
@@ -742,5 +765,9 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     system.*        CPU and RAM bars
     claude.*        Session count, working dots, and rate-limit bars
     status.*        Connection dot, idle time, keystrokes, and host IP
+
+tools/
+  png_to_sprites.py Converts assets/lofi/*.png into src/scenes/lofi_art.h
+  watch_audio.py    Prints the beat/audio events live, without the board
 ```
 
