@@ -513,7 +513,11 @@ void setup() {
 void loop() {
     lv_timer_handler();
 
-    if (Serial.available()) {
+    // Drain what's buffered, not just one line: with music playing the host
+    // sends ~13 lines/s, and at one per pass a slow frame lets the 2 KB RX
+    // buffer fill until stats packets get truncated. Capped so a flood can't
+    // starve the display.
+    for (int n = 0; n < 8 && Serial.available(); n++) {
         String line = Serial.readStringUntil('\n');
         line.trim();
         if (line.length() > 0) handle_packet(line);
