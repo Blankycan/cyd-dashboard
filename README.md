@@ -541,6 +541,10 @@ survive reboots and reflashes. The defaults for the first boot are in
 | Flappy Bird | The bird flaps through gaps between pipes over a skyline, the score counting up at the top. Space on the keyboard flaps. On stop it flies up and away | Tap to flap |
 | Breakout | A wall of bricks that shatter into falling chips, a new pattern for each wall, scored 1/4/7 by row with three balls a game. A Claude session finishing splits the ball in three. On stop the bricks crumble | Drag to move the paddle |
 | Missile Command | Enemy missiles (some splitting mid-air) rain on six cities; three bases with 10 missiles a wave each fire back, and fireballs chain. Arcade scoring and wave multipliers, a city back every 10,000 points, THE END when the last one falls. A Claude session finishing clears the sky | Tap to fire at that spot |
+| Snake | Nokia Snake II: the snake wraps around the edges, grows with every bite (5 points each) and dies only by biting itself; every fifth bite a bonus critter shows up for a while. It flicks its tongue on the beat; a Claude session finishing brings out a critter | Tap above/below the snake (or left/right when it's going up or down) to turn that way |
+| Pong | The 1972 arcade: square ball, dashed net, blocky scores, eight-segment paddles that can't reach the very top, and the ball speeding up after the 4th and 12th hit. First to 11. The net pulses on the beat | Drag to move the right paddle |
+| Tetris | NES Tetris: NES rotation, gravity and scoring, the centre-out line wipe and the Tetris flash, each level's NES colours, piece statistics, TOP/SCORE/LINES/LEVEL/NEXT, starting at level 0. The frame pulses on the beat | Tap left/right of the piece to shift it, on it to rotate, along the bottom to drop it |
+| Bubble shooter | Puzzle Bobble on its side, filling the width: pop three of a colour, drop what's left hanging (10 x 2^n points), the ceiling comes down every 8 shots. A Claude session finishing loads a star bubble that clears a whole colour | Drag to aim, let go to fire |
 
 | Synthwave drive | Sunset drive: striped sun, mountains, a neon grid rushing toward you. With music the grid scrolls one line per beat and flashes on every beat. On stop the sun sets and the car drives off | Steer the car toward your finger; press for a burst of speed |
 | Lofi girl | A silhouetted girl with headphones writing by a rainy window over the city. Nods to the beat while music plays, notes drift up, and every character you type becomes ink in her notebook | Tap the window for lightning, tap the lamp to switch it |
@@ -550,8 +554,10 @@ survive reboots and reflashes. The defaults for the first boot are in
 | Night city | A night skyline in three depths, windows switching on and off, a train on an elevated track, a blinking plane. The sky follows the real clock (day, dusk, night) with the sun or moon arcing across it. Birds live on the rooftops: a murmuration wheels over the city at dusk and dawn, roosts on the skyline at night (the train startles the ones on the rail), and by day a few pigeons hop between roofs. Typing switches office lights on; a Claude session finishing sends a shooting star; beats make the flock swerve | Tap near birds to scatter them, a building to light all its windows, the sky for a shooting star |
 | Lava lamp | A lava lamp: blobs rest on the heater, rise, pause at the top and sink, merging as they pass. They swell with the bass | Tap to add a blob, drag to push them |
 
-The arcade scenes play themselves. Touching one takes over the controls, and
-the computer takes them back 5 seconds after your last touch.
+The arcade scenes play themselves. Each one opens on a "READY" sign for 2
+seconds (`SCENE_READY_MS`) before the computer starts, so you can take the
+controls from the first move. Touching one takes over the controls, and the
+computer takes them back 5 seconds after your last touch.
 
 **Touch.** While a scene shows, touches inside it go to the scene, and a tap
 anywhere else on the screen flips to the calendar. While the calendar shows,
@@ -785,6 +791,10 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     flappy.cpp      Flappy Bird
     breakout.cpp    Breakout
     missile.cpp     Missile Command
+    snake.cpp       Snake
+    pong.cpp        Pong
+    tetris.cpp      Tetris
+    bubble.cpp      Bubble shooter (Puzzle Bobble)
     pixfb.*         Pixel-canvas drawing helper (shapes, sprites, text art, numbers, saved backdrop)
   widgets/
     topbar.*        Clock, date, and the settings menu button

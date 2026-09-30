@@ -338,5 +338,5 @@ static void event(const SceneEvent &e) {
 
 static void finish() { pixfb_free(fb); }
 
-const Scene scene_breakout = { "breakout", start, tick, request_stop, is_done, touch, finish, event };
+const Scene scene_breakout = { "breakout", start, tick, request_stop, is_done, touch, finish, event, true };
 SCENE_REGISTER(scene_breakout, "Breakout");

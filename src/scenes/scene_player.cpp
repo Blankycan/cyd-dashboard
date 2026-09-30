@@ -34,6 +34,8 @@ static const Scene *pending_play = nullptr;  // "play now" from the menu, starte
 static bool         settings_changed = false;
 static bool         paused      = false;
 static uint32_t     mode_ms     = 0;         // time in the current mode, excluding pauses
+static uint32_t     ready_ms    = 0;         // a game still holding on its opening frame
+static lv_obj_t    *ready_label = nullptr;   // the "READY" sign over it
 static uint32_t     stop_ms     = 0;         // time since request_stop()
 static uint32_t     last_ms     = 0;
 static uint32_t     last_flip_ms = 0;
@@ -132,6 +134,18 @@ static void start_this(const Scene *s, bool by_tap) {
     // before the meeting window opens doesn't hold the calendar off
     meeting_ok = by_tap && calendar_wants_focus();
     cur->start(area, w, h);
+    ready_ms = cur->ready_hold ? SCENE_READY_MS : 0;
+    if (ready_ms) {
+        ready_label = lv_label_create(area);
+        lv_label_set_text(ready_label, "READY");
+        lv_obj_set_style_text_font(ready_label, &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_color(ready_label, COL_SCENE_READY, 0);
+        lv_obj_set_style_bg_color(ready_label, COL_SCENE_READY_BG, 0);
+        lv_obj_set_style_bg_opa(ready_label, LV_OPA_COVER, 0);
+        lv_obj_set_style_pad_hor(ready_label, 6, 0);
+        lv_obj_set_style_pad_ver(ready_label, 2, 0);
+        lv_obj_center(ready_label);
+    }
     char buf[48];
     snprintf(buf, sizeof(buf), "%s, heap free %u KB", by_tap ? "start (tap)" : "start",
              (unsigned)(ESP.getFreeHeap() / 1024));
@@ -149,6 +163,8 @@ static void end_scene(const char *why, bool peek) {
     log_event(buf);
     lv_obj_del(area);           // takes every object the scene made with it
     area = nullptr;
+    ready_ms = 0;
+    ready_label = nullptr;      // went with the area
     if (cur->finish) cur->finish();
     cur = nullptr;
     scene_owns_gesture = false;
@@ -160,6 +176,8 @@ static void end_scene(const char *why, bool peek) {
     cal_wait_ms = peek || cal_between_now() ? CAL_PEEK_MS : 0;
 }
 
+static void end_ready();
+
 static void handle_touch(const TouchEv &ev) {
     if (ev.type == SCENE_TOUCH_PRESS) {
         if (mode == MODE_SCENE) {
@@ -167,6 +185,7 @@ static void handle_touch(const TouchEv &ev) {
             lv_obj_get_coords(area, &a);
             if (ev.x >= a.x1 && ev.x <= a.x2 && ev.y >= a.y1 && ev.y <= a.y2) {
                 scene_owns_gesture = true;
+                if (ready_ms) end_ready();   // you've got the controls: play starts now
                 if (cur->touch) cur->touch(SCENE_TOUCH_PRESS, ev.x - a.x1, ev.y - a.y1);
                 return;
             }
@@ -198,7 +217,19 @@ static bool time_up() {
     return !(only_this && !cal_between_now());
 }
 
+static void end_ready() {
+    ready_ms = 0;
+    if (ready_label) { lv_obj_del(ready_label); ready_label = nullptr; }
+}
+
 static void tick_scene(uint32_t dt) {
+    if (ready_ms) {   // holding: draw the opening frame, but let no time pass in the game
+        cur->tick(0);
+        pixfb_flush_active();
+        if (dt >= ready_ms || stopping) end_ready();
+        else ready_ms -= dt;
+        return;
+    }
     cur->tick(dt);
     pixfb_flush_active();   // in case a pixel-canvas scene didn't flush its own changes
 

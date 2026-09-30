@@ -31,6 +31,7 @@
 #define CAL_QUIET_MIN         10               // calendar only from this many minutes before a meeting until it ends
 #define SCENE_STOP_GRACE_MS   (12 * 1000)      // time a scene gets to wrap up before it's cut off
 #define SCENE_FRAME_MS        40               // scene frame period (25 fps)
+#define SCENE_READY_MS        2000             // games wait this long on a "READY" sign before playing themselves
 #define SCENE_EVENT_LOG       0                // 1 = log every host event a scene receives (debugging)
 #define MENU_IDLE_CLOSE_MS    (60 * 1000)      // the settings menu closes itself after this long untouched
 

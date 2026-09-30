@@ -140,6 +140,72 @@ static const uint8_t DIGITS[10][7] = {
     { 0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E }, { 0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C },
 };
 
+// Letters (and ! -) for pixfb_text(), in the digits' style
+struct Letter { char c; uint8_t rows[7]; };
+static const Letter LETTERS[] = {
+    { '!', { 0x04, 0x04, 0x04, 0x04, 0x04, 0x00, 0x04 } },
+    { '-', { 0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00 } },
+    { '/', { 0x01, 0x02, 0x02, 0x04, 0x08, 0x08, 0x10 } },
+    { 'A', { 0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11 } },
+    { 'B', { 0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E } },
+    { 'C', { 0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E } },
+    { 'D', { 0x1E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1E } },
+    { 'E', { 0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F } },
+    { 'F', { 0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10 } },
+    { 'G', { 0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0F } },
+    { 'H', { 0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11 } },
+    { 'I', { 0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E } },
+    { 'J', { 0x07, 0x02, 0x02, 0x02, 0x02, 0x12, 0x0C } },
+    { 'K', { 0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11 } },
+    { 'L', { 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F } },
+    { 'M', { 0x11, 0x1B, 0x15, 0x15, 0x11, 0x11, 0x11 } },
+    { 'N', { 0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11 } },
+    { 'O', { 0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E } },
+    { 'P', { 0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10 } },
+    { 'Q', { 0x0E, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0D } },
+    { 'R', { 0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11 } },
+    { 'S', { 0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E } },
+    { 'T', { 0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 } },
+    { 'U', { 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E } },
+    { 'V', { 0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04 } },
+    { 'W', { 0x11, 0x11, 0x11, 0x15, 0x15, 0x15, 0x0A } },
+    { 'X', { 0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11 } },
+    { 'Y', { 0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04 } },
+    { 'Z', { 0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F } },
+};
+
+static void draw_glyph(PixFb &fb, int x, int y, const uint8_t *g, lv_color_t c, const lv_color_t *outline, int pass) {
+    for (int r = 0; r < PIXFB_DIGIT_H; r++)
+        for (int col = 0; col < PIXFB_DIGIT_W; col++) {
+            if (!(g[r] & (0x10 >> col))) continue;
+            if (pass == 0) { for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) pixfb_px(fb, x + col + dx, y + r + dy, *outline); }
+            else pixfb_px(fb, x + col, y + r, c);
+        }
+}
+
+static const uint8_t *glyph_for(char ch) {
+    if (ch >= '0' && ch <= '9') return DIGITS[ch - '0'];
+    if (ch >= 'a' && ch <= 'z') ch -= 32;
+    for (const Letter &l : LETTERS) if (l.c == ch) return l.rows;
+    return nullptr;   // a space, or anything without a glyph
+}
+
+int pixfb_text_width(const char *s) {
+    int n = strlen(s);
+    return n ? n * PIXFB_DIGIT_PITCH - (PIXFB_DIGIT_PITCH - PIXFB_DIGIT_W) : 0;
+}
+
+int pixfb_text(PixFb &fb, int x0, int y0, const char *s, lv_color_t c, const lv_color_t *outline) {
+    for (int pass = outline ? 0 : 1; pass < 2; pass++)
+        for (int i = 0; s[i]; i++) {
+            const uint8_t *g = glyph_for(s[i]);
+            if (g) draw_glyph(fb, x0 + i * PIXFB_DIGIT_PITCH, y0, g, c, outline, pass);
+        }
+    int w = pixfb_text_width(s);
+    pixfb_touch(fb, x0 - 1, y0 - 1, w + 2, PIXFB_DIGIT_H + 2);
+    return w;
+}
+
 static int number_digits(long value, int pad, char *buf) {
     int n = snprintf(buf, 16, "%0*ld", pad > 0 ? pad : 1, value < 0 ? 0 : value);
     return n;
@@ -152,21 +218,8 @@ int pixfb_number_width(long value, int pad) {
 
 int pixfb_number(PixFb &fb, int x0, int y0, long value, lv_color_t c, int pad, const lv_color_t *outline) {
     char buf[16];
-    int n = number_digits(value, pad, buf);
-    for (int pass = outline ? 0 : 1; pass < 2; pass++)   // the outline first, then the digits over it
-        for (int i = 0; i < n; i++) {
-            const uint8_t *d = DIGITS[buf[i] - '0'];
-            for (int r = 0; r < PIXFB_DIGIT_H; r++)
-                for (int col = 0; col < PIXFB_DIGIT_W; col++) {
-                    if (!(d[r] & (0x10 >> col))) continue;
-                    int x = x0 + i * PIXFB_DIGIT_PITCH + col, y = y0 + r;
-                    if (pass == 0) { for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) pixfb_px(fb, x + dx, y + dy, *outline); }
-                    else pixfb_px(fb, x, y, c);
-                }
-        }
-    int w = n * PIXFB_DIGIT_PITCH - (PIXFB_DIGIT_PITCH - PIXFB_DIGIT_W);
-    pixfb_touch(fb, x0 - 1, y0 - 1, w + 2, PIXFB_DIGIT_H + 2);
-    return w;
+    number_digits(value, pad, buf);
+    return pixfb_text(fb, x0, y0, buf, c, outline);
 }
 
 static void hline(PixFb &fb, int x0, int x1, int y, lv_color_t c) {

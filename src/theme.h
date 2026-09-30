@@ -222,6 +222,12 @@
 #define COL_SCENE_FISH_FOOD COL_TEXT_SEC
 #endif
 // Arcade scenes (invaders, asteroids, pacman)
+#ifndef COL_SCENE_READY
+#define COL_SCENE_READY COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_READY_BG
+#define COL_SCENE_READY_BG COL_BG
+#endif
 #ifndef COL_SCENE_ARCADE_BG
 #define COL_SCENE_ARCADE_BG COL_SCENE_BG
 #endif
@@ -740,6 +746,163 @@
 #endif
 #ifndef COL_SCENE_MC_BLAST_3
 #define COL_SCENE_MC_BLAST_3 COL_TEXT_PRI
+#endif
+// Snake
+#ifndef COL_SCENE_SNAKE_LCD
+#define COL_SCENE_SNAKE_LCD COL_SCENE_ARCADE_BG
+#endif
+#ifndef COL_SCENE_SNAKE_FRAME
+#define COL_SCENE_SNAKE_FRAME COL_DIVIDER
+#endif
+#ifndef COL_SCENE_SNAKE_INK
+#define COL_SCENE_SNAKE_INK COL_OK
+#endif
+#ifndef COL_SCENE_SNAKE_FOOD
+#define COL_SCENE_SNAKE_FOOD COL_WARN
+#endif
+#ifndef COL_SCENE_SNAKE_BONUS
+#define COL_SCENE_SNAKE_BONUS COL_GLOW
+#endif
+#ifndef COL_SCENE_SNAKE_TEXT
+#define COL_SCENE_SNAKE_TEXT COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_SNAKE_DIM
+#define COL_SCENE_SNAKE_DIM COL_TEXT_DIM
+#endif
+// Pong
+#ifndef COL_SCENE_PONG_BG
+#define COL_SCENE_PONG_BG COL_SCENE_ARCADE_BG
+#endif
+#ifndef COL_SCENE_PONG_FG
+#define COL_SCENE_PONG_FG COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_PONG_NET
+#define COL_SCENE_PONG_NET COL_TEXT_DIM
+#endif
+// Tetris (each level's two colours are the NES ones, toned toward the theme's background)
+#ifndef COL_SCENE_TETRIS_BG
+#define COL_SCENE_TETRIS_BG COL_SCENE_ARCADE_BG
+#endif
+#ifndef COL_SCENE_TETRIS_FRAME
+#define COL_SCENE_TETRIS_FRAME COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_TETRIS_TEXT
+#define COL_SCENE_TETRIS_TEXT COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_TETRIS_DIM
+#define COL_SCENE_TETRIS_DIM COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_TETRIS_STAT
+#define COL_SCENE_TETRIS_STAT COL_TEXT_SEC
+#endif
+#ifndef COL_SCENE_TETRIS_WHITE
+#define COL_SCENE_TETRIS_WHITE lv_color_mix(lv_color_hex(0xFCFCFC), COL_BG, 225)
+#endif
+#ifndef COL_SCENE_TETRIS_L0_A
+#define COL_SCENE_TETRIS_L0_A lv_color_mix(lv_color_hex(0x0058F8), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L0_B
+#define COL_SCENE_TETRIS_L0_B lv_color_mix(lv_color_hex(0x3CBCFC), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L1_A
+#define COL_SCENE_TETRIS_L1_A lv_color_mix(lv_color_hex(0x00A800), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L1_B
+#define COL_SCENE_TETRIS_L1_B lv_color_mix(lv_color_hex(0xB8F818), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L2_A
+#define COL_SCENE_TETRIS_L2_A lv_color_mix(lv_color_hex(0xD800CC), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L2_B
+#define COL_SCENE_TETRIS_L2_B lv_color_mix(lv_color_hex(0xF878F8), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L3_A
+#define COL_SCENE_TETRIS_L3_A lv_color_mix(lv_color_hex(0x0058F8), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L3_B
+#define COL_SCENE_TETRIS_L3_B lv_color_mix(lv_color_hex(0x58D854), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L4_A
+#define COL_SCENE_TETRIS_L4_A lv_color_mix(lv_color_hex(0xE40058), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L4_B
+#define COL_SCENE_TETRIS_L4_B lv_color_mix(lv_color_hex(0x58F898), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L5_A
+#define COL_SCENE_TETRIS_L5_A lv_color_mix(lv_color_hex(0x58F898), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L5_B
+#define COL_SCENE_TETRIS_L5_B lv_color_mix(lv_color_hex(0x6888FC), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L6_A
+#define COL_SCENE_TETRIS_L6_A lv_color_mix(lv_color_hex(0xF83800), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L6_B
+#define COL_SCENE_TETRIS_L6_B lv_color_mix(lv_color_hex(0x7C7C7C), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L7_A
+#define COL_SCENE_TETRIS_L7_A lv_color_mix(lv_color_hex(0x6844FC), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L7_B
+#define COL_SCENE_TETRIS_L7_B lv_color_mix(lv_color_hex(0xA80020), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L8_A
+#define COL_SCENE_TETRIS_L8_A lv_color_mix(lv_color_hex(0x0058F8), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L8_B
+#define COL_SCENE_TETRIS_L8_B lv_color_mix(lv_color_hex(0xF83800), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L9_A
+#define COL_SCENE_TETRIS_L9_A lv_color_mix(lv_color_hex(0xF83800), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_TETRIS_L9_B
+#define COL_SCENE_TETRIS_L9_B lv_color_mix(lv_color_hex(0xFCA044), COL_BG, 215)
+#endif
+// Bubble shooter
+#ifndef COL_SCENE_BUB_BG
+#define COL_SCENE_BUB_BG COL_SCENE_ARCADE_BG
+#endif
+#ifndef COL_SCENE_BUB_FIELD
+#define COL_SCENE_BUB_FIELD lv_color_mix(COL_PANEL, COL_BG, 90)
+#endif
+#ifndef COL_SCENE_BUB_WALL
+#define COL_SCENE_BUB_WALL COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_BUB_1
+#define COL_SCENE_BUB_1 lv_color_mix(lv_color_hex(0xF03C3C), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_BUB_2
+#define COL_SCENE_BUB_2 lv_color_mix(lv_color_hex(0x3C78F0), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_BUB_3
+#define COL_SCENE_BUB_3 lv_color_mix(lv_color_hex(0xF0D23C), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_BUB_4
+#define COL_SCENE_BUB_4 lv_color_mix(lv_color_hex(0x3CC850), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_BUB_5
+#define COL_SCENE_BUB_5 lv_color_mix(lv_color_hex(0xB450DC), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_BUB_6
+#define COL_SCENE_BUB_6 lv_color_mix(lv_color_hex(0xF08C28), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_BUB_STAR
+#define COL_SCENE_BUB_STAR lv_color_mix(lv_color_hex(0xF8F8F8), COL_BG, 225)
+#endif
+#ifndef COL_SCENE_BUB_SHINE
+#define COL_SCENE_BUB_SHINE lv_color_mix(lv_color_hex(0xFFFFFF), COL_BG, 235)
+#endif
+#ifndef COL_SCENE_BUB_DEAD
+#define COL_SCENE_BUB_DEAD lv_color_mix(lv_color_hex(0x707070), COL_BG, 200)
+#endif
+#ifndef COL_SCENE_BUB_ARROW
+#define COL_SCENE_BUB_ARROW COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_BUB_TEXT
+#define COL_SCENE_BUB_TEXT COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_BUB_DIM
+#define COL_SCENE_BUB_DIM COL_TEXT_DIM
 #endif
 #ifndef COL_SCENE_QUOTE_TEXT
 #define COL_SCENE_QUOTE_TEXT COL_TEXT_PRI

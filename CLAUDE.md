@@ -98,7 +98,8 @@ NVS flash, keyed by `Scene::name`, with first-boot defaults in `config.h`.
 `touch_read_cb()` keeps gestures that start on the menu or its button away
 from the scene player's tap-to-flip. Each scene is a self-contained
 `Scene` (see `scene.h`): start/tick/request_stop/is_done plus optional
-touch/finish, given an area of any size; the player owns the area and deletes
+touch/finish/event and a `ready_hold` flag (games open on a "READY" sign for
+`SCENE_READY_MS`, ended early by a touch), given an area of any size; the player owns the area and deletes
 it (and every object in it) when the scene ends, cutting it off after
 `SCENE_STOP_GRACE_MS` if it doesn't finish. Touch input from
 `touch_read_cb()` is queued via `scene_player_touch()` and handled in the

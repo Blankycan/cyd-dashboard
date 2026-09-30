@@ -79,3 +79,6 @@ void pixfb_art(PixFb &fb, int x, int y, const char *const *rows, int h, const lv
 static const int PIXFB_DIGIT_W = 5, PIXFB_DIGIT_H = 7, PIXFB_DIGIT_PITCH = 7;
 int pixfb_number(PixFb &fb, int x, int y, long value, lv_color_t c, int pad = 0, const lv_color_t *outline = nullptr);
 int pixfb_number_width(long value, int pad = 0);
+// Text in the same 5x7 font: A-Z (either case), 0-9, '!', '-', '/' and spaces.
+int pixfb_text(PixFb &fb, int x, int y, const char *s, lv_color_t c, const lv_color_t *outline = nullptr);
+int pixfb_text_width(const char *s);

@@ -96,6 +96,10 @@ struct Scene {
     void (*touch)(SceneTouch type, int x, int y);   // may be nullptr
     void (*finish)();                               // may be nullptr
     void (*event)(const SceneEvent &e);             // may be nullptr (and may be left out)
+    // Games: hold on the opening frame for SCENE_READY_MS under a "READY" sign,
+    // so there's time to take the controls before the computer starts playing.
+    // A touch in the scene ends the hold (and goes to the scene as usual).
+    bool ready_hold;                                // false if left out
 };
 
 // Uniform random float in [lo, hi)
