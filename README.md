@@ -506,7 +506,9 @@ what you're changing:
 
 - **Scenes**: off means calendar only.
 - **Calendar between**: on, the calendar shows for 30 s between scenes;
-  off, scenes follow each other directly.
+  off, scenes follow each other directly. Once the day's last meeting is
+  over (or on a day without any) the calendar is skipped either way, since
+  there's nothing left on it; a tap outside a scene still shows it.
 - **Shuffle**: a new random order every cycle (never repeating a scene across
   the boundary), or alphabetical.
 - **Scene length**: 1 to 10 minutes.

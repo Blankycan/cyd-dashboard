@@ -12,3 +12,8 @@ void update_calendar_ui();
 // True while a meeting is on or starts within CAL_QUIET_MIN — the scene
 // player keeps the calendar up instead of playing scenes.
 bool calendar_wants_focus();
+
+// True if a meeting is still on or yet to start today. With none left the
+// scene player stops showing the calendar between scenes. Also true while
+// the time isn't known yet, so nothing is skipped before the first packet.
+bool calendar_has_more_today();

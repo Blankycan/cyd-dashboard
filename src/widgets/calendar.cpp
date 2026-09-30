@@ -188,6 +188,14 @@ bool calendar_wants_focus() {
     return false;
 }
 
+bool calendar_has_more_today() {
+    int now = dash_now_min();
+    if (now < 0) return true;
+    for (int i = 0; i < state.cal_count; i++)
+        if (state.cal_events[i].end_min > now) return true;
+    return false;
+}
+
 void update_calendar_ui() {
     int now = dash_now_min();
     update_timeline(now);

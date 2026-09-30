@@ -64,6 +64,12 @@ static void log_event(const char *what) {
 
 // ---------------------------------------------------------------------------
 
+// The calendar between scenes, if it's switched on and there's still a
+// meeting to come today (after the last one it would only show an empty day)
+static bool cal_between_now() {
+    return settings.cal_between && calendar_has_more_today();
+}
+
 static void rebuild_playlist() {
     playlist_n = 0;
     for (int i = 0; i < scene_count(); i++)
@@ -151,7 +157,7 @@ static void end_scene(const char *why, bool peek) {
     lv_obj_clear_flag(cal_panel, LV_OBJ_FLAG_HIDDEN);
     mode        = MODE_CALENDAR;
     mode_ms     = 0;
-    cal_wait_ms = peek || settings.cal_between ? CAL_PEEK_MS : 0;
+    cal_wait_ms = peek || cal_between_now() ? CAL_PEEK_MS : 0;
 }
 
 static void handle_touch(const TouchEv &ev) {
@@ -189,7 +195,7 @@ static bool time_up() {
     if (mode_ms < (uint32_t)settings.scene_min * 60000UL) return false;
     meeting_ok = false;   // an override lasts one scene length: meetings win again
     bool only_this = rotation_on() && playlist_n == 1 && playlist[0] == cur;
-    return !(only_this && !settings.cal_between);
+    return !(only_this && !cal_between_now());
 }
 
 static void tick_scene(uint32_t dt) {

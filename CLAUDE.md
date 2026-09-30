@@ -87,7 +87,7 @@ optional reset countdown" row used by the system/claude panels.
 **Ambient scenes** (`src/scenes/`) share the calendar's slot. The
 `scene_player` creates a sibling panel over the calendar and alternates
 scene / calendar (`CAL_PEEK_MS`, or back to back if "calendar between" is
-off) over the scenes switched on in the **settings menu**, holding the
+off or `calendar_has_more_today()` says the day's meetings are over) over the scenes switched on in the **settings menu**, holding the
 calendar while `calendar_wants_focus()` (meeting on or within
 `CAL_QUIET_MIN`) regardless of settings. Scenes register themselves with
 `SCENE_REGISTER(scene_x, "Title")` in their own file (`registry.h`) — no
