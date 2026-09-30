@@ -904,6 +904,70 @@
 #ifndef COL_SCENE_BUB_DIM
 #define COL_SCENE_BUB_DIM COL_TEXT_DIM
 #endif
+// Defender (the arcade's colours, toned toward the theme's background)
+#ifndef COL_SCENE_DEF_FRAME
+#define COL_SCENE_DEF_FRAME COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_DEF_TERRAIN
+#define COL_SCENE_DEF_TERRAIN lv_color_mix(lv_color_hex(0xC0702C), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_STAR
+#define COL_SCENE_DEF_STAR COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_DEF_SHIP
+#define COL_SCENE_DEF_SHIP lv_color_mix(lv_color_hex(0xECECF4), COL_BG, 225)
+#endif
+#ifndef COL_SCENE_DEF_COCKPIT
+#define COL_SCENE_DEF_COCKPIT lv_color_mix(lv_color_hex(0xE8483C), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_FLAME
+#define COL_SCENE_DEF_FLAME lv_color_mix(lv_color_hex(0xF8A020), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_LASER_1
+#define COL_SCENE_DEF_LASER_1 lv_color_mix(lv_color_hex(0xF8F8A0), COL_BG, 225)
+#endif
+#ifndef COL_SCENE_DEF_LASER_2
+#define COL_SCENE_DEF_LASER_2 lv_color_mix(lv_color_hex(0x60F0F8), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_LASER_3
+#define COL_SCENE_DEF_LASER_3 lv_color_mix(lv_color_hex(0xF860F8), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_LANDER
+#define COL_SCENE_DEF_LANDER lv_color_mix(lv_color_hex(0x48D048), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_MUTANT
+#define COL_SCENE_DEF_MUTANT lv_color_mix(lv_color_hex(0xC048F0), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_BOMBER
+#define COL_SCENE_DEF_BOMBER lv_color_mix(lv_color_hex(0x4868F8), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_POD
+#define COL_SCENE_DEF_POD lv_color_mix(lv_color_hex(0xA838C8), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_SWARMER
+#define COL_SCENE_DEF_SWARMER lv_color_mix(lv_color_hex(0xF04848), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_BAITER
+#define COL_SCENE_DEF_BAITER lv_color_mix(lv_color_hex(0x48F0A8), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_HUMAN
+#define COL_SCENE_DEF_HUMAN lv_color_mix(lv_color_hex(0xF088C8), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_SHOT
+#define COL_SCENE_DEF_SHOT lv_color_mix(lv_color_hex(0xF4F4F4), COL_BG, 225)
+#endif
+#ifndef COL_SCENE_DEF_ACCENT
+#define COL_SCENE_DEF_ACCENT lv_color_mix(lv_color_hex(0xF8D848), COL_BG, 215)
+#endif
+#ifndef COL_SCENE_DEF_TEXT
+#define COL_SCENE_DEF_TEXT COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_DEF_DIM
+#define COL_SCENE_DEF_DIM COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_DEF_FLASH
+#define COL_SCENE_DEF_FLASH lv_color_mix(lv_color_hex(0xF8F8F8), COL_BG, 120)
+#endif
 #ifndef COL_SCENE_QUOTE_TEXT
 #define COL_SCENE_QUOTE_TEXT COL_TEXT_PRI
 #endif

@@ -545,6 +545,7 @@ survive reboots and reflashes. The defaults for the first boot are in
 | Pong | The 1972 arcade: square ball, dashed net, blocky scores, eight-segment paddles that can't reach the very top, and the ball speeding up after the 4th and 12th hit. First to 11. The net pulses on the beat | Drag to move the right paddle |
 | Tetris | NES Tetris: NES rotation, gravity and scoring, the centre-out line wipe and the Tetris flash, each level's NES colours, piece statistics, TOP/SCORE/LINES/LEVEL/NEXT, starting at level 0. The frame pulses on the beat | Tap left/right of the piece to shift it, on it to rotate, along the bottom to drop it |
 | Bubble shooter | Puzzle Bobble on its side, filling the width: pop three of a colour, drop what's left hanging (10 x 2^n points), the ceiling comes down every 8 shots. A Claude session finishing loads a star bubble that clears a whole colour | Drag to aim, let go to fire |
+| Defender | Williams' 1981 original on a wrap-around planet with the scanner on top: landers abduct humanoids (and mutate if they get them to the top), bombers leave mines, pods burst into swarmers, baiters come if you dawdle; catch falling humanoids, lose them all and the planet explodes. Arcade scoring, smart bombs, extra ship every 10,000. A Claude session finishing earns a smart bomb | Hold to fly toward your finger (it fires while you hold); tap the scanner for a smart bomb |
 
 | Synthwave drive | Sunset drive: striped sun, mountains, a neon grid rushing toward you. With music the grid scrolls one line per beat and flashes on every beat. On stop the sun sets and the car drives off | Steer the car toward your finger; press for a burst of speed |
 | Lofi girl | A silhouetted girl with headphones writing by a rainy window over the city. Nods to the beat while music plays, notes drift up, and every character you type becomes ink in her notebook | Tap the window for lightning, tap the lamp to switch it |
@@ -795,6 +796,7 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     pong.cpp        Pong
     tetris.cpp      Tetris
     bubble.cpp      Bubble shooter (Puzzle Bobble)
+    defender.cpp    Defender
     pixfb.*         Pixel-canvas drawing helper (shapes, sprites, text art, numbers, saved backdrop)
   widgets/
     topbar.*        Clock, date, and the settings menu button
