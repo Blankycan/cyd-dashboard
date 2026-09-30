@@ -14,7 +14,12 @@
 // everything at its new position, then pixfb_flush(). Erase everything before
 // drawing anything, so an erase can't cut into a sprite drawn earlier.
 //
-// The buffer is malloc'd: call pixfb_free() from the scene's finish().
+// Painted scenes (a static backdrop with things moving over it) can draw the
+// backdrop once, pixfb_bg_save() it, and then erase a moving sprite with
+// pixfb_bg_restore() — copying back what was behind it — instead of
+// redrawing the scene.
+//
+// Buffers are malloc'd: call pixfb_free() from the scene's finish().
 
 static const int PIXFB_MAX_DIRTY = 16;
 
@@ -22,6 +27,7 @@ struct PixFb {
     lv_obj_t   *canvas;
     lv_color_t *buf;
     int         w, h;
+    lv_color_t *bg;                       // saved backdrop, or nullptr
     lv_area_t   dirty[PIXFB_MAX_DIRTY];   // canvas-local, merged as they're added
     int         n_dirty;
 };
@@ -33,7 +39,26 @@ void pixfb_fill(PixFb &fb, int x, int y, int w, int h, lv_color_t c);         //
 void pixfb_px(PixFb &fb, int x, int y, lv_color_t c);                          // no invalidation — call pixfb_touch()
 void pixfb_touch(PixFb &fb, int x, int y, int w, int h);                       // mark a rect for redraw
 void pixfb_flush(PixFb &fb);                                                   // send this frame's dirty rects to LVGL
+void pixfb_flush_active();   // flush the running scene's buffer; the scene player calls this after every frame
 void pixfb_line(PixFb &fb, int x0, int y0, int x1, int y1, lv_color_t c);
+
+void pixfb_fill_circle(PixFb &fb, int cx, int cy, int r, lv_color_t c);
+void pixfb_fill_tri(PixFb &fb, int x0, int y0, int x1, int y1, int x2, int y2, lv_color_t c);
+
+// Translucent versions: tint what's already there toward `c` by `t` (0-1),
+// e.g. a beam of light over a window. The glow fades out toward its edge.
+void pixfb_blend_tri(PixFb &fb, int x0, int y0, int x1, int y1, int x2, int y2, lv_color_t c, float t);
+void pixfb_glow(PixFb &fb, int cx, int cy, int r, lv_color_t c, float t);
+
+bool pixfb_bg_save(PixFb &fb);                                    // snapshot the current image; false if out of memory
+void pixfb_bg_restore(PixFb &fb, int x, int y, int w, int h);     // copy the snapshot back over a rect
+
+// c1 → c2 as t goes 0 → 1 (for gradients and fading particles)
+inline lv_color_t pixfb_mix(lv_color_t c1, lv_color_t c2, float t) {
+    if (t <= 0) return c1;
+    if (t >= 1) return c2;
+    return lv_color_mix(c2, c1, (uint8_t)(t * 255));
+}
 
 // 1-bit sprite: `rows[r]` holds row r, bit (w-1-c) = column c (so the
 // literal reads left to right). Only set bits are drawn.

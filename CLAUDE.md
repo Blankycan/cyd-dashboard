@@ -37,6 +37,9 @@ journalctl --user -u cyd-dashboard -f
 # Companion: calendar panel (needs ~/.config/cyd-dashboard/google_client.json first)
 ./setup_calendar.sh                        # idempotent; installs Google libs, one-time login, restarts service
 
+# Lofi scene artwork: edit assets/lofi/*.png (Aseprite, palette lofi_girl.gpl), then
+python tools/png_to_sprites.py             # regenerates src/scenes/lofi_art.h; rejects off-palette colours
+
 # Companion: opt-in Claude Code hooks (enables the Claude panel's working-session dots)
 ./install_claude_activity_hooks.sh         # idempotent; edits ~/.claude/settings.json machine-wide
 ./uninstall_claude_activity_hooks.sh       # removes only the cyd-dashboard hook entries
@@ -92,7 +95,11 @@ it (and every object in it) when the scene ends, cutting it off after
 `SCENE_STOP_GRACE_MS` if it doesn't finish. Touch input from
 `touch_read_cb()` is queued via `scene_player_touch()` and handled in the
 player's frame timer (never inside indev processing): inside the scene → the
-scene, elsewhere → flip. Transitions are logged as `{"log":"scene ..."}`
+scene, elsewhere → flip. The lofi scene's art (girl, lamp, mug, book, ink, and a
+greyscale light mask) is hand-painted PNGs in `assets/lofi/`, converted by
+`tools/png_to_sprites.py` into `lofi_art.h` — edit the PNGs, never the header.
+The converter also works out the handwriting's reveal order (`INK_ORDER`).
+Transitions are logged as `{"log":"scene ..."}`
 lines (with the scene's average frame time), which the companion prints as
 `CYD: ...`. The arcade scenes draw into one canvas via `pixfb.h`, which
 coalesces each frame's changes into ≤16 rects on `pixfb_flush()`: per-sprite

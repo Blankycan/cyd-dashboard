@@ -12,6 +12,11 @@ extern const Scene scene_quote;    // quote of the day, typed out; tap for anoth
 extern const Scene scene_invaders; // Space Invaders demo; drag to move, tap to fire
 extern const Scene scene_asteroids;// Asteroids demo; hold to steer, thrust and fire
 extern const Scene scene_pacman;   // Pac-Man demo in a generated mini maze; tap a side to steer
+extern const Scene scene_synthwave;// sunset drive on a neon grid; steer by touch, grid pulses to the beat
+extern const Scene scene_lofi;     // girl writing by a rainy window; nods to music, writes as you type
+extern const Scene scene_lofi_v1;  // first version of the above (silhouette built from shapes), kept as a backup
+extern const Scene scene_fireworks;// fireworks over a skyline; launches on the beat, tap to launch
+extern const Scene scene_campfire; // campfire under the stars; flames surge with the bass, tap to add a log
 
 #define SCENE_LEAVES  (&scene_leaves)
 #define SCENE_SNOW    (&scene_snow)
@@ -22,3 +27,8 @@ extern const Scene scene_pacman;   // Pac-Man demo in a generated mini maze; tap
 #define SCENE_INVADERS  (&scene_invaders)
 #define SCENE_ASTEROIDS (&scene_asteroids)
 #define SCENE_PACMAN    (&scene_pacman)
+#define SCENE_SYNTHWAVE (&scene_synthwave)
+#define SCENE_LOFI      (&scene_lofi)
+#define SCENE_LOFI_V1   (&scene_lofi_v1)
+#define SCENE_FIREWORKS (&scene_fireworks)
+#define SCENE_CAMPFIRE  (&scene_campfire)

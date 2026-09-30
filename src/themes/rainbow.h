@@ -9,7 +9,8 @@
 //   Calendar dark-crimson bg; pinks/roses, yellow "soon", white-ish now mark
 //   Scenes   near-black blue bg; leaves=orange/brown/olive, snow=ice blues, life=chartreuse,
 //            stars=lavenders, fish=coral/gold/purple, quote=mint/sage,
-//            arcade: invaders=reds/limes, asteroids=greys/cyan, pacman=blue walls/classic ghosts
+//            arcade: invaders=reds/limes, asteroids=greys/cyan, pacman=blue walls/classic ghosts,
+//            synthwave=neon purple/pink/cyan, lofi=dusk blues, fireworks=primaries, campfire=embers
 //   System   dark-violet bg; CPU=reds, RAM=greens
 //   Claude   dark-teal bg / light-blue sessions; H5=violets, W7=teals; working dots=lime/blue-violet/pink
 //   Status   dark-gold bg / lime active / sky-blue idle / red offline / orange keys
@@ -161,6 +162,88 @@
 #define COL_SCENE_PAC_FRIGHT    LVC(0x2121DE)  // frightened blue
 #define COL_SCENE_PAC_EYES      LVC(0x0000AA)  // dark blue
 #define COL_SCENE_PAC_EATEN     LVC(0xF0F0F0)  // white
+#define COL_SCENE_SYNTH_SKY_TOP          LVC(0x14002A)  // deep purple
+#define COL_SCENE_SYNTH_SKY_LOW          LVC(0xC0306A)  // magenta rose
+#define COL_SCENE_SYNTH_STAR             LVC(0xFFE8FF)  // pale pink
+#define COL_SCENE_SYNTH_SUN_TOP          LVC(0xFFE040)  // sun yellow
+#define COL_SCENE_SYNTH_SUN_LOW          LVC(0xFF2D95)  // hot pink
+#define COL_SCENE_SYNTH_MOUNTAIN_FAR     LVC(0x5A1E8C)  // violet
+#define COL_SCENE_SYNTH_MOUNTAIN         LVC(0x2A0E4A)  // dark violet
+#define COL_SCENE_SYNTH_GROUND_TOP       LVC(0x2A0038)  // plum
+#define COL_SCENE_SYNTH_GROUND_LOW       LVC(0x08000F)  // near-black purple
+#define COL_SCENE_SYNTH_ROAD             LVC(0x0A0A14)  // asphalt
+#define COL_SCENE_SYNTH_GRID             LVC(0x00E5FF)  // neon cyan
+#define COL_SCENE_SYNTH_GRID_BEAT        LVC(0xE0FFFF)  // cyan white
+#define COL_SCENE_SYNTH_LANE             LVC(0xFFB000)  // amber
+#define COL_SCENE_SYNTH_CAR              LVC(0x1C1C2E)  // dark slate
+#define COL_SCENE_SYNTH_TAILLIGHT        LVC(0xFF1E3C)  // tail red
+#define COL_SCENE_LOFI_ROOM              LVC(0x1A1420)  // dusk room
+#define COL_SCENE_LOFI_FRAME             LVC(0x3A2A40)  // window frame
+#define COL_SCENE_LOFI_SKY_TOP           LVC(0x1E2A5A)  // night blue
+#define COL_SCENE_LOFI_SKY_LOW           LVC(0x7A4A8A)  // city haze
+#define COL_SCENE_LOFI_MOON              LVC(0xFFF4D0)  // moon
+#define COL_SCENE_LOFI_CITY              LVC(0x121830)  // buildings
+#define COL_SCENE_LOFI_CITY_LIGHT        LVC(0xFFD27A)  // window light
+#define COL_SCENE_LOFI_RAIN              LVC(0x8AA8D0)  // rain
+#define COL_SCENE_LOFI_DESK              LVC(0x4A3428)  // desk
+#define COL_SCENE_LOFI_FIGURE            LVC(0x07060A)  // silhouette
+#define COL_SCENE_LOFI_HEADPHONES        LVC(0xFF7AB0)  // headphones
+#define COL_SCENE_LOFI_LAMP              LVC(0x0C0A10)  // lamp
+#define COL_SCENE_LOFI_LAMP_GLOW         LVC(0xFFB35C)  // lamp glow
+#define COL_SCENE_LOFI_MUG               LVC(0x10101A)  // mug
+#define COL_SCENE_LOFI_STEAM             LVC(0xC8C8D8)  // steam
+#define COL_SCENE_LOFI_PAPER             LVC(0xE8E0C8)  // paper
+#define COL_SCENE_LOFI_INK               LVC(0x202A50)  // ink
+#define COL_SCENE_LOFI_NOTE              LVC(0x9AE8FF)  // music note
+#define COL_SCENE_LOFI_HAIR             LVC(0x5B3319)
+#define COL_SCENE_LOFI_HAIR_SHADE       LVC(0x3A1F10)
+#define COL_SCENE_LOFI_HAIR_TIE         LVC(0x2F6E4F)
+#define COL_SCENE_LOFI_SKIN             LVC(0xF2C49B)
+#define COL_SCENE_LOFI_SKIN_SHADE       LVC(0xD29A74)
+#define COL_SCENE_LOFI_EYE              LVC(0x2A1A14)
+#define COL_SCENE_LOFI_PHONES_BAND      LVC(0xEDE3C8)
+#define COL_SCENE_LOFI_PHONES_CUSHION   LVC(0x2A2A30)
+#define COL_SCENE_LOFI_SWEATER          LVC(0x1F5E4A)
+#define COL_SCENE_LOFI_SWEATER_SHADE    LVC(0x154436)
+#define COL_SCENE_LOFI_SCARF            LVC(0xE0483A)
+#define COL_SCENE_LOFI_SCARF_SHADE      LVC(0xB53428)
+#define COL_SCENE_LOFI_HAIR_SHINE       LVC(0x8A5530)
+#define COL_SCENE_LOFI_MOUTH            LVC(0xB0584A)
+#define COL_SCENE_LOFI_BLUSH            LVC(0xF0A08A)
+#define COL_SCENE_LOFI_IRIS             LVC(0x3E6B3A)
+#define COL_SCENE_LOFI_COFFEE           LVC(0x3A2014)
+#define COL_SCENE_LOFI_MUG_SHADE        LVC(0x5A3C2C)
+#define COL_SCENE_LOFI_MUG_RIM          LVC(0xC8A888)
+#define COL_SCENE_LOFI_MUG_SHINE        LVC(0xF4DDB0)
+#define COL_SCENE_LOFI_SHADE_RIM        LVC(0xF5C07A)
+#define COL_SCENE_LOFI_BOOK_COVER       LVC(0x7A3A2E)
+#define COL_SCENE_LOFI_PAPER_SHADE      LVC(0xC4B89C)
+#define COL_SCENE_LOFI_PAGE_EDGE        LVC(0x968870)
+#define COL_SCENE_LOFI_OUTLINE          LVC(0x140C08)
+#define COL_SCENE_LOFI_PEN              LVC(0x3A3A44)
+#define COL_SCENE_FW_SKY_TOP             LVC(0x02030C)  // night
+#define COL_SCENE_FW_SKY_LOW             LVC(0x1A1840)  // horizon blue
+#define COL_SCENE_FW_STAR                LVC(0x9090B0)  // star
+#define COL_SCENE_FW_CITY                LVC(0x0C0C14)  // skyline
+#define COL_SCENE_FW_CITY_LIGHT          LVC(0xFFCC66)  // lit window
+#define COL_SCENE_FW_ROCKET              LVC(0xFFFFE0)  // rocket
+#define COL_SCENE_FW_1                   LVC(0xFF3B3B)  // red
+#define COL_SCENE_FW_2                   LVC(0x3BFF6E)  // green
+#define COL_SCENE_FW_3                   LVC(0x3BA0FF)  // blue
+#define COL_SCENE_FW_4                   LVC(0xFF3BF0)  // magenta
+#define COL_SCENE_FW_GOLD                LVC(0xFFC23B)  // gold
+#define COL_SCENE_FIRE_SKY_TOP           LVC(0x030612)  // night
+#define COL_SCENE_FIRE_SKY_LOW           LVC(0x1A2238)  // dusk blue
+#define COL_SCENE_FIRE_STAR              LVC(0xD0D8FF)  // star
+#define COL_SCENE_FIRE_TREES             LVC(0x06100C)  // pines
+#define COL_SCENE_FIRE_GROUND            LVC(0x141008)  // earth
+#define COL_SCENE_FIRE_GLOW              LVC(0xFF8A2A)  // firelight
+#define COL_SCENE_FIRE_LOGS              LVC(0x2A160A)  // logs
+#define COL_SCENE_FIRE_STONES            LVC(0x5A5A60)  // stones
+#define COL_SCENE_FIRE_CORE              LVC(0xFFF6C0)  // white-hot
+#define COL_SCENE_FIRE_MID               LVC(0xFFA020)  // orange
+#define COL_SCENE_FIRE_OUTER             LVC(0xE02810)  // deep red
+#define COL_SCENE_FIRE_SPARK             LVC(0xFFD060)  // spark
 
 // System — dark violet bg; CPU reds, RAM greens
 #define COL_SYSTEM_BG         LVC(0x0F001A)  // very dark violet

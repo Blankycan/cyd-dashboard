@@ -517,6 +517,11 @@ swap leaves for snow in winter:
 | `SCENE_INVADERS` | Space Invaders: a marching formation, bombs, and a cannon. On stop the remaining aliens chain-explode | Drag to move the cannon, tap to fire |
 | `SCENE_ASTEROIDS` | Vector-outline asteroids that split when shot. On stop the ship warps out and the rocks drift away | Hold to steer toward your finger, thrust, and fire |
 
+| `SCENE_SYNTHWAVE` | Sunset drive: striped sun, mountains, a neon grid rushing toward you. With music the grid scrolls one line per beat and flashes on every beat. On stop the sun sets and the car drives off | Steer the car toward your finger; press for a burst of speed |
+| `SCENE_LOFI` | A silhouetted girl with headphones writing by a rainy window over the city. Nods to the beat while music plays, notes drift up, and every character you type becomes ink in her notebook | Tap the window for lightning, tap the lamp to switch it |
+| `SCENE_FIREWORKS` | Rockets burst into peonies, rings, and golden willows over a skyline. Launches on the beat with music playing; Enter fires a big one; a Claude session finishing earns a golden willow | Tap to launch a rocket that bursts where you tapped |
+| `SCENE_CAMPFIRE` | A campfire under the stars with sparks and a flickering ground glow. The flames surge with the bass and beats throw sparks; on stop it dies down to embers | Tap to toss on a log |
+
 The arcade scenes play themselves. Touching one takes over the controls, and
 the computer takes them back 5 seconds after your last touch.
 
@@ -571,8 +576,10 @@ player deletes the scene's area and everything in it when the scene ends, so
 a scene can't leave objects behind. Register it in `src/scenes/registry.h`
 and add its `COL_SCENE_<NAME>_*` fallbacks to `theme.h`. Sprite-heavy scenes
 can draw into a single pixel canvas with `src/scenes/pixfb.h` (fills, lines,
-1-bit sprites) instead of creating an object per sprite; it batches each
-frame's changes into a few redraw areas. Each scene
+circles, triangles, 1-bit sprites, colour mixing) instead of creating an
+object per sprite; it batches each frame's changes into a few redraw areas.
+Painted scenes can draw a backdrop once, `pixfb_bg_save()` it, and erase
+moving things with `pixfb_bg_restore()`. Each scene
 transition is logged as `CYD: scene ...` in the companion's output, together
 with the scene's average frame time (target 40 ms), which is handy for
 checking the rotation and spotting a scene that's too heavy to draw.
@@ -717,7 +724,11 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     pacman.cpp      Pac-Man demo in a generated mini maze
     invaders.cpp    Space Invaders demo
     asteroids.cpp   Asteroids demo
-    pixfb.*         Pixel-canvas drawing helper shared by the arcade scenes
+    synthwave.cpp   Synthwave sunset drive
+    lofi.cpp        Lofi girl by a rainy window
+    fireworks.cpp   Fireworks over a skyline
+    campfire.cpp    Campfire night
+    pixfb.*         Pixel-canvas drawing helper (shapes, sprites, saved backdrop)
   widgets/
     topbar.*        Clock and date bar
     calendar.*      Current/next meeting, countdown, and day timeline

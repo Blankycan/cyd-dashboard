@@ -1,0 +1,41 @@
+GIMP Palette
+Name: Lofi scene
+Columns: 4
+#
+# Each colour maps to one character in src/scenes/lofi_girl.h (the name's first
+# letter). In the firmware each is a COL_SCENE_LOFI_* theme token, so these are
+# the natural colours; themes may shift them.
+ 20  12   8	O outline
+ 91  51  25	H hair
+ 58  31  16	h hair shade
+138  85  48	L hair shine
+ 47 110  79	T hair tie
+242 196 155	S skin
+210 154 116	s skin shade
+240 160 138	B blush
+ 42  26  20	E eye / lash
+ 62 107  58	I iris
+176  88  74	M mouth
+237 227 200	W headphone cream
+192  52  46	R headphone red
+ 42  42  48	K headphone cushion
+ 31  94  74	G sweater
+ 21  68  54	g sweater shade
+224  72  58	C scarf
+181  52  40	c scarf shade
+ 58  58  68	P pen
+# props
+ 26  20  16	A lamp
+255 210 122	Y bulb
+245 192 122	y shade rim glow
+138  94  68	U mug
+ 90  60  44	u mug shade
+200 168 136	N mug rim
+ 58  32  20	F coffee
+244 221 176	V mug shine
+# book
+232 221 192	Q paper
+196 184 156	q paper shade
+150 136 112	X page edge
+122  58  46	D book cover
+ 42  48  80	J ink (the handwriting in book_ink.png)

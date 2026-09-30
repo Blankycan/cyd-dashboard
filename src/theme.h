@@ -262,6 +262,258 @@
 #ifndef COL_SCENE_PAC_EATEN
 #define COL_SCENE_PAC_EATEN COL_TEXT_PRI
 #endif
+// Synthwave
+#ifndef COL_SCENE_SYNTH_SKY_TOP
+#define COL_SCENE_SYNTH_SKY_TOP COL_BG
+#endif
+#ifndef COL_SCENE_SYNTH_SKY_LOW
+#define COL_SCENE_SYNTH_SKY_LOW lv_color_mix(COL_ALERT, COL_BG, 110)
+#endif
+#ifndef COL_SCENE_SYNTH_STAR
+#define COL_SCENE_SYNTH_STAR COL_TEXT_SEC
+#endif
+#ifndef COL_SCENE_SYNTH_SUN_TOP
+#define COL_SCENE_SYNTH_SUN_TOP COL_WARN
+#endif
+#ifndef COL_SCENE_SYNTH_SUN_LOW
+#define COL_SCENE_SYNTH_SUN_LOW COL_ALERT
+#endif
+#ifndef COL_SCENE_SYNTH_MOUNTAIN_FAR
+#define COL_SCENE_SYNTH_MOUNTAIN_FAR lv_color_mix(COL_GLOW, COL_BG, 70)
+#endif
+#ifndef COL_SCENE_SYNTH_MOUNTAIN
+#define COL_SCENE_SYNTH_MOUNTAIN lv_color_mix(COL_GLOW, COL_BG, 30)
+#endif
+#ifndef COL_SCENE_SYNTH_GROUND_TOP
+#define COL_SCENE_SYNTH_GROUND_TOP lv_color_mix(COL_GLOW, COL_BG, 35)
+#endif
+#ifndef COL_SCENE_SYNTH_GROUND_LOW
+#define COL_SCENE_SYNTH_GROUND_LOW COL_BG
+#endif
+#ifndef COL_SCENE_SYNTH_ROAD
+#define COL_SCENE_SYNTH_ROAD COL_BG
+#endif
+#ifndef COL_SCENE_SYNTH_GRID
+#define COL_SCENE_SYNTH_GRID COL_GLOW
+#endif
+#ifndef COL_SCENE_SYNTH_GRID_BEAT
+#define COL_SCENE_SYNTH_GRID_BEAT COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_SYNTH_LANE
+#define COL_SCENE_SYNTH_LANE COL_TEXT_SEC
+#endif
+#ifndef COL_SCENE_SYNTH_CAR
+#define COL_SCENE_SYNTH_CAR COL_PANEL
+#endif
+#ifndef COL_SCENE_SYNTH_TAILLIGHT
+#define COL_SCENE_SYNTH_TAILLIGHT COL_ALERT
+#endif
+// Lofi girl
+#ifndef COL_SCENE_LOFI_ROOM
+#define COL_SCENE_LOFI_ROOM lv_color_mix(COL_PANEL, COL_BG, 120)
+#endif
+#ifndef COL_SCENE_LOFI_FRAME
+#define COL_SCENE_LOFI_FRAME COL_PANEL
+#endif
+#ifndef COL_SCENE_LOFI_SKY_TOP
+#define COL_SCENE_LOFI_SKY_TOP lv_color_mix(COL_GLOW, COL_BG, 40)
+#endif
+#ifndef COL_SCENE_LOFI_SKY_LOW
+#define COL_SCENE_LOFI_SKY_LOW lv_color_mix(COL_ALERT, COL_BG, 100)
+#endif
+#ifndef COL_SCENE_LOFI_MOON
+#define COL_SCENE_LOFI_MOON COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_LOFI_CITY
+#define COL_SCENE_LOFI_CITY COL_BG
+#endif
+#ifndef COL_SCENE_LOFI_CITY_LIGHT
+#define COL_SCENE_LOFI_CITY_LIGHT COL_WARN
+#endif
+#ifndef COL_SCENE_LOFI_RAIN
+#define COL_SCENE_LOFI_RAIN COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_LOFI_DESK
+#define COL_SCENE_LOFI_DESK COL_PANEL
+#endif
+#ifndef COL_SCENE_LOFI_FIGURE
+#define COL_SCENE_LOFI_FIGURE COL_BG
+#endif
+#ifndef COL_SCENE_LOFI_HEADPHONES
+#define COL_SCENE_LOFI_HEADPHONES lv_color_mix(lv_color_hex(0xC0342E), COL_BG, 205)
+#endif
+// Lofi girl character: natural colours, pulled ~20% toward the theme background
+// so she sits in the scene's lighting
+#ifndef COL_SCENE_LOFI_HAIR
+#define COL_SCENE_LOFI_HAIR lv_color_mix(lv_color_hex(0x5B3319), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_HAIR_SHADE
+#define COL_SCENE_LOFI_HAIR_SHADE lv_color_mix(lv_color_hex(0x3A1F10), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_HAIR_TIE
+#define COL_SCENE_LOFI_HAIR_TIE lv_color_mix(lv_color_hex(0x2F6E4F), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_SKIN
+#define COL_SCENE_LOFI_SKIN lv_color_mix(lv_color_hex(0xF2C49B), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_SKIN_SHADE
+#define COL_SCENE_LOFI_SKIN_SHADE lv_color_mix(lv_color_hex(0xD29A74), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_EYE
+#define COL_SCENE_LOFI_EYE lv_color_mix(lv_color_hex(0x2A1A14), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_PHONES_BAND
+#define COL_SCENE_LOFI_PHONES_BAND lv_color_mix(lv_color_hex(0xEDE3C8), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_PHONES_CUSHION
+#define COL_SCENE_LOFI_PHONES_CUSHION lv_color_mix(lv_color_hex(0x2A2A30), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_SWEATER
+#define COL_SCENE_LOFI_SWEATER lv_color_mix(lv_color_hex(0x1F5E4A), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_SWEATER_SHADE
+#define COL_SCENE_LOFI_SWEATER_SHADE lv_color_mix(lv_color_hex(0x154436), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_SCARF
+#define COL_SCENE_LOFI_SCARF lv_color_mix(lv_color_hex(0xE0483A), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_SCARF_SHADE
+#define COL_SCENE_LOFI_SCARF_SHADE lv_color_mix(lv_color_hex(0xB53428), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_HAIR_SHINE
+#define COL_SCENE_LOFI_HAIR_SHINE lv_color_mix(lv_color_hex(0x8A5530), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_MOUTH
+#define COL_SCENE_LOFI_MOUTH lv_color_mix(lv_color_hex(0xB0584A), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_BLUSH
+#define COL_SCENE_LOFI_BLUSH lv_color_mix(lv_color_hex(0xF0A08A), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_IRIS
+#define COL_SCENE_LOFI_IRIS lv_color_mix(lv_color_hex(0x3E6B3A), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_OUTLINE
+#define COL_SCENE_LOFI_OUTLINE lv_color_mix(lv_color_hex(0x140C08), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_PEN
+#define COL_SCENE_LOFI_PEN lv_color_mix(lv_color_hex(0x3A3A44), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_LAMP
+#define COL_SCENE_LOFI_LAMP COL_BG
+#endif
+#ifndef COL_SCENE_LOFI_LAMP_GLOW
+#define COL_SCENE_LOFI_LAMP_GLOW COL_WARN
+#endif
+#ifndef COL_SCENE_LOFI_MUG
+#define COL_SCENE_LOFI_MUG lv_color_mix(lv_color_hex(0x8A5E44), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_MUG_SHADE
+#define COL_SCENE_LOFI_MUG_SHADE lv_color_mix(lv_color_hex(0x5A3C2C), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_MUG_RIM
+#define COL_SCENE_LOFI_MUG_RIM lv_color_mix(lv_color_hex(0xC8A888), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_MUG_SHINE
+#define COL_SCENE_LOFI_MUG_SHINE lv_color_mix(lv_color_hex(0xF4DDB0), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_SHADE_RIM
+#define COL_SCENE_LOFI_SHADE_RIM lv_color_mix(lv_color_hex(0xF5C07A), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_COFFEE
+#define COL_SCENE_LOFI_COFFEE lv_color_mix(lv_color_hex(0x3A2014), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_STEAM
+#define COL_SCENE_LOFI_STEAM COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_LOFI_PAPER
+#define COL_SCENE_LOFI_PAPER lv_color_mix(lv_color_hex(0xE8DDC0), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_PAPER_SHADE
+#define COL_SCENE_LOFI_PAPER_SHADE lv_color_mix(lv_color_hex(0xC4B89C), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_PAGE_EDGE
+#define COL_SCENE_LOFI_PAGE_EDGE lv_color_mix(lv_color_hex(0x968870), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_BOOK_COVER
+#define COL_SCENE_LOFI_BOOK_COVER lv_color_mix(lv_color_hex(0x7A3A2E), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_INK
+#define COL_SCENE_LOFI_INK lv_color_mix(lv_color_hex(0x2A3050), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_LOFI_NOTE
+#define COL_SCENE_LOFI_NOTE COL_GLOW
+#endif
+// Fireworks
+#ifndef COL_SCENE_FW_SKY_TOP
+#define COL_SCENE_FW_SKY_TOP COL_BG
+#endif
+#ifndef COL_SCENE_FW_SKY_LOW
+#define COL_SCENE_FW_SKY_LOW lv_color_mix(COL_GLOW, COL_BG, 45)
+#endif
+#ifndef COL_SCENE_FW_STAR
+#define COL_SCENE_FW_STAR COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_FW_CITY
+#define COL_SCENE_FW_CITY lv_color_mix(COL_PANEL, COL_BG, 80)
+#endif
+#ifndef COL_SCENE_FW_CITY_LIGHT
+#define COL_SCENE_FW_CITY_LIGHT COL_WARN
+#endif
+#ifndef COL_SCENE_FW_ROCKET
+#define COL_SCENE_FW_ROCKET COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_FW_1
+#define COL_SCENE_FW_1 COL_ALERT
+#endif
+#ifndef COL_SCENE_FW_2
+#define COL_SCENE_FW_2 COL_GLOW
+#endif
+#ifndef COL_SCENE_FW_3
+#define COL_SCENE_FW_3 COL_OK
+#endif
+#ifndef COL_SCENE_FW_4
+#define COL_SCENE_FW_4 COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_FW_GOLD
+#define COL_SCENE_FW_GOLD COL_WARN
+#endif
+// Campfire
+#ifndef COL_SCENE_FIRE_SKY_TOP
+#define COL_SCENE_FIRE_SKY_TOP COL_BG
+#endif
+#ifndef COL_SCENE_FIRE_SKY_LOW
+#define COL_SCENE_FIRE_SKY_LOW lv_color_mix(COL_PANEL, COL_BG, 140)
+#endif
+#ifndef COL_SCENE_FIRE_STAR
+#define COL_SCENE_FIRE_STAR COL_TEXT_SEC
+#endif
+#ifndef COL_SCENE_FIRE_TREES
+#define COL_SCENE_FIRE_TREES lv_color_mix(COL_PANEL, COL_BG, 60)
+#endif
+#ifndef COL_SCENE_FIRE_GROUND
+#define COL_SCENE_FIRE_GROUND lv_color_mix(COL_PANEL, COL_BG, 90)
+#endif
+#ifndef COL_SCENE_FIRE_GLOW
+#define COL_SCENE_FIRE_GLOW COL_WARN
+#endif
+#ifndef COL_SCENE_FIRE_LOGS
+#define COL_SCENE_FIRE_LOGS COL_BG
+#endif
+#ifndef COL_SCENE_FIRE_STONES
+#define COL_SCENE_FIRE_STONES COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_FIRE_CORE
+#define COL_SCENE_FIRE_CORE COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_FIRE_MID
+#define COL_SCENE_FIRE_MID COL_WARN
+#endif
+#ifndef COL_SCENE_FIRE_OUTER
+#define COL_SCENE_FIRE_OUTER COL_ALERT
+#endif
+#ifndef COL_SCENE_FIRE_SPARK
+#define COL_SCENE_FIRE_SPARK COL_WARN
+#endif
 #ifndef COL_SCENE_QUOTE_TEXT
 #define COL_SCENE_QUOTE_TEXT COL_TEXT_PRI
 #endif

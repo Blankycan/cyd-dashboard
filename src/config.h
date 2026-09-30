@@ -19,9 +19,10 @@
 // Ambient scenes -------------------------------------------------------------
 // Played in the calendar slot, in this order and looping, whenever no meeting
 // is near. Available: SCENE_LEAVES, SCENE_SNOW, SCENE_LIFE, SCENE_STARS,
-// SCENE_FISH, SCENE_QUOTE, SCENE_INVADERS, SCENE_ASTEROIDS, SCENE_PACMAN
+// SCENE_FISH, SCENE_QUOTE, SCENE_INVADERS, SCENE_ASTEROIDS, SCENE_PACMAN,
+// SCENE_SYNTHWAVE, SCENE_LOFI, SCENE_FIREWORKS, SCENE_CAMPFIRE
 // (see src/scenes/registry.h). Leave empty to always show the calendar.
-#define CYD_SCENES  SCENE_LEAVES, SCENE_PACMAN, SCENE_FISH, SCENE_INVADERS, SCENE_SNOW, \
+#define CYD_SCENES  SCENE_LEAVES, SCENE_PACMAN, SCENE_FISH, SCENE_LOFI, SCENE_INVADERS, SCENE_SNOW, \
                     SCENE_STARS, SCENE_ASTEROIDS, SCENE_QUOTE, SCENE_LIFE
 
 #define SCENE_SHUFFLE         1                // 1 = random order each cycle, 0 = the order above

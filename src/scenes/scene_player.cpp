@@ -1,5 +1,6 @@
 #include "scene_player.h"
 #include "registry.h"
+#include "pixfb.h"
 #include "../config.h"
 #include "../theme.h"
 #include "../ui_helpers.h"
@@ -90,7 +91,10 @@ static void start_scene(bool by_tap) {
     stopping = false;
     manual   = by_tap;
     cur->start(area, w, h);
-    log_event(by_tap ? "start (tap)" : "start");
+    char buf[48];
+    snprintf(buf, sizeof(buf), "%s, heap free %u KB", by_tap ? "start (tap)" : "start",
+             (unsigned)(ESP.getFreeHeap() / 1024));
+    log_event(buf);
 }
 
 static void end_scene(const char *why) {
@@ -174,6 +178,7 @@ static void frame_cb(lv_timer_t *) {
     }
 
     cur->tick(dt);
+    pixfb_flush_active();   // in case a pixel-canvas scene didn't flush its own changes
 
     if (!stopping) {
         if (cur->is_done()) { end_scene("finished on its own"); return; }
