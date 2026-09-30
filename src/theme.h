@@ -514,6 +514,74 @@
 #ifndef COL_SCENE_FIRE_SPARK
 #define COL_SCENE_FIRE_SPARK COL_WARN
 #endif
+// Night city
+#ifndef COL_SCENE_CITY_DAY_TOP
+#define COL_SCENE_CITY_DAY_TOP lv_color_mix(lv_color_hex(0x5E9FD8), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_CITY_DAY_LOW
+#define COL_SCENE_CITY_DAY_LOW lv_color_mix(lv_color_hex(0xB8D8EE), COL_BG, 205)
+#endif
+#ifndef COL_SCENE_CITY_DUSK_TOP
+#define COL_SCENE_CITY_DUSK_TOP lv_color_mix(COL_GLOW, COL_BG, 90)
+#endif
+#ifndef COL_SCENE_CITY_DUSK_LOW
+#define COL_SCENE_CITY_DUSK_LOW lv_color_mix(COL_WARN, COL_GLOW, 128)
+#endif
+#ifndef COL_SCENE_CITY_NIGHT_TOP
+#define COL_SCENE_CITY_NIGHT_TOP lv_color_mix(COL_PANEL, COL_BG, 90)
+#endif
+#ifndef COL_SCENE_CITY_NIGHT_LOW
+#define COL_SCENE_CITY_NIGHT_LOW lv_color_mix(COL_GLOW, COL_PANEL, 60)
+#endif
+#ifndef COL_SCENE_CITY_STAR
+#define COL_SCENE_CITY_STAR COL_TEXT_SEC
+#endif
+#ifndef COL_SCENE_CITY_SUN
+#define COL_SCENE_CITY_SUN COL_WARN
+#endif
+#ifndef COL_SCENE_CITY_MOON
+#define COL_SCENE_CITY_MOON COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_CITY_FAR
+#define COL_SCENE_CITY_FAR lv_color_mix(COL_PANEL, COL_BG, 200)
+#endif
+#ifndef COL_SCENE_CITY_MID
+#define COL_SCENE_CITY_MID lv_color_mix(COL_PANEL, COL_BG, 110)
+#endif
+#ifndef COL_SCENE_CITY_NEAR
+#define COL_SCENE_CITY_NEAR COL_BG
+#endif
+#ifndef COL_SCENE_CITY_LIGHT
+#define COL_SCENE_CITY_LIGHT COL_WARN
+#endif
+#ifndef COL_SCENE_CITY_TRACK
+#define COL_SCENE_CITY_TRACK COL_BG
+#endif
+#ifndef COL_SCENE_CITY_TRAIN
+#define COL_SCENE_CITY_TRAIN COL_PANEL
+#endif
+#ifndef COL_SCENE_CITY_PLANE
+#define COL_SCENE_CITY_PLANE COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_CITY_BLINK
+#define COL_SCENE_CITY_BLINK COL_ALERT
+#endif
+#ifndef COL_SCENE_CITY_BIRD
+#define COL_SCENE_CITY_BIRD lv_color_mix(COL_BG, COL_PANEL, 200)
+#endif
+// Lava lamp
+#ifndef COL_SCENE_LAVA_BG_TOP
+#define COL_SCENE_LAVA_BG_TOP COL_BG
+#endif
+#ifndef COL_SCENE_LAVA_BG_LOW
+#define COL_SCENE_LAVA_BG_LOW lv_color_mix(COL_PANEL, COL_BG, 180)
+#endif
+#ifndef COL_SCENE_LAVA_WAX
+#define COL_SCENE_LAVA_WAX COL_GLOW
+#endif
+#ifndef COL_SCENE_LAVA_RIM
+#define COL_SCENE_LAVA_RIM COL_WARN
+#endif
 #ifndef COL_SCENE_QUOTE_TEXT
 #define COL_SCENE_QUOTE_TEXT COL_TEXT_PRI
 #endif

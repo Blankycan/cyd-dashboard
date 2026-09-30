@@ -16,6 +16,8 @@ extern const Scene scene_synthwave;// sunset drive on a neon grid; steer by touc
 extern const Scene scene_lofi;     // girl writing by a rainy window; nods to music, writes as you type
 extern const Scene scene_fireworks;// fireworks over a skyline; launches on the beat, tap to launch
 extern const Scene scene_campfire; // campfire under the stars; flames surge with the bass, tap to add a log
+extern const Scene scene_city;     // night city skyline that follows the clock; tap buildings and sky
+extern const Scene scene_lava;     // lava lamp; blobs swell with the bass, tap to add heat
 
 #define SCENE_LEAVES  (&scene_leaves)
 #define SCENE_SNOW    (&scene_snow)
@@ -30,3 +32,5 @@ extern const Scene scene_campfire; // campfire under the stars; flames surge wit
 #define SCENE_LOFI      (&scene_lofi)
 #define SCENE_FIREWORKS (&scene_fireworks)
 #define SCENE_CAMPFIRE  (&scene_campfire)
+#define SCENE_CITY      (&scene_city)
+#define SCENE_LAVA      (&scene_lava)

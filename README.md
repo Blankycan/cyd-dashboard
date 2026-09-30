@@ -523,6 +523,9 @@ swap leaves for snow in winter:
 | `SCENE_FIREWORKS` | Rockets burst into peonies, rings, and golden willows over a skyline. Launches on the beat with music playing; Enter fires a big one; a Claude session finishing earns a golden willow | Tap to launch a rocket that bursts where you tapped |
 | `SCENE_CAMPFIRE` | A campfire under the stars with sparks and a flickering ground glow. The flames surge with the bass and beats throw sparks; on stop it dies down to embers | Tap to toss on a log |
 
+| `SCENE_CITY` | A night skyline in three depths, windows switching on and off, a train on an elevated track, a blinking plane. The sky follows the real clock (day, dusk, night) with the sun or moon arcing across it. Birds live on the rooftops: a murmuration wheels over the city at dusk and dawn, roosts on the skyline at night (the train startles the ones on the rail), and by day a few pigeons hop between roofs. Typing switches office lights on; a Claude session finishing sends a shooting star; beats make the flock swerve | Tap near birds to scatter them, a building to light all its windows, the sky for a shooting star |
+| `SCENE_LAVA` | A lava lamp: blobs rest on the heater, rise, pause at the top and sink, merging as they pass. They swell with the bass | Tap to add a blob, drag to push them |
+
 The arcade scenes play themselves. Touching one takes over the controls, and
 the computer takes them back 5 seconds after your last touch.
 
@@ -729,6 +732,8 @@ src/                ESP32 firmware (Arduino / PlatformIO)
     lofi.cpp        Lofi girl by a rainy window
     fireworks.cpp   Fireworks over a skyline
     campfire.cpp    Campfire night
+    city.cpp        Night city skyline that follows the clock, with its birds
+    lava.cpp        Lava lamp
     pixfb.*         Pixel-canvas drawing helper (shapes, sprites, saved backdrop)
   widgets/
     topbar.*        Clock and date bar

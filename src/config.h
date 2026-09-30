@@ -20,11 +20,11 @@
 // Played in the calendar slot, in this order and looping, whenever no meeting
 // is near. Available: SCENE_LEAVES, SCENE_SNOW, SCENE_LIFE, SCENE_STARS,
 // SCENE_FISH, SCENE_QUOTE, SCENE_INVADERS, SCENE_ASTEROIDS, SCENE_PACMAN,
-// SCENE_SYNTHWAVE, SCENE_LOFI, SCENE_FIREWORKS, SCENE_CAMPFIRE
+// SCENE_SYNTHWAVE, SCENE_LOFI, SCENE_FIREWORKS, SCENE_CAMPFIRE, SCENE_CITY, SCENE_LAVA
 // (see src/scenes/registry.h). Leave empty to always show the calendar.
-#define CYD_SCENES  SCENE_LEAVES, SCENE_PACMAN, SCENE_FISH, SCENE_LOFI, SCENE_INVADERS, SCENE_SNOW,   \
-                    SCENE_SYNTHWAVE, SCENE_STARS, SCENE_ASTEROIDS, SCENE_FIREWORKS, SCENE_QUOTE, \
-                    SCENE_CAMPFIRE, SCENE_LIFE
+#define CYD_SCENES  SCENE_LEAVES, SCENE_PACMAN, SCENE_FISH, SCENE_LOFI, SCENE_INVADERS, SCENE_CITY, \
+                    SCENE_SNOW, SCENE_SYNTHWAVE, SCENE_STARS, SCENE_LAVA, SCENE_ASTEROIDS, \
+                    SCENE_FIREWORKS, SCENE_QUOTE, SCENE_CAMPFIRE, SCENE_LIFE
 
 #define SCENE_SHUFFLE         1                // 1 = random order each cycle, 0 = the order above
 #define SCENE_SHOW_MS         (3 * 60 * 1000)  // how long each scene plays
