@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 
-Settings settings = { SCENES_DEFAULT_ON, CAL_BETWEEN_DEFAULT, SCENE_SHUFFLE_DEFAULT, SCENE_MIN_DEFAULT };
+Settings settings = { SCENES_DEFAULT_ON, CAL_BETWEEN_DEFAULT, SCENE_SHUFFLE_DEFAULT, SCENE_MIN_DEFAULT, CAL_SEC_DEFAULT };
 
 static bool scene_on[SCENE_REGISTRY_MAX];
 static bool dirty;
@@ -20,6 +20,7 @@ void settings_load() {
     settings.cal_between = p.getBool("cal_between", settings.cal_between);
     settings.shuffle     = p.getBool("shuffle", settings.shuffle);
     settings.scene_min   = constrain(p.getUChar("scene_min", settings.scene_min), 1, SCENE_MIN_MAX);
+    settings.cal_sec     = constrain(p.getUChar("cal_sec", settings.cal_sec), CAL_SEC_MIN, CAL_SEC_MAX);
 
     // "fish,life," — names of the scenes switched off
     String off = p.getString("off", "");
@@ -43,6 +44,7 @@ void settings_save() {
     p.putBool("cal_between", settings.cal_between);
     p.putBool("shuffle", settings.shuffle);
     p.putUChar("scene_min", settings.scene_min);
+    p.putUChar("cal_sec", settings.cal_sec);
     p.putString("off", off);
     p.end();
     Serial.println("{\"log\":\"settings saved\"}");

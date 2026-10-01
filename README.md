@@ -505,13 +505,16 @@ panels below the scene slot and leaves the slot itself showing, so you can see
 what you're changing:
 
 - **Scenes**: off means calendar only.
-- **Calendar between**: on, the calendar shows for 30 s between scenes;
+- **Calendar between**: on, the calendar shows between scenes (for the
+  calendar length below);
   off, scenes follow each other directly. Once the day's last meeting is
   over (or on a day without any) the calendar is skipped either way, since
   there's nothing left on it; a tap outside a scene still shows it.
 - **Shuffle**: a new random order every cycle (never repeating a scene across
   the boundary), or alphabetical.
 - **Scene length**: 1 to 10 minutes.
+- **Calendar length**: how long the calendar shows between scenes, or after
+  a tap flips to it: 5 to 60 seconds in steps of 5 (default 10).
 - **The scene list**: tick the scenes to include in the rotation (All / None
   at the top). With several ticked they take turns; with one ticked only that
   one plays (and with the calendar between off, it just keeps going); with
@@ -609,7 +612,7 @@ running):
 strength. `bpm` stays 0 for the first few seconds until enough beats have
 been heard to estimate the tempo.
 
-**Timing** (`src/config.h`): `CAL_PEEK_MS`, `CAL_QUIET_MIN`
+**Timing** (`src/config.h`): `CAL_QUIET_MIN`
 (minutes before a meeting when the calendar takes over),
 `SCENE_STOP_GRACE_MS`, and `SCENE_FRAME_MS` (25 fps).
 

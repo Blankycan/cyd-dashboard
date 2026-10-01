@@ -3,6 +3,7 @@
 #include "../layout.h"
 #include "../theme.h"
 #include "../settings.h"
+#include "../config.h"
 #include "../scenes/registry.h"
 #include "../scenes/scene_player.h"
 
@@ -18,9 +19,8 @@ static lv_obj_t *menu     = nullptr;   // nullptr while closed
 static lv_timer_t *refresh_timer = nullptr;
 
 static lv_obj_t *sw_scenes, *sw_cal, *sw_shuffle;
-static lv_obj_t *slider_len, *lbl_len;
 static lv_obj_t *lbl_hint;
-static lv_obj_t *dim_rows[3];          // the rows that only matter while scenes are on
+static lv_obj_t *dim_rows[4];          // the rows that only matter while scenes are on
 static lv_obj_t *scene_row[SCENE_REGISTRY_MAX];
 static lv_obj_t *scene_box[SCENE_REGISTRY_MAX];
 static lv_obj_t *scene_tick[SCENE_REGISTRY_MAX];
@@ -137,34 +137,49 @@ static void switch_changed(lv_event_t *e) {
     changed();
 }
 
-static void set_len_label() {
+// A setting picked with a slider: min .. max in steps of `step`, shown as
+// "<value> <unit>" at the right of its row. Read live by the player, so
+// changing one needs nothing rebuilt.
+struct SliderSetting {
+    uint8_t    *value;
+    int         min, max, step;
+    const char *unit;
+    lv_obj_t   *slider, *label;
+};
+
+static SliderSetting len_slider = { &settings.scene_min, 1, SCENE_MIN_MAX, 1, "min" };
+static SliderSetting cal_slider = { &settings.cal_sec, CAL_SEC_MIN, CAL_SEC_MAX, CAL_SEC_STEP, "s" };
+
+static void set_slider_label(SliderSetting *s) {
     char buf[12];
-    snprintf(buf, sizeof(buf), "%d min", settings.scene_min);
-    lv_label_set_text(lbl_len, buf);
+    snprintf(buf, sizeof(buf), "%d %s", *s->value, s->unit);
+    lv_label_set_text(s->label, buf);
 }
 
-// The scene length slider doesn't take touches itself (it would grab every
-// drag that lands on it, so scrolling the menu past it adjusted it instead).
-// Its row does: a drag that goes sideways first moves the slider, one that
-// goes up or down scrolls the menu as usual, and a tap jumps to that value.
+// A slider doesn't take touches itself (it would grab every drag that lands
+// on it, so scrolling the menu past it adjusted it instead). Its row does: a
+// drag that goes sideways first moves the slider, one that goes up or down
+// scrolls the menu as usual, and a tap jumps to that value.
 static const int SLIDE_GRAB_PX = 6;
 static lv_point_t slide_start;
 static bool       slide_grabbed;
 
-static void slide_to(int x) {
+static void slide_to(SliderSetting *s, int x) {
     lv_area_t a;
-    lv_obj_get_coords(slider_len, &a);
-    int span = LV_MAX(1, a.x2 - a.x1);
-    int v = 1 + ((x - a.x1) * (SCENE_MIN_MAX - 1) + span / 2) / span;
-    v = LV_CLAMP(1, v, SCENE_MIN_MAX);
-    if (v == settings.scene_min) return;
-    settings.scene_min = (uint8_t)v;
-    lv_slider_set_value(slider_len, v, LV_ANIM_OFF);
-    set_len_label();
-    settings_touch();   // read live by the player: nothing to rebuild
+    lv_obj_get_coords(s->slider, &a);
+    int span  = LV_MAX(1, a.x2 - a.x1);
+    int steps = (s->max - s->min) / s->step;
+    int v = s->min + ((x - a.x1) * steps + span / 2) / span * s->step;
+    v = LV_CLAMP(s->min, v, s->max);
+    if (v == *s->value) return;
+    *s->value = (uint8_t)v;
+    lv_slider_set_value(s->slider, v, LV_ANIM_OFF);
+    set_slider_label(s);
+    settings_touch();
 }
 
 static void slide_row_event(lv_event_t *e) {
+    SliderSetting *s = (SliderSetting *)lv_event_get_user_data(e);
     lv_indev_t *indev = lv_indev_get_act();
     if (!indev) return;
     lv_point_t p;
@@ -182,10 +197,10 @@ static void slide_row_event(lv_event_t *e) {
                 slide_grabbed = true;
                 lv_obj_clear_flag(menu, LV_OBJ_FLAG_SCROLLABLE);   // no scrolling off a wobbly finger
             }
-            slide_to(p.x);
+            slide_to(s, p.x);
             break;
         case LV_EVENT_CLICKED:   // a tap, not a scroll
-            slide_to(p.x);
+            slide_to(s, p.x);
             break;
         case LV_EVENT_RELEASED:
         case LV_EVENT_PRESS_LOST:
@@ -194,6 +209,27 @@ static void slide_row_event(lv_event_t *e) {
             break;
         default: break;
     }
+}
+
+static lv_obj_t *make_slider_row(lv_obj_t *parent, const char *text, SliderSetting *s) {
+    lv_obj_t *r = make_row(parent, 46);
+    lv_obj_align(make_text(r, text, &lv_font_montserrat_14, COL_MENU_TEXT), LV_ALIGN_TOP_LEFT, PAD_X, 7);
+    s->label = make_text(r, "", &lv_font_montserrat_14, COL_MENU_ACCENT);
+    lv_obj_align(s->label, LV_ALIGN_TOP_RIGHT, -PAD_X, 7);
+    s->slider = lv_slider_create(r);
+    lv_obj_set_size(s->slider, SCREEN_W - 2 * PAD_X - 12, 6);
+    lv_obj_align(s->slider, LV_ALIGN_BOTTOM_MID, 0, -9);
+    lv_slider_set_range(s->slider, s->min, s->max);
+    lv_slider_set_value(s->slider, *s->value, LV_ANIM_OFF);
+    style_track(s->slider);
+    lv_obj_set_style_bg_color(s->slider, COL_MENU_ACCENT, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(s->slider, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_set_style_pad_all(s->slider, 5, LV_PART_KNOB);
+    lv_obj_clear_flag(s->slider, LV_OBJ_FLAG_CLICKABLE);   // the row handles it, see slide_row_event()
+    lv_obj_add_flag(r, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(r, slide_row_event, LV_EVENT_ALL, s);
+    set_slider_label(s);
+    return r;
 }
 
 static void tick_clicked(lv_event_t *e) {
@@ -254,30 +290,13 @@ static void open_menu() {
     dim_rows[0] = lv_obj_get_parent(sw_cal);
     dim_rows[1] = lv_obj_get_parent(sw_shuffle);
 
-    // Scene length: 1 .. SCENE_MIN_MAX minutes, whole minutes only
-    lv_obj_t *r = make_row(menu, 46);
-    dim_rows[2] = r;
-    lv_obj_align(make_text(r, "Scene length", &lv_font_montserrat_14, COL_MENU_TEXT), LV_ALIGN_TOP_LEFT, PAD_X, 7);
-    lbl_len = make_text(r, "", &lv_font_montserrat_14, COL_MENU_ACCENT);
-    lv_obj_align(lbl_len, LV_ALIGN_TOP_RIGHT, -PAD_X, 7);
-    slider_len = lv_slider_create(r);
-    lv_obj_set_size(slider_len, SCREEN_W - 2 * PAD_X - 12, 6);
-    lv_obj_align(slider_len, LV_ALIGN_BOTTOM_MID, 0, -9);
-    lv_slider_set_range(slider_len, 1, SCENE_MIN_MAX);
-    lv_slider_set_value(slider_len, settings.scene_min, LV_ANIM_OFF);
-    style_track(slider_len);
-    lv_obj_set_style_bg_color(slider_len, COL_MENU_ACCENT, LV_PART_INDICATOR);
-    lv_obj_set_style_bg_opa(slider_len, LV_OPA_COVER, LV_PART_INDICATOR);
-    lv_obj_set_style_pad_all(slider_len, 5, LV_PART_KNOB);
-    lv_obj_clear_flag(slider_len, LV_OBJ_FLAG_CLICKABLE);   // the row handles it, see slide_row_event()
-    lv_obj_add_flag(r, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(r, slide_row_event, LV_EVENT_ALL, nullptr);
-    set_len_label();
+    dim_rows[2] = make_slider_row(menu, "Scene length", &len_slider);
+    dim_rows[3] = make_slider_row(menu, "Calendar length", &cal_slider);
 
     make_divider(menu);
 
     // Scenes: heading with All / None, a hint, then one row per scene
-    r = make_row(menu, ROW_H);
+    lv_obj_t *r = make_row(menu, ROW_H);
     lv_obj_align(make_text(r, "SCENES", &lv_font_montserrat_12, COL_MENU_HEADING), LV_ALIGN_LEFT_MID, PAD_X, 0);
     lv_obj_align(make_text_button(r, "None", false), LV_ALIGN_RIGHT_MID, -4, 0);
     lv_obj_align(make_text_button(r, "All", true), LV_ALIGN_RIGHT_MID, -48, 0);

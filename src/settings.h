@@ -10,9 +10,10 @@
 
 struct Settings {
     bool    scenes_on;     // play scenes at all
-    bool    cal_between;   // calendar for CAL_PEEK_MS between scenes
+    bool    cal_between;   // calendar for cal_sec between scenes
     bool    shuffle;
     uint8_t scene_min;     // minutes per scene, 1 .. SCENE_MIN_MAX
+    uint8_t cal_sec;       // seconds the calendar shows between scenes / after a tap, CAL_SEC_MIN .. CAL_SEC_MAX
 };
 extern Settings settings;
 

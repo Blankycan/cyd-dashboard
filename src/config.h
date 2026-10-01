@@ -22,12 +22,15 @@
 // right) and kept across reboots and reflashes. These are only the first-boot
 // defaults. Every scene in src/scenes/ is available and starts out switched on.
 #define SCENES_DEFAULT_ON        1   // play scenes at all (0 = calendar only)
-#define CAL_BETWEEN_DEFAULT      1   // show the calendar for CAL_PEEK_MS between scenes
+#define CAL_BETWEEN_DEFAULT      1   // show the calendar between scenes...
+#define CAL_SEC_DEFAULT          10  // ...for this long (seconds), also after a tap...
+#define CAL_SEC_MIN              5   // ...settable in the menu from this
+#define CAL_SEC_MAX              60  // ...to this
+#define CAL_SEC_STEP             5   // ...in steps of this
 #define SCENE_SHUFFLE_DEFAULT    1   // 1 = random order each cycle, 0 = alphabetical
 #define SCENE_MIN_DEFAULT        3   // how long each scene plays (minutes)...
 #define SCENE_MIN_MAX            10  // ...settable in the menu from 1 to this
 
-#define CAL_PEEK_MS           (30 * 1000)      // calendar shown between scenes
 #define CAL_QUIET_MIN         10               // calendar only from this many minutes before a meeting until it ends
 #define SCENE_STOP_GRACE_MS   (12 * 1000)      // time a scene gets to wrap up before it's cut off
 #define SCENE_FRAME_MS        40               // scene frame period (25 fps)

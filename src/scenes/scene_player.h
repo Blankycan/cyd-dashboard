@@ -5,7 +5,7 @@
 // Scene player — shares the calendar's slot between the calendar and the
 // ambient scenes switched on in the settings menu (settings.h). With the
 // calendar between scenes it alternates scene (settings.scene_min) → calendar
-// (CAL_PEEK_MS) → next scene; without it, scenes follow each other directly,
+// (settings.cal_sec) → next scene; without it, scenes follow each other directly,
 // and a single switched-on scene just keeps playing. From CAL_QUIET_MIN
 // before a meeting until it ends the calendar stays up, whatever the settings.
 //

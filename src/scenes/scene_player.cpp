@@ -29,7 +29,7 @@ static bool         stopping    = false;     // request_stop() sent, waiting for
 static bool         manual      = false;     // started by a tap or from the menu, not the rotation
 static bool         meeting_ok  = false;     // picked by hand while a meeting was already near: let it play
 static const Scene *last_played = nullptr;   // so a new cycle doesn't repeat it straight away
-static uint32_t     cal_wait_ms = 0;         // how long the calendar shows before the next scene
+static bool         cal_peek = false;        // calendar shows settings.cal_sec before the next scene (else none)
 static const Scene *pending_play = nullptr;  // "play now" from the menu, started on the next frame
 static bool         settings_changed = false;
 static bool         paused      = false;
@@ -173,7 +173,7 @@ static void end_scene(const char *why, bool peek) {
     lv_obj_clear_flag(cal_panel, LV_OBJ_FLAG_HIDDEN);
     mode        = MODE_CALENDAR;
     mode_ms     = 0;
-    cal_wait_ms = peek || cal_between_now() ? CAL_PEEK_MS : 0;
+    cal_peek    = peek || cal_between_now();
 }
 
 static void end_ready();
@@ -299,7 +299,7 @@ static void frame_cb(lv_timer_t *) {
 
     if (mode == MODE_SCENE) tick_scene(dt);
 
-    if (mode == MODE_CALENDAR && rotation_on() && mode_ms >= cal_wait_ms && !calendar_wants_focus())
+    if (mode == MODE_CALENDAR && rotation_on() && mode_ms >= (cal_peek ? settings.cal_sec * 1000u : 0) && !calendar_wants_focus())
         start_scene(false);
 }
 
@@ -316,7 +316,7 @@ void scene_player_init(lv_obj_t *calendar_panel) {
     lv_obj_add_flag(scene_panel, LV_OBJ_FLAG_HIDDEN);
 
     rebuild_playlist();
-    cal_wait_ms = CAL_PEEK_MS;
+    cal_peek = true;
     last_ms = millis();
     lv_timer_create(frame_cb, SCENE_FRAME_MS, nullptr);
 }
