@@ -49,6 +49,8 @@ struct DashState {
     bool     cal_available = false;  // companion has sent a calendar at least once
     int      cal_count     = 0;
     CalEvent cal_events[CAL_MAX_EVENTS];
+    int      cal_allday_count = 0;   // optional "allday" title list, cleared by every "cal"
+    char     cal_allday[CAL_MAX_ALLDAY][40];
 };
 
 extern DashState state;  // defined in main.cpp

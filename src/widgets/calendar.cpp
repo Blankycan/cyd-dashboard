@@ -5,6 +5,7 @@
 #include "../ui_helpers.h"
 #include "../fonts/fonts.h"
 #include <stdio.h>
+#include <string.h>
 
 // Row A: [when] [title .........] [countdown]   — "14:30 … in 23m" / "NOW … ends 18m"
 static lv_obj_t *lbl_when  = nullptr;
@@ -17,6 +18,13 @@ static lv_obj_t *bar_progress = nullptr;
 
 // Row C: the meeting after the one in row A — "next …" / "then …"
 static lv_obj_t *lbl_after = nullptr;
+
+// Row D: today's all-day events — "■ Holiday · Birthday  +2"
+static const int AD_X0 = 18;               // text starts after the marker
+static const int AD_X1 = PANEL_W - 8;
+static lv_obj_t *ad_mark = nullptr;
+static lv_obj_t *lbl_allday = nullptr;
+static lv_obj_t *lbl_allday_more = nullptr;
 
 // Timeline: track, one block per event, a now-marker, and hour labels
 static const int TL_X0 = 8;
@@ -56,13 +64,24 @@ void build_calendar_panel(lv_obj_t *parent) {
     lbl_title = make_ellipsis_label(parent, 8, row_a_y, PANEL_W - 16, &font_ui_14);
 
     // --- Row B --- same 5px bar as the other panels, centred in the gap below row A
-    bar_progress = make_bar(parent, 8, 23, PANEL_W - 16, 5, COL_CALENDAR_PROGRESS_BG);
+    bar_progress = make_bar(parent, 8, 22, PANEL_W - 16, 5, COL_CALENDAR_PROGRESS_BG);
     lv_obj_set_style_bg_color(bar_progress, COL_CALENDAR_PROGRESS_FILL, LV_PART_INDICATOR);
     lv_obj_add_flag(bar_progress, LV_OBJ_FLAG_HIDDEN);
 
     // --- Row C ---
-    lbl_after = make_ellipsis_label(parent, 8, cap_top_y(&font_ui_12, 36), PANEL_W - 16, &font_ui_12);
+    lbl_after = make_ellipsis_label(parent, 8, cap_top_y(&font_ui_12, 32), PANEL_W - 16, &font_ui_12);
     lv_obj_set_style_text_color(lbl_after, COL_CALENDAR_NEXT, 0);
+
+    // --- Row D --- caps at 46-55, 5px above the timeline strip
+    int row_d_y = cap_top_y(&font_ui_12, 46);
+    lbl_allday = make_ellipsis_label(parent, AD_X0, row_d_y, AD_X1 - AD_X0, &font_ui_12);
+    lv_obj_set_style_text_color(lbl_allday, COL_CALENDAR_ALLDAY, 0);
+
+    lbl_allday_more = lv_label_create(parent);
+    lv_label_set_text(lbl_allday_more, "");
+    lv_obj_set_style_text_font(lbl_allday_more, &font_ui_12, 0);
+    lv_obj_set_style_text_color(lbl_allday_more, COL_CALENDAR_ALLDAY_MORE, 0);
+    lv_obj_align(lbl_allday_more, LV_ALIGN_TOP_RIGHT, -8, row_d_y);
 
     // --- Timeline --- hour labels sit on the panel's bottom padding, strip just above
     const lv_font_t *hf = &lv_font_montserrat_12;
@@ -78,6 +97,12 @@ void build_calendar_panel(lv_obj_t *parent) {
         tl_blocks[i] = make_rect(parent, COL_CALENDAR_EVENT);
         lv_obj_add_flag(tl_blocks[i], LV_OBJ_FLAG_HIDDEN);
     }
+
+    ad_mark = make_rect(parent, COL_CALENDAR_ALLDAY_MARK);
+    lv_obj_set_style_radius(ad_mark, 1, 0);
+    lv_obj_set_pos(ad_mark, 8, 48);
+    lv_obj_set_size(ad_mark, 5, 5);
+    lv_obj_add_flag(ad_mark, LV_OBJ_FLAG_HIDDEN);
 
     // Created after the blocks so it draws on top of them
     tl_now = make_rect(parent, COL_CALENDAR_NOW_MARK);
@@ -146,6 +171,41 @@ static void update_timeline(int now) {
     for (; n < TL_MAX_HOUR_LABELS; n++) lv_obj_add_flag(tl_hours[n], LV_OBJ_FLAG_HIDDEN);
 }
 
+static int text_w(const char *s) {
+    return lv_txt_get_width(s, strlen(s), &font_ui_12, 0, LV_TEXT_FLAG_NONE);
+}
+
+// As many whole titles as fit, then "+N" for the rest; a first title that
+// doesn't fit alone gets ellipsized.
+static void update_allday() {
+    int n = state.cal_allday_count;
+    if (n == 0) {
+        lv_obj_add_flag(ad_mark, LV_OBJ_FLAG_HIDDEN);
+        set_ellipsis_text(lbl_allday, "");
+        lv_label_set_text(lbl_allday_more, "");
+        return;
+    }
+    lv_obj_clear_flag(ad_mark, LV_OBJ_FLAG_HIDDEN);
+
+    char buf[CAL_MAX_ALLDAY * 44], more[6];
+    int  room = AD_X1 - AD_X0;
+    for (int k = n; k >= 1; k--) {
+        buf[0] = '\0';
+        for (int i = 0; i < k; i++) {
+            if (i) strlcat(buf, " \xC2\xB7 ", sizeof(buf));   // " · "
+            strlcat(buf, state.cal_allday[i], sizeof(buf));
+        }
+        more[0] = '\0';
+        if (k < n) snprintf(more, sizeof(more), "+%d", n - k);
+        room = AD_X1 - AD_X0 - (more[0] ? text_w(more) + 8 : 0);
+        if (text_w(buf) <= room) break;
+    }
+
+    lv_label_set_text(lbl_allday_more, more);
+    lv_obj_set_width(lbl_allday, room);
+    set_ellipsis_text(lbl_allday, buf);
+}
+
 static void set_countdown(const char *prefix, int mins, bool soon) {
     char dur[16], buf[24];
     fmt_reset(dur, sizeof(dur), mins * 60);
@@ -199,6 +259,7 @@ bool calendar_has_more_today() {
 void update_calendar_ui() {
     int now = dash_now_min();
     update_timeline(now);
+    update_allday();
 
     const CalEvent *cur = nullptr, *next = nullptr, *after_next = nullptr;
     if (now >= 0) {

@@ -316,7 +316,7 @@ static void show_disconnected() {
 // Parse one JSON line from serial and update state + UI widgets.
 // Expected shape: {"type":"stats","cpu":..,"ram":..,"keys":..,"time":"..","date":"..",
 //   "active":bool,"idle_msg":"..","ip":"..","music":{..},"claude":{..},
-//   "cal":[[start_min,end_min,"title"],..]}
+//   "cal":[[start_min,end_min,"title"],..],"allday":["title",..]}
 static SceneMusic music_state() {
     if (!state.connected || !state.music_active) return SCENE_MUSIC_NONE;
     return state.music_playing ? SCENE_MUSIC_PLAYING : SCENE_MUSIC_PAUSED;
@@ -432,6 +432,12 @@ static void handle_packet(const String &line) {
                 e.start_min = ev[0] | 0;
                 e.end_min   = ev[1] | 0;
                 strlcpy(e.title, ev[2] | "", sizeof(e.title));
+            }
+            state.cal_allday_count = 0;
+            for (const char *t : doc["allday"].as<JsonArray>()) {
+                if (state.cal_allday_count >= CAL_MAX_ALLDAY) break;
+                strlcpy(state.cal_allday[state.cal_allday_count++], t ? t : "",
+                        sizeof(state.cal_allday[0]));
             }
         }
 

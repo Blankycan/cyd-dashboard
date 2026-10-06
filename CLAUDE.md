@@ -187,7 +187,7 @@ ignored.
 
 One JSON object per line, newline-delimited, 115200 baud. Firmware boots with
 `{"boot":true,"version":"..."}`; each stats packet is `{"type":"stats", cpu,
-ram, keys, time, date, active, ip, idle_msg?, music?, claude?, cal?}` — see
+ram, keys, time, date, active, ip, idle_msg?, music?, claude?, cal?, allday?}` — see
 `handle_packet()` in `main.cpp` for the authoritative field list and defaults,
 and `collect_stats()` in `companion/main.py` for how it's assembled. The
 firmware acks each packet with `{"ack":true}` and may also send
@@ -208,7 +208,11 @@ running scene via `scene_player_event()`.
 `cal` is `[[start_min, end_min, title], ...]` (minutes since local midnight)
 resent in every packet; the firmware derives current/next meeting and all
 countdowns from its own clock (`dash_now_min()` in `state.h`), so the calendar
-widget is also refreshed from the 10 s clock tick, not just on packets. The
+widget is also refreshed from the 10 s clock tick, not just on packets.
+All-day events (and each day of a multi-day one) travel separately as
+`allday: ["title", ...]`, sent only when non-empty and cleared by every `cal`;
+they get their own text row above the timeline and never count as meetings
+(no countdowns, no `calendar_wants_focus()`). The
 firmware raises its UART RX buffer to 2 KB in `setup()` because a packet with
 a full calendar overflows the default 256 bytes if it arrives mid-redraw.
 

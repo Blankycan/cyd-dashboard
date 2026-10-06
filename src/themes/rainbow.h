@@ -126,6 +126,9 @@
 #define COL_CALENDAR_EVENT_NOW  LVC(0xFF0033)  // red
 #define COL_CALENDAR_NOW_MARK   LVC(0xFFFFAA)  // pale yellow
 #define COL_CALENDAR_HOUR       LVC(0xAA5566)  // muted rose
+#define COL_CALENDAR_ALLDAY     LVC(0xFFAA88)  // peach
+#define COL_CALENDAR_ALLDAY_MARK LVC(0xFF4400) // vermilion
+#define COL_CALENDAR_ALLDAY_MORE LVC(0x995544) // dull brick
 
 // Scenes — near-black blue bg
 #define COL_SCENE_BG            LVC(0x00060F)  // near-black blue

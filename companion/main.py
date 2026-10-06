@@ -103,6 +103,8 @@ def collect_stats(kb: KeyboardMonitor | None = None,
         stats["claude"] = tok
     if ev is not None:
         stats["cal"] = ev  # [[start_min, end_min, title], ...] for today
+        if allday := cal.get_allday():
+            stats["allday"] = allday  # ["title", ...]; firmware clears it when absent
     return stats
 
 
@@ -167,6 +169,8 @@ def print_stats(s: dict) -> None:
         now = datetime.now().hour * 60 + datetime.now().minute
         left = sum(1 for st, en, _ in s["cal"] if en > now)
         cal_s = ansi("text_sec", f"{left} mtg left")
+        if s.get("allday"):
+            cal_s += ansi("text_dim", f" + {len(s['allday'])} all-day")
     if _last_audio.get("bpm") and m and m.get("playing"):
         music_s += ansi("text_dim", f"  {_last_audio['bpm']} BPM")
     print(

@@ -1,11 +1,12 @@
 """
-Google Calendar monitor — fetches today's timed events for the calendar panel.
+Google Calendar monitor — fetches today's events for the calendar panel.
 
 Uses the Google Calendar API with the read-only token saved by gcal_auth.py.
 Every CALENDAR_POLL_INTERVAL (and right after local midnight) it pulls today's
-events from each calendar listed in CALENDAR_IDS_FILE, drops all-day, cancelled, and declined
+events from each calendar listed in CALENDAR_IDS_FILE, drops cancelled, declined, and working-location
 events, merges duplicates (the same meeting on both calendars), and keeps the
-result for main.py to send as [[start_min, end_min, title], ...].
+result for main.py to send: timed events as [[start_min, end_min, title], ...],
+all-day events (including each day of a multi-day one) as a list of titles.
 
 If the token is missing or a fetch fails, the last good list is kept; get()
 returns None only when nothing has ever been fetched, so the firmware can tell
@@ -25,6 +26,7 @@ from text_utils import fit_utf8, to_displayable
 _API = "https://www.googleapis.com/calendar/v3"
 
 MAX_EVENTS      = 12   # must not exceed CAL_MAX_EVENTS in the firmware's config.h
+MAX_ALLDAY      = 6    # must not exceed CAL_MAX_ALLDAY in the firmware's config.h
 MAX_TITLE_BYTES = 39   # firmware title buffer is 40 bytes incl. terminator
 
 
@@ -53,6 +55,7 @@ class CalendarMonitor:
     def __init__(self):
         self._lock    = threading.Lock()
         self._events  = None   # list of [start_min, end_min, title], or None
+        self._allday  = []     # titles of today's all-day events
         self._day     = None   # date the list belongs to
         self._running = False
         self._enabled = GOOGLE_TOKEN_FILE.exists()
@@ -74,6 +77,10 @@ class CalendarMonitor:
                 return None
             # Yesterday's list is stale past midnight even if a refetch failed
             return self._events if self._day == date.today() else []
+
+    def get_allday(self) -> list:
+        with self._lock:
+            return self._allday if self._day == date.today() else []
 
     # ------------------------------------------------------------------
     def _run(self):
@@ -99,25 +106,33 @@ class CalendarMonitor:
             "maxResults":   "100",
         }
 
-        seen, events = set(), []
+        seen, events, allday = set(), [], []
         for cal_id in _calendar_ids():
             r = session.get(f"{_API}/calendars/{cal_id}/events", params=params, timeout=15)
             r.raise_for_status()
             for ev in r.json().get("items", []):
                 if ev.get("status") == "cancelled":
                     continue
-                start, end = ev.get("start", {}), ev.get("end", {})
-                if "dateTime" not in start or "dateTime" not in end:
-                    continue  # all-day event
+                if ev.get("eventType") == "workingLocation":
+                    continue  # "Office" / "Home" markers, not events
                 if any(a.get("self") and a.get("responseStatus") == "declined"
                        for a in ev.get("attendees", [])):
+                    continue
+                start, end = ev.get("start", {}), ev.get("end", {})
+                title = fit_utf8(to_displayable(ev.get("summary", "(no title)").strip()),
+                                 MAX_TITLE_BYTES)
+                if "date" in start and "date" in end:
+                    # All-day; the end date is exclusive
+                    if (date.fromisoformat(start["date"]) <= today < date.fromisoformat(end["date"])
+                            and title not in allday):
+                        allday.append(title)
+                    continue
+                if "dateTime" not in start or "dateTime" not in end:
                     continue
                 s = _minutes(datetime.fromisoformat(start["dateTime"]), day_start)
                 e = _minutes(datetime.fromisoformat(end["dateTime"]), day_start)
                 if e <= s:
                     continue
-                title = fit_utf8(to_displayable(ev.get("summary", "(no title)").strip()),
-                                 MAX_TITLE_BYTES)
                 key = (s, e, title)
                 if key in seen:
                     continue  # same meeting on two calendars
@@ -127,6 +142,7 @@ class CalendarMonitor:
         events.sort()
         with self._lock:
             self._events = events[:MAX_EVENTS]
+            self._allday = allday[:MAX_ALLDAY]
             self._day    = today
 
 

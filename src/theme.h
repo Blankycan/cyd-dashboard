@@ -165,6 +165,15 @@
 #ifndef COL_CALENDAR_HOUR
 #define COL_CALENDAR_HOUR COL_TEXT_DIM
 #endif
+#ifndef COL_CALENDAR_ALLDAY
+#define COL_CALENDAR_ALLDAY COL_TEXT_SEC
+#endif
+#ifndef COL_CALENDAR_ALLDAY_MARK
+#define COL_CALENDAR_ALLDAY_MARK COL_CALENDAR_EVENT
+#endif
+#ifndef COL_CALENDAR_ALLDAY_MORE
+#define COL_CALENDAR_ALLDAY_MORE COL_TEXT_DIM
+#endif
 
 // --- Ambient scenes --- (scene_player.cpp, src/scenes/*.cpp)
 #ifndef COL_SCENE_BG

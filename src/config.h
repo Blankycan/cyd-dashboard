@@ -59,6 +59,7 @@
 #define CAL_PULSE_MS          1500
 // Events kept per day — must be >= MAX_EVENTS in companion/gcal.py
 #define CAL_MAX_EVENTS        12
+#define CAL_MAX_ALLDAY        6
 
 // Claude working-session dots ------------------------------------------------
 // One small dot per currently-active Claude Code session, shown to the
