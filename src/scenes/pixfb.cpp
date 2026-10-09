@@ -1,4 +1,5 @@
 #include "pixfb.h"
+#include <Arduino.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,7 +19,11 @@ bool pixfb_create(PixFb &fb, lv_obj_t *parent, int w, int h, lv_color_t bg) {
     fb.canvas = nullptr;
     fb.bg = nullptr;
     fb.n_dirty = 0;
-    if (!fb.buf) return false;
+    if (!fb.buf) {
+        Serial.printf("{\"log\":\"pixfb: no memory for %u bytes (largest free block %u)\"}\n",
+                      (unsigned)(sizeof(lv_color_t) * w * h), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+        return false;
+    }
     fb.canvas = lv_canvas_create(parent);
     lv_canvas_set_buffer(fb.canvas, fb.buf, w, h, LV_IMG_CF_TRUE_COLOR);
     lv_canvas_fill_bg(fb.canvas, bg, LV_OPA_COVER);
@@ -261,7 +266,11 @@ void pixfb_fill_tri(PixFb &fb, int x0, int y0, int x1, int y1, int x2, int y2, l
 
 bool pixfb_bg_save(PixFb &fb) {
     if (!fb.bg) fb.bg = (lv_color_t *)malloc(sizeof(lv_color_t) * fb.w * fb.h);
-    if (!fb.bg) return false;
+    if (!fb.bg) {
+        Serial.printf("{\"log\":\"pixfb: no memory for the backdrop (largest free block %u)\"}\n",
+                      (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+        return false;
+    }
     memcpy(fb.bg, fb.buf, sizeof(lv_color_t) * fb.w * fb.h);
     return true;
 }

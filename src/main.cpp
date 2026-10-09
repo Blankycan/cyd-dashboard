@@ -16,6 +16,7 @@
 #include "widgets/claude.h"
 #include "widgets/status.h"
 #include "widgets/menu.h"
+#include "widgets/track_card.h"
 #include "settings.h"
 #include "scenes/scene_player.h"
 
@@ -184,6 +185,7 @@ static void enter_sleep() {
     lv_obj_clear_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
     bl_set(BL_DIM);
     menu_close();
+    track_card_hide();
     scene_player_set_paused(true);
     zzz_timer = lv_timer_create(zzz_cb, 700, nullptr);
 }
@@ -238,6 +240,7 @@ static void build_panels(lv_obj_t *scr) {
     p = make_panel(scr, 0, y, SCREEN_W, CALENDAR_H, COL_CALENDAR_BG);
     build_calendar_panel(p);
     scene_player_init(p);   // ambient scenes take turns with the calendar in this slot
+    build_track_card(scr, 0, y, SCREEN_W, CALENDAR_H);   // over both
     y += CALENDAR_H;
 
     make_hdiv(scr, y, 0, SCREEN_W, COL_DIVIDER);
@@ -346,7 +349,23 @@ static bool handle_live_event(const char *type, JsonDocument &doc) {
         return true;
     }
     if (strcmp(type, "au") == 0) {
-        scene_player_audio(doc["i"] | 0, doc["b"] | 0, doc["bpm"] | 0);
+        uint8_t sp[SCENE_BANDS];
+        int n = 0;
+        for (int v : doc["sp"].as<JsonArray>()) {
+            if (n >= SCENE_BANDS) break;
+            sp[n++] = (uint8_t)constrain(v, 0, 99);
+        }
+        scene_player_audio(doc["i"] | 0, doc["b"] | 0, doc["bpm"] | 0, sp, n);
+        return true;
+    }
+    if (strcmp(type, "track") == 0) {   // a new song: the "now playing" card (not while asleep)
+        if (sleep_state == SS_AWAKE)
+            track_card_begin(doc["id"] | 0, doc["t"] | "", doc["a"] | "", doc["al"] | "",
+                             doc["w"] | 0, doc["h"] | 0);
+        return true;
+    }
+    if (strcmp(type, "art") == 0) {
+        track_card_art(doc["id"] | 0, doc["o"] | -1, doc["d"] | "");
         return true;
     }
     return false;

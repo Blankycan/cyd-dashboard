@@ -7,6 +7,8 @@
 #include "../state.h"
 #include "../settings.h"
 #include "../widgets/calendar.h"
+#include "../widgets/track_card.h"
+#include <string.h>
 
 // The scenes switched on in the menu, rebuilt whenever the settings change.
 // Empty (or scenes switched off) means calendar only.
@@ -52,8 +54,9 @@ static bool    scene_owns_gesture = false;   // current press started inside the
 // start of the next frame. Audio frames collapse into one entry.
 static SceneEvent   evq[16];
 static int          evq_len = 0;
-static SceneContext ctx = { SCENE_MUSIC_NONE, 0, 0, 0, 0, false, 0, -1, -1 };
+static SceneContext ctx = { SCENE_MUSIC_NONE, 0, 0, 0, {}, 0, false, 0, -1, -1 };
 static uint32_t     last_key_ms = 0;
+static uint32_t     last_scene_touch_ms = 0;
 
 static const uint32_t FLIP_DEBOUNCE_MS = 300;
 static const uint32_t TYPING_MS        = 1500;
@@ -146,9 +149,10 @@ static void start_this(const Scene *s, bool by_tap) {
         lv_obj_set_style_pad_ver(ready_label, 2, 0);
         lv_obj_center(ready_label);
     }
-    char buf[48];
-    snprintf(buf, sizeof(buf), "%s, heap free %u KB", by_tap ? "start (tap)" : "start",
-             (unsigned)(ESP.getFreeHeap() / 1024));
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%s, heap free %u KB (largest %u KB)", by_tap ? "start (tap)" : "start",
+             (unsigned)(heap_caps_get_free_size(MALLOC_CAP_8BIT) / 1024),
+             (unsigned)(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) / 1024));
     log_event(buf);
 }
 
@@ -180,11 +184,13 @@ static void end_ready();
 
 static void handle_touch(const TouchEv &ev) {
     if (ev.type == SCENE_TOUCH_PRESS) {
+        if (track_card_take_press(ev.x, ev.y)) return;   // a tap just closes the song card
         if (mode == MODE_SCENE) {
             lv_area_t a;
             lv_obj_get_coords(area, &a);
             if (ev.x >= a.x1 && ev.x <= a.x2 && ev.y >= a.y1 && ev.y <= a.y2) {
                 scene_owns_gesture = true;
+                last_scene_touch_ms = millis();
                 if (ready_ms) end_ready();   // you've got the controls: play starts now
                 if (cur->touch) cur->touch(SCENE_TOUCH_PRESS, ev.x - a.x1, ev.y - a.y1);
                 return;
@@ -348,6 +354,10 @@ const Scene *scene_player_current() {
     return mode == MODE_SCENE ? cur : nullptr;
 }
 
+bool scene_player_in_use() {
+    return mode == MODE_SCENE && last_scene_touch_ms && millis() - last_scene_touch_ms < SCENE_IN_USE_MS;
+}
+
 // ---------------------------------------------------------------------------
 // Host events
 
@@ -362,7 +372,10 @@ void scene_player_event(const SceneEvent &e) {
         case SCENE_EV_KEY:    last_key_ms = millis(); break;
         case SCENE_EV_MUSIC:
             ctx.music = e.music;
-            if (e.music != SCENE_MUSIC_PLAYING) ctx.intensity = ctx.bass = ctx.bpm = 0;
+            if (e.music != SCENE_MUSIC_PLAYING) {
+                ctx.intensity = ctx.bass = ctx.bpm = 0;
+                memset(ctx.spectrum, 0, sizeof(ctx.spectrum));
+            }
             break;
         case SCENE_EV_BEAT:   ctx.last_beat_ms = millis(); break;
         case SCENE_EV_CLAUDE: ctx.claude_working = e.value; break;
@@ -371,10 +384,11 @@ void scene_player_event(const SceneEvent &e) {
     queue_event(e);
 }
 
-void scene_player_audio(int intensity, int bass, int bpm) {
+void scene_player_audio(int intensity, int bass, int bpm, const uint8_t *spectrum, int n) {
     ctx.intensity = (uint8_t)constrain(intensity, 0, 100);
     ctx.bass      = (uint8_t)constrain(bass, 0, 100);
     ctx.bpm       = (uint16_t)constrain(bpm, 0, 400);
+    for (int i = 0; i < SCENE_BANDS; i++) ctx.spectrum[i] = i < n ? spectrum[i] : 0;
     SceneEvent e = {};
     e.type = SCENE_EV_AUDIO;
     queue_event(e);

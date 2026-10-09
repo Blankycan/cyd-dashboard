@@ -175,6 +175,29 @@
 #define COL_CALENDAR_ALLDAY_MORE COL_TEXT_DIM
 #endif
 
+// --- New song card --- (widgets/track_card.cpp, over the scene slot)
+#ifndef COL_TRACK_BG
+#define COL_TRACK_BG COL_BG
+#endif
+#ifndef COL_TRACK_HEAD
+#define COL_TRACK_HEAD COL_DOT_ACTIVE
+#endif
+#ifndef COL_TRACK_TITLE
+#define COL_TRACK_TITLE COL_TEXT_PRI
+#endif
+#ifndef COL_TRACK_ARTIST
+#define COL_TRACK_ARTIST COL_TEXT_SEC
+#endif
+#ifndef COL_TRACK_ALBUM
+#define COL_TRACK_ALBUM COL_TEXT_DIM
+#endif
+#ifndef COL_TRACK_ART_BG
+#define COL_TRACK_ART_BG COL_BAR_BG
+#endif
+#ifndef COL_TRACK_ART_ICON
+#define COL_TRACK_ART_ICON COL_TEXT_DIM
+#endif
+
 // --- Ambient scenes --- (scene_player.cpp, src/scenes/*.cpp)
 #ifndef COL_SCENE_BG
 #define COL_SCENE_BG COL_CALENDAR_BG
@@ -982,6 +1005,121 @@
 #endif
 #ifndef COL_SCENE_QUOTE_AUTHOR
 #define COL_SCENE_QUOTE_AUTHOR COL_TEXT_DIM
+#endif
+
+// Spectrum (scenes/spectrum.cpp)
+#ifndef COL_SCENE_SPEC_BG
+#define COL_SCENE_SPEC_BG COL_SCENE_BG
+#endif
+#ifndef COL_SCENE_SPEC_LOW
+#define COL_SCENE_SPEC_LOW COL_OK
+#endif
+#ifndef COL_SCENE_SPEC_MID
+#define COL_SCENE_SPEC_MID COL_WARN
+#endif
+#ifndef COL_SCENE_SPEC_HIGH
+#define COL_SCENE_SPEC_HIGH COL_ALERT
+#endif
+#ifndef COL_SCENE_SPEC_PEAK
+#define COL_SCENE_SPEC_PEAK COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_SPEC_OFF
+#define COL_SCENE_SPEC_OFF COL_BAR_BG
+#endif
+// Turntable (scenes/turntable.cpp)
+#ifndef COL_SCENE_TT_BG
+#define COL_SCENE_TT_BG COL_PANEL
+#endif
+#ifndef COL_SCENE_TT_SHADOW
+#define COL_SCENE_TT_SHADOW COL_BAR_BG
+#endif
+#ifndef COL_SCENE_TT_RIM
+#define COL_SCENE_TT_RIM COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_TT_VINYL
+#define COL_SCENE_TT_VINYL COL_BG
+#endif
+#ifndef COL_SCENE_TT_GROOVE
+#define COL_SCENE_TT_GROOVE COL_DIVIDER
+#endif
+#ifndef COL_SCENE_TT_SHEEN
+#define COL_SCENE_TT_SHEEN COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_TT_LABEL
+#define COL_SCENE_TT_LABEL COL_GLOW
+#endif
+#ifndef COL_SCENE_TT_LABEL_INK
+#define COL_SCENE_TT_LABEL_INK COL_BG
+#endif
+#ifndef COL_SCENE_TT_STROBE
+#define COL_SCENE_TT_STROBE COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_TT_STROBE_BEAT
+#define COL_SCENE_TT_STROBE_BEAT COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_TT_ARM
+#define COL_SCENE_TT_ARM COL_TEXT_SEC
+#endif
+#ifndef COL_SCENE_TT_ARM_SHADOW
+#define COL_SCENE_TT_ARM_SHADOW COL_BAR_BG
+#endif
+#ifndef COL_SCENE_TT_FACE
+#define COL_SCENE_TT_FACE COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_TT_TICK
+#define COL_SCENE_TT_TICK COL_BG
+#endif
+#ifndef COL_SCENE_TT_RED
+#define COL_SCENE_TT_RED COL_ALERT
+#endif
+#ifndef COL_SCENE_TT_NEEDLE
+#define COL_SCENE_TT_NEEDLE COL_BG
+#endif
+#ifndef COL_SCENE_TT_TEXT
+#define COL_SCENE_TT_TEXT COL_TEXT_DIM
+#endif
+#ifndef COL_SCENE_TT_LED_OFF
+#define COL_SCENE_TT_LED_OFF COL_BAR_BG
+#endif
+// Concert (scenes/concert.cpp)
+#ifndef COL_SCENE_CONC_BG_TOP
+#define COL_SCENE_CONC_BG_TOP COL_BAR_BG
+#endif
+#ifndef COL_SCENE_CONC_BG_LOW
+#define COL_SCENE_CONC_BG_LOW COL_PANEL
+#endif
+#ifndef COL_SCENE_CONC_FLOOR
+#define COL_SCENE_CONC_FLOOR COL_BAR_BG
+#endif
+#ifndef COL_SCENE_CONC_TRUSS
+#define COL_SCENE_CONC_TRUSS COL_DIVIDER
+#endif
+#ifndef COL_SCENE_CONC_SPEAKER
+#define COL_SCENE_CONC_SPEAKER COL_BG
+#endif
+#ifndef COL_SCENE_CONC_STAGE
+#define COL_SCENE_CONC_STAGE COL_DIVIDER
+#endif
+#ifndef COL_SCENE_CONC_BAND
+#define COL_SCENE_CONC_BAND COL_BG
+#endif
+#ifndef COL_SCENE_CONC_CROWD
+#define COL_SCENE_CONC_CROWD COL_BAR_BG
+#endif
+#ifndef COL_SCENE_CONC_CROWD_BACK
+#define COL_SCENE_CONC_CROWD_BACK COL_BG
+#endif
+#ifndef COL_SCENE_CONC_BEAM1
+#define COL_SCENE_CONC_BEAM1 COL_GLOW
+#endif
+#ifndef COL_SCENE_CONC_BEAM2
+#define COL_SCENE_CONC_BEAM2 COL_WARN
+#endif
+#ifndef COL_SCENE_CONC_BEAM3
+#define COL_SCENE_CONC_BEAM3 COL_TEXT_PRI
+#endif
+#ifndef COL_SCENE_CONC_PHONE
+#define COL_SCENE_CONC_PHONE COL_TEXT_PRI
 #endif
 
 // --- Music ---

@@ -14,6 +14,7 @@ struct Settings {
     bool    shuffle;
     uint8_t scene_min;     // minutes per scene, 1 .. SCENE_MIN_MAX
     uint8_t cal_sec;       // seconds the calendar shows between scenes / after a tap, CAL_SEC_MIN .. CAL_SEC_MAX
+    bool    track_card;    // "now playing" card when a new song starts (widgets/track_card.h)
 };
 extern Settings settings;
 

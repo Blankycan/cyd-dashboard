@@ -55,7 +55,7 @@ enum SceneEventType {
     SCENE_EV_MUSIC,    // playback state changed: .music
     SCENE_EV_TRACK,    // a different track started
     SCENE_EV_BEAT,     // a beat just hit in the playing music: .strength (1-100)
-    SCENE_EV_AUDIO,    // new intensity/bass/tempo numbers (~10/s) — read them from scene_ctx()
+    SCENE_EV_AUDIO,    // new intensity/bass/tempo/spectrum numbers (~14/s) — read them from scene_ctx()
     SCENE_EV_CLAUDE,   // number of Claude sessions working changed: .value = new count
     SCENE_EV_HOUR,     // the clock ticked over into a new hour: .value = 0-23
 };
@@ -75,11 +75,13 @@ struct SceneEvent {
 // Current host state, kept up to date by the player whether or not a scene
 // is running. Beat/tempo fields stay 0 unless the companion's audio energy
 // detection is enabled and music is playing.
+static const int SCENE_BANDS = 12;
 struct SceneContext {
     SceneMusic music;
     uint8_t    intensity;      // 0-100, relative to the song itself (volume-independent)
     uint8_t    bass;           // 0-100
     uint16_t   bpm;            // estimated tempo, 0 = unknown
+    uint8_t    spectrum[SCENE_BANDS];   // 0-99 per band, 40 Hz .. 5 kHz log-spaced; all 0 = none
     uint32_t   last_beat_ms;   // millis() of the latest beat, 0 = none yet
     bool       typing;         // a key was pressed in the last 1.5 s
     int        claude_working; // Claude sessions currently mid-turn

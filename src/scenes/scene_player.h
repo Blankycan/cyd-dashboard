@@ -26,8 +26,9 @@ void scene_player_set_paused(bool paused);
 // Host events: updates scene_ctx() and passes the event to the running scene
 // (queued, delivered on the next frame; dropped while paused).
 void scene_player_event(const SceneEvent &e);
-// Latest music energy numbers from the host (SCENE_EV_AUDIO)
-void scene_player_audio(int intensity, int bass, int bpm);
+// Latest music energy numbers from the host (SCENE_EV_AUDIO); `spectrum` may be
+// nullptr (n = 0) from a companion that doesn't send one
+void scene_player_audio(int intensity, int bass, int bpm, const uint8_t *spectrum, int n);
 
 // The settings changed: rebuild the rotation on the next frame. A running
 // scene that's no longer in it (and wasn't picked by hand) makes way.
@@ -38,3 +39,5 @@ void scene_player_settings_changed();
 void scene_player_play(const Scene *s);
 // The scene showing right now, nullptr while the calendar shows
 const Scene *scene_player_current();
+// Someone touched the running scene in the last SCENE_IN_USE_MS (playing a game)
+bool scene_player_in_use();

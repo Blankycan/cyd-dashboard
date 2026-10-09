@@ -38,6 +38,14 @@
 #define SCENE_EVENT_LOG       0                // 1 = log every host event a scene receives (debugging)
 #define MENU_IDLE_CLOSE_MS    (60 * 1000)      // the settings menu closes itself after this long untouched
 
+// New song card ----------------------------------------------------------------
+// Slides in over the scene slot when a new song starts (switch in the menu).
+#define TRACK_CARD_DEFAULT    1                // first-boot default: on
+#define TRACK_CARD_MS         (7 * 1000)       // how long it stays up
+#define TRACK_ART_WAIT_MS     4000             // longest wait for the cover before showing without it
+#define TRACK_ART_MAX         80               // cover size limit (px) — must be >= ART_SIZE in companion/track_card.py
+#define SCENE_IN_USE_MS       (15 * 1000)      // no card for this long after someone touches a scene
+
 // Sleep & backlight --------------------------------------------------------
 // Inactivity time before the display dims (milliseconds)
 #define SLEEP_TIMEOUT_MS      (5 * 60 * 1000)

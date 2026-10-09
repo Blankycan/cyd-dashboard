@@ -15,7 +15,7 @@ KEYS_SAVE_INTERVAL = 30.0  # seconds between writes of today's keystroke count
 KEYS_STATE_FILE    = Path.home() / ".local" / "state" / "cyd-dashboard" / "keys.json"
 
 # Media --------------------------------------------------------------------
-MEDIA_POLL_INTERVAL = 3.0  # seconds between playerctl metadata polls
+MEDIA_POLL_INTERVAL = 1.5  # seconds between playerctl metadata polls
 
 # Scene events -------------------------------------------------------------
 # Live events for the board's ambient scenes, sent the moment they happen
@@ -23,6 +23,7 @@ MEDIA_POLL_INTERVAL = 3.0  # seconds between playerctl metadata polls
 KEY_EVENTS_ENABLED   = True   # key-press categories (never which key) — see keyboard.py
 AUDIO_ENERGY_ENABLED = True   # beat / tempo / intensity / bass of playing music — see audio.py
                               # (needs numpy; captures audio only while something plays)
+TRACK_CARD_ENABLED   = True   # announce each new song (+ cover art, needs pillow) — see track_card.py
 
 # Claude token scanner -----------------------------------------------------
 SCAN_INTERVAL  = 60.0    # seconds between JSONL scans for today's session count

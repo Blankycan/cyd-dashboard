@@ -77,7 +77,10 @@ Panels live under `src/widgets/`, stacked top-to-bottom by `build_panels()` in
 countdown, day timeline) →
 `music` (now-playing + animated icon) → `system` (CPU/RAM bars) → `claude`
 (today's session count, rate-limit bars, and opt-in working-session dots) →
-`status` (connection dot, idle time, keystrokes today, IP). Each widget pairs a `.h`/`.cpp`: the `.h`
+`status` (connection dot, idle time, keystrokes today, IP). `track_card` is
+not a panel: it's an overlay over the scene slot that slides in for
+`TRACK_CARD_MS` when a new song starts (cover art, title, artist, album),
+switched on/off in the settings menu; a tap on it closes it. Each widget pairs a `.h`/`.cpp`: the `.h`
 declares `build_<name>_panel()` and `update_<name>_ui()`; the `.cpp` builds LVGL
 objects once and mutates them in place on update (no rebuilding widgets per
 packet). `ui_helpers.h/cpp` has the shared factories used across panels —
@@ -170,6 +173,10 @@ are email addresses and this repo is public), and
   dedupes meetings that appear on several calendars. Not named `calendar.py`
   because that would shadow the stdlib `calendar` module `requests` imports.
   Without a token it stays disabled and `cal` is never sent.
+- `track_card.py` — `TrackAnnouncer` watches the media monitor and, when a
+  different track is playing, sends a `track` event and then the cover art
+  (from MPRIS `mpris:artUrl`, scaled to 80×80 RGB565 with Pillow) as paced
+  `art` chunks — see Protocol. Without Pillow the card shows without a cover.
 - `claude_activity.py` — `ClaudeActivityMonitor`, unlike the others, needs no
   background thread: it just reads (mtime-cached) the small status file that
   Claude Code itself keeps current via hooks (`hooks/session_touch.py`,
@@ -198,7 +205,10 @@ update the other by hand — there's no shared schema.
 
 Besides stats, the companion sends **live event** lines between packets —
 `{"type":"key","k":<category>}`, `{"type":"beat","s":..}`,
-`{"type":"au","i":..,"b":..,"bpm":..}` — queued by the monitor threads
+`{"type":"au","i":..,"b":..,"bpm":..,"sp":[12 bands]}`,
+`{"type":"track","id":..,"t":..,"a":..,"al":..,"w":..,"h":..}` followed by
+`{"type":"art","id":..,"o":byte_offset,"d":base64}` chunks (the new song card's
+cover, paced ~0.1 s apart so they never overrun the board's 2 KB RX buffer) — queued by the monitor threads
 (`emit_event()` in `main.py`) and written by the session loop, the only
 thread that writes to serial. Key events carry a category only, never the key.
 The firmware turns these, plus changes it detects in stats packets (music

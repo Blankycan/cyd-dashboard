@@ -25,6 +25,7 @@ from config import INTERVAL, IDLE_MSG_INTERVAL, KEY_EVENTS_ENABLED
 from gcal import CalendarMonitor
 from keyboard import KeyboardMonitor
 from media import MediaMonitor
+from track_card import TrackAnnouncer
 from theme import ansi
 
 BAUD       = 115_200
@@ -94,7 +95,7 @@ def collect_stats(kb: KeyboardMonitor | None = None,
         "ip":     get_local_ip(),
     }
     if m:
-        stats["music"] = {k: v for k, v in m.items() if k != "player"}
+        stats["music"] = {k: m[k] for k in ("title", "artist", "playing")}
     else:
         stats["idle_msg"] = _get_idle_msg()
     if tok:
@@ -359,6 +360,9 @@ def main():
     audio = AudioEnergyMonitor(media, emit_event)
     audio.start()
 
+    tracks = TrackAnnouncer(media, emit_event)
+    tracks.start()
+
     claude_tok = ClaudeTokenMonitor()
     claude_tok.start()
 
@@ -394,6 +398,7 @@ def main():
         kb.stop()
         media.stop()
         audio.stop()
+        tracks.stop()
         claude_tok.stop()
         claude_activity.stop()
         cal.stop()

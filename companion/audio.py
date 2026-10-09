@@ -8,7 +8,7 @@ Paused or stopped, the capture is shut down and it costs nothing. The audio
 never leaves this process; only a few numbers are sent to the board:
 
   beat events   {"type":"beat","s":0-100}     the instant an onset is detected
-  audio frames  {"type":"au","i":0-100,"b":0-100,"bpm":N}   ~10 per second
+  audio frames  {"type":"au","i":0-100,"b":0-100,"bpm":N,"sp":[12 × 0-99]}   ~14 per second
 
 Everything is measured relative to the song's own recent levels, so the
 volume knob doesn't change any of it:
@@ -17,6 +17,8 @@ volume knob doesn't change any of it:
        with how busy it is (onsets per second)
   b    bass: low-band energy relative to its own recent peak
   bpm  tempo estimated from the rhythm of the onsets (0 while unsure)
+  sp   spectrum: 12 log-spaced bands from 40 Hz to 5 kHz, against the
+       loudest band's recent peak (tilted, as music has less energy up high)
 
 Requires numpy (pip install numpy). Disable with AUDIO_ENERGY_ENABLED in
 config.py; without numpy it prints one line and stays off.
@@ -34,7 +36,11 @@ RATE      = 11025
 HOP       = 256            # samples per analysis frame -> ~43 fps
 WIN       = 1024
 FPS       = RATE / HOP
-FRAME_HZ  = 10             # audio frames sent to the board per second
+FRAME_HZ  = 14             # audio frames sent to the board per second
+SPEC_BANDS = 12
+SPEC_RANGE = 3.0           # natural-log range shown below the peak (~26 dB)
+SPEC_TILT  = 0.3           # log units added per band upward, so treble isn't always lower
+SPEC_PEAK_FALL = 0.3       # how fast the remembered peak sinks (log units per second)
 MIN_BEAT_GAP_S = 0.12
 BEAT_THRESHOLD = 2.0   # onset must exceed this × the recent median; lower = more beats
 TEMPO_WINDOW_S = 6.0
@@ -143,6 +149,11 @@ class AudioEnergyMonitor:
         frame = 0
         pending = None   # candidate onset, confirmed once the next frame is lower
         bass_bins = slice(4, 14)   # ~43-150 Hz at 10.8 Hz per bin
+        edges = np.geomspace(40, 5000, SPEC_BANDS + 1)
+        spec_bins = np.searchsorted(freqs, edges)
+        spec_tilt = SPEC_TILT * np.arange(SPEC_BANDS)
+        spec_peak = -1e9
+        spec_val  = np.zeros(SPEC_BANDS)
 
         while self._running:
             raw = stream.read(HOP * 2)
@@ -222,6 +233,17 @@ class AudioEnergyMonitor:
             intensity += (target_i - intensity) * 0.15
             bass += (target_b - bass) * 0.3
 
+            # Spectrum: every band against one slowly sinking peak; jumps up
+            # at once, falls back smoothly
+            if silent:
+                spec_val *= 0.8
+            else:
+                lv = np.log(np.add.reduceat(mag, spec_bins)[:SPEC_BANDS]
+                            / np.maximum(1, np.diff(spec_bins)) + 1e-6) + spec_tilt
+                spec_peak = max(float(lv.max()), spec_peak - SPEC_PEAK_FALL / FPS)
+                target_s = np.clip((lv - (spec_peak - SPEC_RANGE)) / SPEC_RANGE, 0, 1)
+                spec_val = np.where(target_s > spec_val, target_s, spec_val * 0.85 + target_s * 0.15)
+
             if frame % int(FPS / FRAME_HZ) == 0:
                 self._emit({"type": "au", "i": int(100 * intensity), "b": int(100 * min(1.0, bass)),
-                            "bpm": int(round(bpm))})
+                            "bpm": int(round(bpm)), "sp": [int(99 * v) for v in spec_val]})

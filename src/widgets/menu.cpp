@@ -18,13 +18,18 @@ static lv_obj_t *scr_ref  = nullptr;
 static lv_obj_t *menu     = nullptr;   // nullptr while closed
 static lv_timer_t *refresh_timer = nullptr;
 
-static lv_obj_t *sw_scenes, *sw_cal, *sw_shuffle;
+static lv_obj_t *sw_scenes, *sw_cal, *sw_shuffle, *sw_track;
 static lv_obj_t *lbl_hint;
 static lv_obj_t *dim_rows[4];          // the rows that only matter while scenes are on
 static lv_obj_t *scene_row[SCENE_REGISTRY_MAX];
 static lv_obj_t *scene_box[SCENE_REGISTRY_MAX];
-static lv_obj_t *scene_tick[SCENE_REGISTRY_MAX];
-static lv_obj_t *scene_play[SCENE_REGISTRY_MAX];
+static lv_obj_t *play_mark = nullptr;   // the ▶ on the playing scene's row, moved between rows
+
+// A scene row is three objects (row, checkbox, name) that only point at these
+// shared styles, with no style or text copies of their own. The menu shares
+// the heap with the scenes' two 43 KB canvases, and previews run while it's
+// open: per-object styles on ~30 rows left too little for them to start.
+static lv_style_t st_row, st_row_cur, st_box, st_box_on, st_name;
 static const Scene *shown_current = nullptr;   // what the highlight last showed
 
 // ---------------------------------------------------------------------------
@@ -89,11 +94,8 @@ static void make_divider(lv_obj_t *parent) {
 // Keeping it in step with the settings and the player
 
 static void set_box(int i) {
-    bool on = settings_scene_on(i);
-    lv_obj_set_style_bg_opa(scene_box[i], on ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_color(scene_box[i], on ? COL_MENU_ACCENT : COL_MENU_HINT, 0);
-    if (on) lv_obj_clear_flag(scene_tick[i], LV_OBJ_FLAG_HIDDEN);
-    else    lv_obj_add_flag(scene_tick[i], LV_OBJ_FLAG_HIDDEN);
+    if (settings_scene_on(i)) lv_obj_add_state(scene_box[i], LV_STATE_CHECKED);
+    else                      lv_obj_clear_state(scene_box[i], LV_STATE_CHECKED);
 }
 
 static void refresh_hint() {
@@ -111,11 +113,16 @@ static void refresh_current() {
     const Scene *now = scene_player_current();
     if (now == shown_current) return;
     shown_current = now;
+    lv_obj_add_flag(play_mark, LV_OBJ_FLAG_HIDDEN);
     for (int i = 0; i < scene_count(); i++) {
         bool is = scene_entry(i).scene == now;
-        lv_obj_set_style_bg_opa(scene_row[i], is ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
-        if (is) lv_obj_clear_flag(scene_play[i], LV_OBJ_FLAG_HIDDEN);
-        else    lv_obj_add_flag(scene_play[i], LV_OBJ_FLAG_HIDDEN);
+        if (is) lv_obj_add_state(scene_row[i], LV_STATE_CHECKED);
+        else    lv_obj_clear_state(scene_row[i], LV_STATE_CHECKED);
+        if (is) {
+            lv_obj_set_parent(play_mark, scene_row[i]);
+            lv_obj_align(play_mark, LV_ALIGN_RIGHT_MID, -PAD_X, 0);
+            lv_obj_clear_flag(play_mark, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 }
 
@@ -131,6 +138,7 @@ static void changed() {
 static void switch_changed(lv_event_t *e) {
     lv_obj_t *sw = lv_event_get_target(e);
     bool on = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    if (sw == sw_track) { settings.track_card = on; settings_touch(); return; }   // not a scene setting
     if (sw == sw_scenes)  settings.scenes_on   = on;
     if (sw == sw_cal)     settings.cal_between = on;
     if (sw == sw_shuffle) settings.shuffle     = on;
@@ -232,16 +240,58 @@ static lv_obj_t *make_slider_row(lv_obj_t *parent, const char *text, SliderSetti
     return r;
 }
 
-static void tick_clicked(lv_event_t *e) {
-    int i = (int)(intptr_t)lv_event_get_user_data(e);
-    settings_set_scene_on(i, !settings_scene_on(i));
-    set_box(i);
-    changed();
-}
-
+// The checkbox end of a row ticks, the rest previews — so ticking never previews
 static void row_clicked(lv_event_t *e) {
     int i = (int)(intptr_t)lv_event_get_user_data(e);
-    scene_player_play(scene_entry(i).scene);
+    lv_point_t p = { 0, 0 };
+    if (lv_indev_get_act()) lv_indev_get_point(lv_indev_get_act(), &p);
+    if (p.x < TICK_W) {
+        settings_set_scene_on(i, !settings_scene_on(i));
+        set_box(i);
+        changed();
+    } else {
+        scene_player_play(scene_entry(i).scene);
+    }
+}
+
+static void init_scene_styles() {
+    static bool done = false;
+    if (done) return;
+    done = true;
+
+    lv_style_init(&st_row);
+    lv_style_set_width(&st_row, SCREEN_W);
+    lv_style_set_height(&st_row, ROW_H);
+    lv_style_set_bg_color(&st_row, COL_MENU_ROW_SEL);
+    lv_style_set_bg_opa(&st_row, LV_OPA_TRANSP);
+    lv_style_init(&st_row_cur);                     // the scene playing now
+    lv_style_set_bg_opa(&st_row_cur, LV_OPA_COVER);
+
+    // Checkbox: a 16 px label whose text is the tick, shown only when checked
+    lv_style_init(&st_box);
+    lv_style_set_width(&st_box, 16);
+    lv_style_set_height(&st_box, 16);
+    lv_style_set_align(&st_box, LV_ALIGN_LEFT_MID);
+    lv_style_set_x(&st_box, PAD_X);
+    lv_style_set_radius(&st_box, 3);
+    lv_style_set_border_width(&st_box, 2);
+    lv_style_set_border_color(&st_box, COL_MENU_HINT);
+    lv_style_set_bg_color(&st_box, COL_MENU_ACCENT);
+    lv_style_set_bg_opa(&st_box, LV_OPA_TRANSP);
+    lv_style_set_text_font(&st_box, &lv_font_montserrat_10);
+    lv_style_set_text_color(&st_box, COL_MENU_BG);
+    lv_style_set_text_opa(&st_box, LV_OPA_TRANSP);
+    lv_style_set_text_align(&st_box, LV_TEXT_ALIGN_CENTER);
+    lv_style_init(&st_box_on);
+    lv_style_set_border_color(&st_box_on, COL_MENU_ACCENT);
+    lv_style_set_bg_opa(&st_box_on, LV_OPA_COVER);
+    lv_style_set_text_opa(&st_box_on, LV_OPA_COVER);
+
+    lv_style_init(&st_name);
+    lv_style_set_align(&st_name, LV_ALIGN_LEFT_MID);
+    lv_style_set_x(&st_name, TICK_W);
+    lv_style_set_text_font(&st_name, &lv_font_montserrat_14);
+    lv_style_set_text_color(&st_name, COL_MENU_TEXT);
 }
 
 static void all_none_clicked(lv_event_t *e) {
@@ -293,6 +343,8 @@ static void open_menu() {
     dim_rows[2] = make_slider_row(menu, "Scene length", &len_slider);
     dim_rows[3] = make_slider_row(menu, "Calendar length", &cal_slider);
 
+    sw_track = make_switch_row(menu, "New song card", settings.track_card);
+
     make_divider(menu);
 
     // Scenes: heading with All / None, a hint, then one row per scene
@@ -305,44 +357,41 @@ static void open_menu() {
     lbl_hint = make_text(r, "", &lv_font_montserrat_12, COL_MENU_HINT);
     lv_obj_align(lbl_hint, LV_ALIGN_TOP_LEFT, PAD_X, 0);
 
+    init_scene_styles();
     for (int i = 0; i < scene_count(); i++) {
-        r = make_row(menu, ROW_H);
-        scene_row[i] = r;
+        r = lv_obj_create(menu);
+        lv_obj_remove_style_all(r);
+        lv_obj_add_style(r, &st_row, 0);
+        lv_obj_add_style(r, &st_row_cur, LV_STATE_CHECKED);
         lv_obj_add_flag(r, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_clear_flag(r, LV_OBJ_FLAG_SCROLLABLE);   // drags scroll the menu
         lv_obj_add_event_cb(r, row_clicked, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        scene_row[i] = r;
 
-        // The checkbox gets its own touch target so ticking never previews
-        lv_obj_t *zone = lv_obj_create(r);
-        lv_obj_remove_style_all(zone);
-        lv_obj_set_size(zone, TICK_W, ROW_H);
-        lv_obj_add_flag(zone, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_clear_flag(zone, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_event_cb(zone, tick_clicked, LV_EVENT_CLICKED, (void *)(intptr_t)i);
-
-        lv_obj_t *box = lv_obj_create(zone);
+        lv_obj_t *box = lv_label_create(r);
         lv_obj_remove_style_all(box);
-        lv_obj_set_size(box, 16, 16);
-        lv_obj_align(box, LV_ALIGN_LEFT_MID, PAD_X, 0);
-        lv_obj_set_style_radius(box, 3, 0);
-        lv_obj_set_style_border_width(box, 2, 0);
-        lv_obj_set_style_bg_color(box, COL_MENU_ACCENT, 0);
-        lv_obj_clear_flag(box, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_style(box, &st_box, 0);
+        lv_obj_add_style(box, &st_box_on, LV_STATE_CHECKED);
+        lv_label_set_text_static(box, LV_SYMBOL_OK);
         scene_box[i] = box;
-        scene_tick[i] = make_text(box, LV_SYMBOL_OK, &lv_font_montserrat_10, COL_MENU_BG);
-        lv_obj_center(scene_tick[i]);
-
-        lv_obj_align(make_text(r, scene_entry(i).title, &lv_font_montserrat_14, COL_MENU_TEXT),
-                     LV_ALIGN_LEFT_MID, TICK_W, 0);
-        scene_play[i] = make_text(r, LV_SYMBOL_PLAY, &lv_font_montserrat_12, COL_MENU_ACCENT);
-        lv_obj_align(scene_play[i], LV_ALIGN_RIGHT_MID, -PAD_X, 0);
         set_box(i);
+
+        lv_obj_t *name = lv_label_create(r);
+        lv_obj_remove_style_all(name);
+        lv_obj_add_style(name, &st_name, 0);
+        lv_label_set_text_static(name, scene_entry(i).title);
     }
+    play_mark = make_text(menu, LV_SYMBOL_PLAY, &lv_font_montserrat_12, COL_MENU_ACCENT);
+    lv_obj_add_flag(play_mark, LV_OBJ_FLAG_HIDDEN);
 
     shown_current = (const Scene *)-1;   // force the first highlight
     refresh_current();
     refresh_hint();
     topbar_set_menu_open(true);
     refresh_timer = lv_timer_create(refresh_cb, 300, nullptr);
+    Serial.printf("{\"log\":\"menu open, heap free %u KB (largest %u KB)\"}\n",
+                  (unsigned)(heap_caps_get_free_size(MALLOC_CAP_8BIT) / 1024),
+                  (unsigned)(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) / 1024));
 }
 
 void menu_close() {

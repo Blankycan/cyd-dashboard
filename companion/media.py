@@ -12,13 +12,14 @@ import time
 from config import MEDIA_POLL_INTERVAL
 from text_utils import to_displayable
 FIELD_SEP     = "|||"
-FORMAT_STR    = f"{{{{title}}}}{FIELD_SEP}{{{{artist}}}}{FIELD_SEP}{{{{status}}}}"
+FORMAT_STR    = (f"{{{{title}}}}{FIELD_SEP}{{{{artist}}}}{FIELD_SEP}{{{{status}}}}"
+                 f"{FIELD_SEP}{{{{album}}}}{FIELD_SEP}{{{{mpris:artUrl}}}}")
 
 
 class MediaMonitor:
     def __init__(self):
         self._lock    = threading.Lock()
-        self._info    = None   # dict {title, artist, playing} or None
+        self._info    = None   # dict {title, artist, playing, album, art_url} or None
         self._player  = None   # playerctl name of the player _info came from
         self._running = False
         self._thread  = None
@@ -32,7 +33,8 @@ class MediaMonitor:
         self._running = False
 
     def get(self) -> dict | None:
-        """Return {title, artist, playing} or None if nothing is playing."""
+        """Return {title, artist, playing, album, art_url} or None if nothing is
+        playing. album and art_url may be empty; only the track card uses them."""
         with self._lock:
             return self._info
 
@@ -59,10 +61,10 @@ class MediaMonitor:
         ).decode().strip()
 
         parts = raw.split(FIELD_SEP)
-        if len(parts) < 3:
+        if len(parts) < 5:
             return None
 
-        title, artist, status = parts[0].strip(), parts[1].strip(), parts[2].strip()
+        title, artist, status, album, art_url = (p.strip() for p in parts[:5])
         if not title:
             return None
 
@@ -70,6 +72,8 @@ class MediaMonitor:
             "title":   to_displayable(title),
             "artist":  to_displayable(artist),
             "playing": status == "Playing",
+            "album":   to_displayable(album),
+            "art_url": art_url,
         }
 
     def _poll(self) -> tuple[dict | None, str | None]:
