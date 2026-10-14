@@ -355,7 +355,8 @@ static bool handle_live_event(const char *type, JsonDocument &doc) {
             if (n >= SCENE_BANDS) break;
             sp[n++] = (uint8_t)constrain(v, 0, 99);
         }
-        scene_player_audio(doc["i"] | 0, doc["b"] | 0, doc["bpm"] | 0, sp, n);
+        scene_player_audio(doc["i"] | 0, doc["b"] | 0, doc["bpm"] | 0,
+                           doc["nb"] | 0.0f, doc["ph"] | 0.0f, sp, n);
         return true;
     }
     if (strcmp(type, "track") == 0) {   // a new song: the "now playing" card (not while asleep)

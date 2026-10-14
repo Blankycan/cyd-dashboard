@@ -164,7 +164,13 @@ background thread/state and `collect_stats()` never blocks on them:
   numpy): only while the media monitor reports *playing*, captures that
   player's output with `parec` and emits `beat` and `au` (intensity/bass/bpm)
   live events. Analysis is timed in audio frames (not wall clock) so it can be
-  tested by feeding it a PCM stream via `_analyse()`.
+  tested by feeding it a PCM stream via `_analyse()`. Its `PulseTracker` finds
+  the head-nod pulse (tempo + phase, the `au` frame's `nb`/`ph`) for the lofi
+  scene: remembered per song (reset on track change), only from drum-filled
+  parts (a harmonic/percussive split keeps piano and vocals out), nodding on
+  the snare (twice per snare when they come slowly) or on every beat under a
+  four-on-the-floor kick. Its thresholds were tuned on real recordings, so
+  retune against real audio rather than synthetic beats.
 - `gcal.py` — `CalendarMonitor` fetches today's timed events from the Google
   Calendar API every 5 min (read-only OAuth token from `gcal_auth.py`, stored
   in `~/.config/cyd-dashboard/` outside the repo) across the calendars listed
@@ -205,7 +211,8 @@ update the other by hand — there's no shared schema.
 
 Besides stats, the companion sends **live event** lines between packets —
 `{"type":"key","k":<category>}`, `{"type":"beat","s":..}`,
-`{"type":"au","i":..,"b":..,"bpm":..,"sp":[12 bands]}`,
+`{"type":"au","i":..,"b":..,"bpm":..,"sp":[12 bands],"nb"?:..,"ph"?:..}` (`nb`/`ph`: the
+nod pulse's tempo and phase, only while `PulseTracker` hears a clear beat),
 `{"type":"track","id":..,"t":..,"a":..,"al":..,"w":..,"h":..}` followed by
 `{"type":"art","id":..,"o":byte_offset,"d":base64}` chunks (the new song card's
 cover, paced ~0.1 s apart so they never overrun the board's 2 KB RX buffer) — queued by the monitor threads

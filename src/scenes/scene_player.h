@@ -28,7 +28,8 @@ void scene_player_set_paused(bool paused);
 void scene_player_event(const SceneEvent &e);
 // Latest music energy numbers from the host (SCENE_EV_AUDIO); `spectrum` may be
 // nullptr (n = 0) from a companion that doesn't send one
-void scene_player_audio(int intensity, int bass, int bpm, const uint8_t *spectrum, int n);
+void scene_player_audio(int intensity, int bass, int bpm, float nod_bpm, float nod_phase,
+                        const uint8_t *spectrum, int n);
 
 // The settings changed: rebuild the rotation on the next frame. A running
 // scene that's no longer in it (and wasn't picked by hand) makes way.

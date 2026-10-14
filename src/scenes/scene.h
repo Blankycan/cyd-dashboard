@@ -81,6 +81,9 @@ struct SceneContext {
     uint8_t    intensity;      // 0-100, relative to the song itself (volume-independent)
     uint8_t    bass;           // 0-100
     uint16_t   bpm;            // estimated tempo, 0 = unknown
+    float      nod_bpm;        // the pulse to bob along to (50-150), 0 = no clear beat right now
+    float      nod_phase;      // 0-1 through that pulse when nod_ms was received, nodding at 0
+    uint32_t   nod_ms;         // millis() of nod_phase
     uint8_t    spectrum[SCENE_BANDS];   // 0-99 per band, 40 Hz .. 5 kHz log-spaced; all 0 = none
     uint32_t   last_beat_ms;   // millis() of the latest beat, 0 = none yet
     bool       typing;         // a key was pressed in the last 1.5 s

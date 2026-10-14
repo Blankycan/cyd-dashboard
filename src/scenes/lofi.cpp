@@ -41,22 +41,22 @@ static Lit   lit[MAX_LIT];
 static int   n_lit;
 static int   ink;                     // characters written on this spread
 static bool  lamp_on, stopping, done, oom;
-static float nod, nod_phase, steam_t, write_t, note_acc, lit_acc;
+static float steam_t, write_t, note_acc, lit_acc;
 static float flash_t = -1;             // seconds into a lightning flash, -1 when there's none
 static uint8_t sky_top[320];           // per column: where the city's rooftops start (sky is above)
 static const int BOLT_POINTS = 9;
 static int16_t bolt_x[BOLT_POINTS], bolt_y[BOLT_POINTS];   // the bolt's zigzag, top to rooftops
 static int16_t fork_x[4], fork_y[4];                       // and a short fork off it
-static uint32_t since_beat;
-static float beat_phase;               // 0-1 through her current nod period, nods on the wrap
+static float beat_phase;               // 0-1 through her current nod, nods on the wrap
+static float since_nod;                // seconds since her last nod
+static bool  nodding;                  // following a pulse (the companion found one)
 
-// Nodding: a comfortable head-bob pace, and how beats steer it
-static const float NOD_MIN_BPM     = 60, NOD_MAX_BPM = 140;   // fold the song's tempo into this range
-static const float NOD_FALLBACK_BPM = 80;    // no tempo and no beats: a gentle sway
-static const float NOD_LOCK_WINDOW = 0.25f;  // a beat this close (fraction of a period) to a nod steers it
-static const float NOD_LOCK_GAIN   = 0.6f;   // how far a full-strength on-time beat pulls her into step
-static const int   NOD_RAW_MIN_S   = 40;     // before the tempo is known, only beats this strong...
-static const uint32_t NOD_RAW_GAP_MS = 400;  // ...and this far apart get a nod
+// Nodding follows the pulse the companion tracks (tempo and phase, see
+// PulseTracker in companion/audio.py); with no clear beat she keeps still
+static const float NOD_PULL = 3.0f;    // per second: how fast she eases back into step with it
+static const float NOD_DOWN_S = 0.03f; // her head drops this long after the beat...
+static const float NOD_HOLD   = 0.3f;  // ...and stays down this share of a beat
+static const float NOD_HOLD_MAX_S = 0.2f;
 
 static const uint16_t NOTE_SPRITE[7] = {   // a quaver, 5×7
     0b00110, 0b00101, 0b00100, 0b00100, 0b11100, 0b11100, 0b01000,
@@ -216,9 +216,10 @@ static void start(lv_obj_t *area, int w, int h) {
     for (int i = 0; i < MAX_NOTES; i++) notes[i].alive = false;
     ink = 0;
     stopping = false;
-    nod = nod_phase = beat_phase = steam_t = write_t = note_acc = lit_acc = 0;
+    nodding = false;
+    since_nod = 10;
+    beat_phase = steam_t = write_t = note_acc = lit_acc = 0;
     flash_t = -1;
-    since_beat = 10000;
 }
 
 static lv_color_t girl_color(char c) {
@@ -336,20 +337,11 @@ static void spawn_drop() {
     }
 }
 
-// Seconds per nod for a song at `bpm`: halved or doubled into a pace a
-// person would actually bob at (half-time on a fast track)
-static float nod_period(float bpm) {
-    while (bpm > NOD_MAX_BPM) bpm /= 2;
-    while (bpm < NOD_MIN_BPM) bpm *= 2;
-    return 60.0f / bpm;
-}
-
 static void frame(uint32_t dt_ms) {
     if (oom || done) return;
     float dt = dt_ms / 1000.0f;
     const SceneContext &ctx = scene_ctx();
     bool music = ctx.music == SCENE_MUSIC_PLAYING;
-    since_beat += dt_ms;
 
     // City windows switch on and off now and then (into the backdrop too)
     lit_acc += dt;
@@ -391,19 +383,24 @@ static void frame(uint32_t dt_ms) {
         pixfb_line(fb, x, y, x - 1, y + d.len, COL_SCENE_LOFI_RAIN);
     }
 
-    // Nodding: with a known tempo she keeps her own time (beats only steer
-    // it, see event()); before that, strong beats nod her directly, or with
-    // no beats at all she sways at a relaxed pace
+    // Nodding: she keeps her own time and eases toward the companion's pulse,
+    // so serial jitter doesn't show; no pulse, no nodding
     float bob = 0;
-    if (music) {
-        if (ctx.bpm) {
-            beat_phase += dt / nod_period(ctx.bpm);
-            if (beat_phase >= 1) { beat_phase -= floorf(beat_phase); nod = 1.0f; }
-            bob = nod;
-        } else if (since_beat < 2000) bob = nod;
-        else { nod_phase += dt * 6.28f * NOD_FALLBACK_BPM / 60; bob = sinf(nod_phase) > 0.6f ? 1 : 0; }
-    }
-    nod *= expf(-8.0f * dt);
+    since_nod += dt;
+    if (music && ctx.nod_bpm) {
+        float period = 60.0f / ctx.nod_bpm;
+        float target = ctx.nod_phase + (millis() - ctx.nod_ms) / 1000.0f / period;
+        target -= floorf(target);
+        if (!nodding) { beat_phase = target; nodding = true; }
+        float err = target - beat_phase;
+        err -= floorf(err + 0.5f);   // -0.5..0.5: + she's behind, - ahead
+        beat_phase += dt / period + err * fminf(1.0f, dt * NOD_PULL);
+        if (beat_phase >= 1) {
+            beat_phase -= floorf(beat_phase);
+            if (since_nod > 0.5f * period) since_nod = 0;   // not twice when pulled back over the wrap
+        } else if (beat_phase < 0) beat_phase += 1;
+        bob = since_nod >= NOD_DOWN_S && since_nod < NOD_DOWN_S + fminf(NOD_HOLD_MAX_S, NOD_HOLD * period);
+    } else nodding = false;
 
     // Writing: the hand moves while you type
     int hand_dx = 0;
@@ -478,18 +475,6 @@ static void touch(SceneTouch type, int x, int y) {
 }
 
 static void event(const SceneEvent &e) {
-    if (e.type == SCENE_EV_BEAT) {
-        const SceneContext &ctx = scene_ctx();
-        if (ctx.bpm) {
-            // Only beats near where she expects one steer her, stronger ones
-            // more: off-beats and hi-hats between nods are ignored
-            float err = beat_phase < 0.5f ? beat_phase : beat_phase - 1;   // + late, - early
-            if (fabsf(err) < NOD_LOCK_WINDOW) beat_phase -= err * NOD_LOCK_GAIN * e.strength / 100.0f;
-        } else if (e.strength >= NOD_RAW_MIN_S && since_beat >= NOD_RAW_GAP_MS) {
-            nod = 1.0f;
-            since_beat = 0;
-        }
-    }
     if (e.type == SCENE_EV_KEY && e.key == SCENE_KEY_CHAR) {
         if (++ink > ink_slots) ink = 0;   // both pages full: turn the page
     }

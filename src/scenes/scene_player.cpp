@@ -54,7 +54,7 @@ static bool    scene_owns_gesture = false;   // current press started inside the
 // start of the next frame. Audio frames collapse into one entry.
 static SceneEvent   evq[16];
 static int          evq_len = 0;
-static SceneContext ctx = { SCENE_MUSIC_NONE, 0, 0, 0, {}, 0, false, 0, -1, -1 };
+static SceneContext ctx = { SCENE_MUSIC_NONE, 0, 0, 0, 0, 0, 0, {}, 0, false, 0, -1, -1 };
 static uint32_t     last_key_ms = 0;
 static uint32_t     last_scene_touch_ms = 0;
 
@@ -374,6 +374,7 @@ void scene_player_event(const SceneEvent &e) {
             ctx.music = e.music;
             if (e.music != SCENE_MUSIC_PLAYING) {
                 ctx.intensity = ctx.bass = ctx.bpm = 0;
+                ctx.nod_bpm = 0;
                 memset(ctx.spectrum, 0, sizeof(ctx.spectrum));
             }
             break;
@@ -384,10 +385,14 @@ void scene_player_event(const SceneEvent &e) {
     queue_event(e);
 }
 
-void scene_player_audio(int intensity, int bass, int bpm, const uint8_t *spectrum, int n) {
+void scene_player_audio(int intensity, int bass, int bpm, float nod_bpm, float nod_phase,
+                        const uint8_t *spectrum, int n) {
     ctx.intensity = (uint8_t)constrain(intensity, 0, 100);
     ctx.bass      = (uint8_t)constrain(bass, 0, 100);
     ctx.bpm       = (uint16_t)constrain(bpm, 0, 400);
+    ctx.nod_bpm   = nod_bpm >= 30 && nod_bpm <= 200 ? nod_bpm : 0;
+    ctx.nod_phase = nod_phase - floorf(nod_phase);
+    ctx.nod_ms    = millis();
     for (int i = 0; i < SCENE_BANDS; i++) ctx.spectrum[i] = i < n ? spectrum[i] : 0;
     SceneEvent e = {};
     e.type = SCENE_EV_AUDIO;
