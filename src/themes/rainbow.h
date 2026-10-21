@@ -177,6 +177,20 @@
 #define COL_SCENE_PAC_FRIGHT    LVC(0x2121DE)  // frightened blue
 #define COL_SCENE_PAC_EYES      LVC(0x0000AA)  // dark blue
 #define COL_SCENE_PAC_EATEN     LVC(0xF0F0F0)  // white
+#define COL_SCENE_PAC_DOOR        LVC(0xFFB8DE)  // door pink
+#define COL_SCENE_PAC_TEXT        LVC(0xDEDEFF)  // lavender white
+#define COL_SCENE_PAC_READY       LVC(0xFFEE33)  // lemon
+#define COL_SCENE_PAC_GAME_OVER   LVC(0xEE2244)  // crimson
+#define COL_SCENE_PAC_GHOST_POINTS LVC(0x33DDDD)  // teal
+#define COL_SCENE_PAC_FRUIT_POINTS LVC(0xFF99EE)  // orchid
+#define COL_SCENE_PAC_FRIGHT_FACE LVC(0xFFB8AE)  // frightened face peach
+#define COL_SCENE_PAC_FLASH_FACE  LVC(0xFF2020)  // flashing face red
+#define COL_SCENE_PAC_FRUIT_RED   LVC(0xDD0011)  // cherry red
+#define COL_SCENE_PAC_FRUIT_ORANGE LVC(0xFF9922)  // orange
+#define COL_SCENE_PAC_FRUIT_GREEN LVC(0x22CC44)  // leaf green
+#define COL_SCENE_PAC_FRUIT_YELLOW LVC(0xFFDD00)  // gold
+#define COL_SCENE_PAC_FRUIT_BLUE  LVC(0x3355FF)  // royal blue
+#define COL_SCENE_PAC_FRUIT_STEM  LVC(0xAA6633)  // stem brown
 #define COL_SCENE_SYNTH_SKY_TOP          LVC(0x14002A)  // deep purple
 #define COL_SCENE_SYNTH_SKY_LOW          LVC(0xC0306A)  // magenta rose
 #define COL_SCENE_SYNTH_STAR             LVC(0xFFE8FF)  // pale pink
