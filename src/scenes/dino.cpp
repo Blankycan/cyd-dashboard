@@ -5,7 +5,9 @@
 
 // Dino runner — the offline-browser T-rex, running through the desert,
 // jumping cacti and ducking pterodactyls while the pace picks up. It plays
-// itself (and now and then misjudges a jump; after a moment it starts over).
+// itself, timing each jump from the dino's own jump and the current pace so
+// it peaks over the middle of every cluster (a crash, when you've taken
+// over, starts over after a moment).
 // At night (by the real clock) a moon and stars come out. When asked to stop,
 // no more obstacles come, and once the way is clear the dino sprints off
 // the right edge.
@@ -17,7 +19,7 @@
 
 static const uint32_t AUTO_RESUME_MS = 5000;
 static const int      MAX_OBS = 4, MAX_CLOUDS = 3;
-static const float    GRAVITY = 960, JUMP_V = 265, AIR_T = 2 * JUMP_V / GRAVITY;
+static const float    GRAVITY = 960, JUMP_V = 265;
 static const float    START_SPEED = 95, MAX_SPEED = 210;
 
 // '1' ink, '2' the background (the eye)
@@ -100,7 +102,7 @@ static const char *const RESTART[] = {   // the circular arrow shown after a cra
 };
 
 enum ObsType { OBS_CACTUS_S, OBS_CACTUS_L, OBS_PTERO };
-struct Obstacle { bool alive; uint8_t type, count; float x; int y, w, h; bool misjudge; };
+struct Obstacle { bool alive; uint8_t type, count; float x; int y, w, h; };
 struct Cloud    { float x; int y; };
 
 static PixFb    fb;
@@ -176,7 +178,6 @@ static void spawn_obstacle() {
         int kind = random(0, 10);
         o.alive = true;
         o.x = W + 4;
-        o.misjudge = random(0, 100) < 6;   // now and then the computer gets it wrong
         if (kind < 5)      { o.type = OBS_CACTUS_S; o.count = random(1, 4); o.w = o.count * 8 - 1; o.h = 13; }
         else if (kind < 8) { o.type = OBS_CACTUS_L; o.count = random(1, 3); o.w = o.count * 12 - 1; o.h = 19; }
         else {
@@ -190,21 +191,29 @@ static void spawn_obstacle() {
     }
 }
 
-static void autopilot() {
-    // The nearest obstacle still ahead of the dino
-    const Obstacle *next = nullptr;
-    for (int i = 0; i < MAX_OBS; i++)
-        if (obs[i].alive && obs[i].x + obs[i].w > dino_x && (!next || obs[i].x < next->x)) next = &obs[i];
+static float obs_speed(const Obstacle &o) { return speed + (o.type == OBS_PTERO ? 20 : 0); }
+
+// Seconds until the obstacle starts and stops overlapping the standing dino
+// (the boxes in hits())
+static float overlap_from(const Obstacle &o) { return (o.x - dino_x - 12) / obs_speed(o); }
+static float overlap_to(const Obstacle &o)   { return (o.x + o.w - dino_x - 5) / obs_speed(o); }
+
+static void autopilot(float dt) {
+    // Pterodactyls up high are run under, mid-height ones ducked; cacti and
+    // low ones are jumped, timed so the top of the jump is over the middle
+    // of the time it spends overlapping the dino
     ducking = false;
-    if (!next) return;
-    float ahead = next->x + next->w / 2.0f - (dino_x + 8);
-    bool mid_ptero = next->type == OBS_PTERO && next->y == ground_y - 26;
-    bool high_ptero = next->type == OBS_PTERO && next->y == ground_y - 38;
-    if (high_ptero) return;
-    if (mid_ptero) { ducking = on_ground() && ahead < 40; return; }
-    // Time the jump so its peak is over the obstacle's middle
-    float lead = speed * AIR_T / 2 * (next->misjudge ? 1.9f : 1);   // a misjudged one goes up far too soon
-    if (ahead <= lead && ahead > lead - 12) jump();
+    if (!on_ground()) return;
+    float jump_in = 1e9f;
+    for (int i = 0; i < MAX_OBS; i++) {
+        const Obstacle &o = obs[i];
+        if (!o.alive || overlap_to(o) <= 0) continue;
+        int lift = ground_y - o.y;
+        if (o.type == OBS_PTERO && lift >= 38) continue;
+        if (o.type == OBS_PTERO && lift >= 26) { ducking |= overlap_from(o) - 10 / obs_speed(o) < 0.15f; continue; }
+        jump_in = fminf(jump_in, (overlap_from(o) + overlap_to(o)) / 2 - JUMP_V / GRAVITY);
+    }
+    if (jump_in < dt / 2) jump();
 }
 
 static bool hits(const Obstacle &o) {
@@ -252,7 +261,7 @@ static void update(float dt) {
         if (clouds[i].x < -20) clouds[i] = { W + scene_randf(0, 60), (int)scene_randf(6, ground_y - 40) };
     }
 
-    if (since_touch >= AUTO_RESUME_MS || stopping) autopilot();   // it clears what's left before leaving
+    if (since_touch >= AUTO_RESUME_MS || stopping) autopilot(dt);   // it clears what's left before leaving
     jump_v -= GRAVITY * dt;
     jump_h += jump_v * dt;
     if (jump_h <= 0) { jump_h = 0; jump_v = 0; }
@@ -321,7 +330,13 @@ static void draw() {
 
 static void tick(uint32_t dt_ms) {
     if (oom || done) return;
-    update(dt_ms / 1000.0f);
+    // In steps of at most 20 ms, so a slow frame doesn't flatten a jump or
+    // let an obstacle skip through the dino
+    for (uint32_t left = dt_ms; left > 0 && !done; ) {
+        uint32_t step = left > 20 ? (left + 1) / ((left + 19) / 20) : left;
+        update(step / 1000.0f);
+        left -= step;
+    }
     if (done) return;
     draw();
     pixfb_flush(fb);

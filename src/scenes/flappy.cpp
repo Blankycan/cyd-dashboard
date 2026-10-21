@@ -4,9 +4,10 @@
 #include <math.h>
 
 // Flappy Bird — a little bird flapping through gaps between pipes over a
-// skyline, the score counting up at the top. It plays itself (and now and
-// then clips a pipe, tumbles down, and starts over). When asked to stop no
-// more pipes come; once the last one is past, the bird flies up and away.
+// skyline, the score counting up at the top. It plays itself, hopping
+// through the middle of each gap; a crash (when you've taken over) tumbles
+// the bird down and starts over. When asked to stop no more pipes come;
+// once the last one is past, the bird flies up and away.
 // Touch: tap to flap (or to start over after a crash). The computer takes
 // back over AUTO_RESUME_MS after your last touch.
 // Events: Space on the host keyboard flaps too.
@@ -52,7 +53,7 @@ static const char *const BIRD[3][11] = {
         ".......1111......" },
 };
 
-struct Pipe { bool alive, scored, misjudge; float x; int gap_y; };   // gap_y: top of the gap
+struct Pipe { bool alive, scored; float x; int gap_y; };   // gap_y: top of the gap
 
 static PixFb fb;
 static int   W, H, play_h, bird_x, score;
@@ -125,19 +126,20 @@ static void flap() {
 static void spawn_pipe() {
     for (int i = 0; i < MAX_PIPES; i++)
         if (!pipes[i].alive) {
-            pipes[i] = { true, false, random(0, 100) < 3, (float)W + 2, (int)scene_randf(8, play_h - GAP - 8) };
+            pipes[i] = { true, false, (float)W + 2, (int)scene_randf(8, play_h - GAP - 8) };
             return;
         }
 }
 
 static void autopilot() {
-    // Flap each time it sinks to near the bottom of the next gap (a flap lifts
-    // it about 17 px, well within the gap)
+    // Flap each time it sinks to the low point of a hop centred in the next
+    // gap (a flap lifts it about 17 px; its box can be from 2 px above the
+    // gap's top to 29 px below it). As soon as its tail is past a pipe it
+    // heads for the next gap, so there's a whole pipe spacing to climb or drop
     const Pipe *next = nullptr;
     for (int i = 0; i < MAX_PIPES; i++)
-        if (pipes[i].alive && pipes[i].x + PIPE_W > bird_x - 6 && (!next || pipes[i].x < next->x)) next = &pipes[i];
-    float target = next ? next->gap_y + GAP - 16 : play_h * 0.45f;
-    if (next && next->misjudge) target += 14;   // a lapse: it lets itself sink too low
+        if (pipes[i].alive && pipes[i].x + PIPE_W > bird_x + 2 && (!next || pipes[i].x < next->x)) next = &pipes[i];
+    float target = next ? next->gap_y + 20 : play_h * 0.45f;
     if (bird_y > target && bird_vy >= 0) flap();
 }
 
@@ -242,7 +244,13 @@ static void draw() {
 
 static void tick(uint32_t dt_ms) {
     if (oom || done) return;
-    update(dt_ms / 1000.0f);
+    // In steps of at most 20 ms, so a slow frame doesn't throw the bird
+    // through a pipe or past the moment it should have flapped
+    for (uint32_t left = dt_ms; left > 0 && !done; ) {
+        uint32_t step = left > 20 ? (left + 1) / ((left + 19) / 20) : left;
+        update(step / 1000.0f);
+        left -= step;
+    }
     if (done) return;
     draw();
     pixfb_flush(fb);

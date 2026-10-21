@@ -5,6 +5,11 @@
 
 // Space Invaders — a marching alien formation, a cannon that plays itself, and
 // bombs coming down. Cleared or landed waves are replaced by a faster one.
+// The cannon plays it like a sharpshooter: it works out where the march will
+// have taken the aliens by the time its shot gets there, fires only when the
+// shot will hit, whittles down the outer columns (so the formation has
+// further to go before each step down), and only ever moves somewhere no
+// falling bomb will reach before it can get out of the way.
 // When asked to stop, the remaining aliens chain-explode and it reports done.
 // Touch: drag to move the cannon, tap to fire. The computer takes back over
 // AUTO_RESUME_MS after your last touch.
@@ -16,6 +21,7 @@ static const int      MAX_COLS = 10, ROWS = 3;
 static const int      MAX_BOMBS = 4;
 static const uint32_t BOOM_MS = 250;
 static const int      CANNON_W = 9, CANNON_H = 4;
+static const float    CANNON_V = 70, SHOT_V = 130, BOMB_V = 38;   // px/s
 
 static const uint16_t ALIEN[3][2][AH] = {
     {   // squid
@@ -103,24 +109,96 @@ static void fire() {
     shot_y = area_h - CANNON_H - 3;
 }
 
-// Pick a column to aim at and keep clear of bombs falling close by
-static void autopilot() {
-    int best = -1;
-    float best_d = 1e9f;
-    for (int c = 0; c < cols; c++) {
-        bool any = false;
-        for (int r = 0; r < ROWS; r++) any |= slot[r][c] == 1;
-        if (!any) continue;
-        float d = fabsf(alien_x(c) + AW / 2.0f - cannon_x);
-        if (d < best_d) { best_d = d; best = c; }
+// Where the formation's top-left will be ms from now, marching as update() does
+static void predict(float ms, int minc, int maxc, float &px, float &py) {
+    float x = fx, y = fy, t = ms, acc = step_acc;
+    int d = dir;
+    while (acc + t >= step_ms) {
+        t -= step_ms - acc;
+        acc = 0;
+        int left = (int)x + minc * COL_PITCH, right = (int)x + maxc * COL_PITCH + AW;
+        if ((d > 0 && right + 2 >= area_w - 2) || (d < 0 && left - 2 <= 2)) { y += 3; d = -d; }
+        else x += 2 * d;
     }
-    if (best >= 0) target_x = alien_x(best) + AW / 2.0f;
+    px = x;
+    py = y;
+}
+
+// How long a shot fired now takes to reach the bottom of row r, and where
+// the formation will be by then (two passes, to allow for a step down)
+static float shot_time(int r, int minc, int maxc, float &px, float &py) {
+    float y0 = area_h - CANNON_H - 3, t = 0;
+    py = fy;
+    for (int k = 0; k < 2; k++) {
+        t = (y0 - (py + r * ROW_PITCH + AH - 1)) / SHOT_V * 1000;
+        predict(t, minc, maxc, px, py);
+    }
+    return t;
+}
+
+// Would a shot fired from x now hit anything?
+static bool shot_hits(float x, int minc, int maxc, const int lowest[]) {
+    for (int c = minc; c <= maxc; c++) {
+        if (lowest[c] < 0) continue;
+        float px, py;
+        shot_time(lowest[c], minc, maxc, px, py);
+        int ax = (int)px + c * COL_PITCH;
+        if (x >= ax + 1 && x < ax + AW - 1) return true;
+    }
+    return false;
+}
+
+// Would a cannon heading straight for x (and then waiting there) be clear of
+// every bomb while it's low enough to hit?
+static bool path_safe(float x) {
+    float cy = area_h - CANNON_H - 1, dist = fabsf(x - cannon_x), sgn = x > cannon_x ? 1 : -1;
     for (int i = 0; i < MAX_BOMBS; i++) {
         const Bomb &b = bombs[i];
-        if (b.alive && b.y > area_h - 35 && fabsf(b.x - cannon_x) < 8)
-            target_x = cannon_x + (b.x < cannon_x ? 14 : -14);
+        if (!b.alive) continue;
+        float t0 = fmaxf(0, (cy - 3 - b.y) / BOMB_V), t1 = (area_h - b.y) / BOMB_V;
+        float p0 = cannon_x + sgn * fminf(CANNON_V * t0, dist), p1 = cannon_x + sgn * fminf(CANNON_V * t1, dist);
+        float lo = fminf(p0, p1), hi = fmaxf(p0, p1), reach = CANNON_W / 2.0f + 2;
+        if (hi > b.x - reach && lo < b.x + reach) return false;
     }
-    if (best >= 0 && best_d < 2.5f) fire();
+    return true;
+}
+
+static void autopilot() {
+    int lowest[MAX_COLS], minc = cols, maxc = -1;
+    for (int c = 0; c < cols; c++) {
+        lowest[c] = -1;
+        for (int r = 0; r < ROWS; r++) if (slot[r][c] == 1) lowest[c] = r;
+        if (lowest[c] >= 0) { if (c < minc) minc = c; if (c > maxc) maxc = c; }
+    }
+    float half = CANNON_W / 2.0f, want = cannon_x;
+    if (maxc >= 0) {
+        if (shot_hits(cannon_x, minc, maxc, lowest)) fire();
+        // Pick a column: the quickest to line up under, but the outer ones
+        // count as closer, and so do the lowest aliens once they're getting near
+        float best = 1e9f, danger = fy + ROWS * ROW_PITCH > area_h * 0.55f ? 0.4f : 0;
+        for (int c = minc; c <= maxc; c++) {
+            if (lowest[c] < 0) continue;
+            // Where to stand to meet it, after getting there and the shot's climb
+            float x = alien_x(c) + AW / 2.0f, px, py;
+            for (int k = 0; k < 2; k++) {
+                float ms = fabsf(x - cannon_x) / CANNON_V * 1000 + shot_time(lowest[c], minc, maxc, px, py);
+                predict(ms, minc, maxc, px, py);
+                x = fminf(fmaxf(px + c * COL_PITCH + AW / 2.0f, half), area_w - half);
+            }
+            float cost = fabsf(x - cannon_x) / CANNON_V - danger * lowest[c];
+            if (c == minc || c == maxc) cost -= 0.35f;
+            if (cost < best) { best = cost; want = x; }
+        }
+    }
+    // Go there by a way no bomb crosses; if that's blocked, the nearest spot
+    // that is. Small corrections wait, so it doesn't twitch
+    if (fabsf(want - target_x) < 3 && path_safe(target_x)) return;
+    target_x = want;
+    if (!path_safe(want)) {
+        float best = 1e9f;
+        for (float x = half; x <= area_w - half; x += 1)
+            if (fabsf(x - want) < best && path_safe(x)) { best = fabsf(x - want); target_x = x; }
+    }
 }
 
 static void update(uint32_t dt_ms) {
@@ -167,7 +245,7 @@ static void update(uint32_t dt_ms) {
         if ((cannon_dead_ms += dt_ms) > 1500) { cannon_dead = false; cannon_x = target_x = area_w / 2.0f; }
     } else {
         if (since_touch >= AUTO_RESUME_MS && !stopping) autopilot();
-        float d = target_x - cannon_x, step = 70.0f * dt;
+        float d = target_x - cannon_x, step = CANNON_V * dt;
         cannon_x += d > step ? step : d < -step ? -step : d;
         if (cannon_x < CANNON_W / 2.0f) cannon_x = CANNON_W / 2.0f;
         if (cannon_x > area_w - CANNON_W / 2.0f) cannon_x = area_w - CANNON_W / 2.0f;
@@ -175,7 +253,7 @@ static void update(uint32_t dt_ms) {
 
     // Shot
     if (shot_alive) {
-        shot_y -= 130.0f * dt;
+        shot_y -= SHOT_V * dt;
         if (shot_y < 0) shot_alive = false;
         for (int r = 0; r < ROWS && shot_alive; r++) for (int c = 0; c < cols; c++) {
             if (slot[r][c] != 1) continue;
@@ -204,7 +282,7 @@ static void update(uint32_t dt_ms) {
     for (int i = 0; i < MAX_BOMBS; i++) {
         Bomb &b = bombs[i];
         if (!b.alive) continue;
-        b.y += 38.0f * dt;
+        b.y += BOMB_V * dt;
         if (b.y > area_h) { b.alive = false; continue; }
         if (!cannon_dead && b.y + 3 >= cy && fabsf(b.x - cannon_x) <= CANNON_W / 2.0f) {
             b.alive = false;
@@ -272,7 +350,12 @@ static void draw() {
 
 static void tick(uint32_t dt_ms) {
     if (oom) return;
-    update(dt_ms);
+    // In steps of at most 20 ms, so a slow frame doesn't let a shot or a bomb skip past
+    for (uint32_t left = dt_ms; left > 0; ) {
+        uint32_t step = left > 20 ? (left + 1) / ((left + 19) / 20) : left;
+        update(step);
+        left -= step;
+    }
     draw();
     pixfb_flush(fb);
 }
