@@ -13,9 +13,10 @@
 // The next bubble waits beside the launcher, and it's always a colour that's
 // still in play. Every 8 shots the ceiling comes down a row (it shakes for
 // the last two); a bubble past the dotted line ends the game. Clear
-// the field for the next round. It plays itself, aiming for pops and drops,
-// and now and then misses its mark. When asked to stop, the whole field
-// drops.
+// the field for the next round. It plays itself, and plays it well: it
+// traces every angle (bank shots too) and goes for drops first, then the
+// biggest pop, else builds up a colour without burying the others, keeping
+// clear of the line. When asked to stop, the whole field drops.
 // Touch: drag to aim, let go to fire. The computer takes back over
 // AUTO_RESUME_MS after your last touch.
 // Events: with music playing the launcher glows on the beat; a Claude
@@ -43,7 +44,7 @@ static int      drops, shots, round_no, cur_color, next_color;
 static long     score, hi_score;           // hi: best since the board started
 static float    aim, goal_aim, aim_wait, over_t, beat_t, shake_t;
 static bool     shot_on, over, stopping, done, oom;
-static float    shx, shy, svx, svy;   // the shot, in game coordinates
+static float    shx, shy, sux, suy, shot_d;   // the shot, in game coordinates: where, which way, distance not yet flown
 static uint8_t  shot_color;
 static Fx       fx[MAX_FX];
 static int      claude_was;
@@ -180,32 +181,42 @@ static bool touching(float x, float y, int &hit_r, int &hit_c) {
     return false;
 }
 
+// One 1.5 px step of a shot's flight (x, y its centre, ux, uy which way),
+// off the side walls; true once it touches a bubble or the ceiling. The
+// computer's trace and the real shot both fly this way, step for step, so a
+// shot always lands where it was traced to.
+static const float STEP = 1.5f;
+
+static bool step_shot(float &x, float &y, float &ux, float uy, int &hit_r, int &hit_c) {
+    float left = field_x + D / 2.0f, right = field_x + COLS * D - D / 2.0f;
+    x += ux * STEP; y += uy * STEP;
+    if (x < left)  { x = 2 * left - x; ux = -ux; }
+    if (x > right) { x = 2 * right - x; ux = -ux; }
+    return touching(x, y, hit_r, hit_c) || y <= top_y() + D / 2.0f;
+}
+
+static bool snap(float x, float y, int &out_r, int &out_c) {   // the nearest free cell to where it stopped
+    float best = 1e9f;
+    out_r = -1;
+    int r0 = (int)floorf((y - top_y() - D / 2.0f) / RH + 0.5f);
+    for (int r = r0 - 1; r <= r0 + 1; r++) {
+        if (r < 0 || r >= rows) continue;
+        for (int c = 0; c < row_len(r); c++) {
+            if (grid[r][c]) continue;
+            float dx = cell_x(r, c) - x, dy = cell_y(r) - y, d = dx * dx + dy * dy;
+            if (d < best) { best = d; out_r = r; out_c = c; }
+        }
+    }
+    return out_r >= 0;
+}
+
 // Follow a shot from the launcher at `angle` to where it would stick; returns
 // false if it wouldn't (it can't, really, but just in case). `hit` is the
 // bubble it ran into (-1 for the ceiling).
 static bool trace(float angle, int &out_r, int &out_c, int &hit_r, int &hit_c) {
-    float x = launch_x, y = launch_y - 4, vx = sinf(angle), vy = -cosf(angle);
-    float left = field_x + D / 2.0f, right = field_x + COLS * D - D / 2.0f;
-    for (int step = 0; step < 400; step++) {
-        x += vx * 1.5f; y += vy * 1.5f;
-        if (x < left)  { x = 2 * left - x; vx = -vx; }
-        if (x > right) { x = 2 * right - x; vx = -vx; }
-        bool stuck = touching(x, y, hit_r, hit_c) || y <= top_y() + D / 2.0f;
-        if (!stuck) continue;
-        // Snap to the nearest free cell
-        float best = 1e9f;
-        out_r = -1;
-        int r0 = (int)floorf((y - top_y() - D / 2.0f) / RH + 0.5f);
-        for (int r = r0 - 1; r <= r0 + 1; r++) {
-            if (r < 0 || r >= rows) continue;
-            for (int c = 0; c < row_len(r); c++) {
-                if (grid[r][c]) continue;
-                float dx = cell_x(r, c) - x, dy = cell_y(r) - y, d = dx * dx + dy * dy;
-                if (d < best) { best = d; out_r = r; out_c = c; }
-            }
-        }
-        return out_r >= 0;
-    }
+    float x = launch_x, y = launch_y - 4, ux = sinf(angle), uy = -cosf(angle);
+    for (int step = 0; step < 800; step++)   // long enough for a shallow shot banking all the way up
+        if (step_shot(x, y, ux, uy, hit_r, hit_c)) return snap(x, y, out_r, out_c);
     return false;
 }
 
@@ -228,7 +239,7 @@ static int group(int r, int c, uint8_t color, uint8_t mark[MAX_ROWS][COLS]) {   
     return n;
 }
 
-static int drop_floaters(bool apply) {   // bubbles no longer hanging from the ceiling
+static int drop_floaters(bool apply, bool quiet = false) {   // bubbles no longer hanging from the ceiling (quiet: no fx)
     static uint8_t held[MAX_ROWS][COLS];
     memset(held, 0, sizeof(held));
     int stack[MAX_ROWS * COLS][2], sp = 0;
@@ -248,7 +259,7 @@ static int drop_floaters(bool apply) {   // bubbles no longer hanging from the c
         for (int c = 0; c < row_len(r); c++)
             if (grid[r][c] && !held[r][c]) {
                 n++;
-                if (apply) { add_fx(cell_x(r, c), cell_y(r), grid[r][c], true); grid[r][c] = 0; }
+                if (apply) { if (!quiet) add_fx(cell_x(r, c), cell_y(r), grid[r][c], true); grid[r][c] = 0; }
             }
     return n;
 }
@@ -302,7 +313,8 @@ static void fire() {
     if (shot_on || over || stopping) return;
     shot_on = true;
     shx = launch_x; shy = launch_y - 4;
-    svx = sinf(aim) * SHOT_V; svy = -cosf(aim) * SHOT_V;
+    sux = sinf(aim); suy = -cosf(aim);
+    shot_d = 0;
     shot_color = cur_color;
     cur_color = next_color;
     next_color = star_next ? STAR : random_color_in_play();
@@ -311,44 +323,72 @@ static void fire() {
 
 // --- The computer ------------------------------------------------------------
 
-static void plan() {
-    static uint8_t mark[MAX_ROWS][COLS];
-    float best = -1e9f, best_a = 0;
-    int last_r = -1, last_c = -1;
-    float last_v = 0;
-    for (float a = -MAX_AIM; a <= MAX_AIM; a += 0.03f) {
-        int r, c, hr, hc;
-        if (!trace(a, r, c, hr, hc)) continue;
-        float v;
-        if (r == last_r && c == last_c) v = last_v;   // same cell as the last angle: same answer
-        else {
-            if (cur_color == STAR) {
-                int n = 0;
-                uint8_t t = hr >= 0 ? grid[hr][hc] : 0;
-                for (int rr = 0; rr < rows; rr++) for (int cc = 0; cc < row_len(rr); cc++) n += t && grid[rr][cc] == t;
-                v = n * 10;
-            } else {
-                grid[r][c] = cur_color;
-                memset(mark, 0, sizeof(mark));
-                int g = group(r, c, cur_color, mark);
-                if (g >= 3) {
-                    // Try it: how many would fall?
-                    uint8_t saved[MAX_ROWS][COLS];
-                    memcpy(saved, grid, sizeof(saved));
-                    for (int rr = 0; rr < rows; rr++) for (int cc = 0; cc < row_len(rr); cc++) if (mark[rr][cc]) grid[rr][cc] = 0;
-                    int f = drop_floaters(false);
-                    memcpy(grid, saved, sizeof(saved));
-                    v = 100 + g * 10 + f * 25;
-                } else v = (g - 1) * 12 - r * 2;   // no pop: build up a group, high up
-                grid[r][c] = 0;
-            }
-            last_r = r; last_c = c; last_v = v;
+// Would the field cross the line after this shot? (The ceiling comes down
+// first if it's due.)
+static bool would_end() {
+    float shift = shots + 1 >= SHOTS_PER_DROP ? RH : 0;
+    for (int r = rows - 1; r >= 0; r--)
+        for (int c = 0; c < row_len(r); c++)
+            if (grid[r][c] && cell_y(r) + D / 2.0f + shift > danger_y) return true;
+    return false;
+}
+
+// What landing the loaded bubble at (r, c) is worth (`hit`: the colour a star
+// would run into). Drops count for the most, then the size of the pop; with
+// no pop, building a group high up without burying other colours, best of
+// all one the next bubble can finish. Anything that ends the game, never.
+static float shot_worth(int r, int c, int hit) {
+    static uint8_t mark[MAX_ROWS][COLS], saved[MAX_ROWS][COLS];
+    memcpy(saved, grid, sizeof(saved));
+    int cleared = 0;
+    float v;
+    if (cur_color == STAR) {
+        for (int rr = 0; rr < rows; rr++) for (int cc = 0; cc < row_len(rr); cc++) if (hit && grid[rr][cc] == hit) { grid[rr][cc] = 0; cleared++; }
+        v = -50;   // a star that hits nothing is wasted
+    } else {
+        grid[r][c] = cur_color;
+        memset(mark, 0, sizeof(mark));
+        int g = group(r, c, cur_color, mark);
+        if (g >= 3) {
+            for (int rr = 0; rr < rows; rr++) for (int cc = 0; cc < row_len(rr); cc++) if (mark[rr][cc]) grid[rr][cc] = 0;
+            cleared = g;
         }
-        v += scene_randf(0, 1);   // break ties between angles
-        if (v > best) { best = v; best_a = a; }
+        int nb[6][2], k = neighbours(r, c, nb), covered = 0;
+        for (int i = 0; i < k; i++) covered += saved[nb[i][0]][nb[i][1]] && saved[nb[i][0]][nb[i][1]] != cur_color;
+        v = (g - 1) * 25 + (g == 2 && next_color == cur_color ? 30 : 0) - covered * 10 - r * 3;
     }
+    if (cleared) v = 1000 + cleared * 10 + drop_floaters(true, true) * 40;
+    if (would_end()) v -= 100000;
+    memcpy(grid, saved, sizeof(saved));
+    return v;
+}
+
+static void plan() {
+    // Neighbouring angles that land the shot in the same place make a run:
+    // aim at the middle of the best one (wider ones win a tie)
+    float best = -1e9f, best_a = 0, a0 = 0, a1 = 0, run_v = 0;
+    int run_r = -1, run_c = 0, run_hit = 0;
+    auto close_run = [&]() {
+        if (run_r < 0) return;
+        float v = run_v + fminf(a1 - a0, 0.3f) * 10;
+        if (v <= best) return;
+        float mid = (a0 + a1) / 2;
+        int r, c, hr, hc;   // the middle had better land there too
+        if (!trace(mid, r, c, hr, hc) || r != run_r || c != run_c || (cur_color == STAR && (hr >= 0 ? grid[hr][hc] : 0) != run_hit)) mid = a0;
+        best = v; best_a = mid;
+    };
+    for (int i = 0; i * 0.03f <= 2 * MAX_AIM; i++) {
+        float a = -MAX_AIM + i * 0.03f;
+        int r, c, hr, hc;
+        if (!trace(a, r, c, hr, hc)) { close_run(); run_r = -1; continue; }
+        int hit = cur_color == STAR && hr >= 0 ? grid[hr][hc] : 0;
+        if (r == run_r && c == run_c && hit == run_hit) { a1 = a; continue; }
+        close_run();
+        run_r = r; run_c = c; run_hit = hit; a0 = a1 = a;
+        run_v = shot_worth(r, c, hit);
+    }
+    close_run();
     goal_aim = best_a;
-    if (random(0, 100) < 6) goal_aim += scene_randf(-0.12f, 0.12f);   // a slip of the hand
     aim_wait = 0.25f;
 }
 
@@ -385,29 +425,14 @@ static void update(float dt) {
     }
 
     if (shot_on) {
-        float dist = SHOT_V * dt;
-        int steps = (int)(dist / 1.5f) + 1;
-        float left = field_x + D / 2.0f, right = field_x + COLS * D - D / 2.0f;
-        for (int s = 0; s < steps && shot_on; s++) {
-            shx += svx * dt / steps; shy += svy * dt / steps;
-            if (shx < left)  { shx = 2 * left - shx; svx = -svx; }
-            if (shx > right) { shx = 2 * right - shx; svx = -svx; }
+        shot_d += SHOT_V * dt;
+        while (shot_on && shot_d >= STEP) {
+            shot_d -= STEP;
             int hr, hc;
-            bool stuck = touching(shx, shy, hr, hc) || shy <= top_y() + D / 2.0f;
-            if (!stuck) continue;
+            if (!step_shot(shx, shy, sux, suy, hr, hc)) continue;
             shot_on = false;
-            // Snap to the nearest free cell around where it stopped
-            float best = 1e9f;
-            int br = -1, bc = 0, r0 = (int)floorf((shy - top_y() - D / 2.0f) / RH + 0.5f);
-            for (int r = r0 - 1; r <= r0 + 1; r++) {
-                if (r < 0 || r >= rows) continue;
-                for (int c = 0; c < row_len(r); c++) {
-                    if (grid[r][c]) continue;
-                    float dx = cell_x(r, c) - shx, dy = cell_y(r) - shy, d = dx * dx + dy * dy;
-                    if (d < best) { best = d; br = r; bc = c; }
-                }
-            }
-            if (br >= 0) land(br, bc, hr, hc);
+            int br, bc;
+            if (snap(shx, shy, br, bc)) land(br, bc, hr, hc);
             else { over = true; over_t = 0; }
             if (!over && since_touch >= AUTO_RESUME_MS) plan();
         }
@@ -419,7 +444,7 @@ static void update(float dt) {
             if ((aim_wait -= dt) <= 0) fire();
         } else {
             float d = goal_aim - aim, step = AIM_V * dt;   // the arrow turns at a steady rate
-            aim += d > step ? step : d < -step ? -step : d;
+            aim = d > step ? aim + step : d < -step ? aim - step : goal_aim;
         }
     }
 }

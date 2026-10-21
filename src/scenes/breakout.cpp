@@ -5,8 +5,11 @@
 
 // Breakout — a wall of coloured bricks, a paddle, and a ball that picks up
 // speed as the wall comes down. Broken bricks shatter into falling chips.
-// Cleared walls are replaced by a new pattern. It plays itself, and now and
-// then misses. Scored as in the original: 1, 4 or 7 points a brick, higher
+// Cleared walls are replaced by a new pattern. It plays itself, and well:
+// it works out where each ball will come down, takes it on the part of the
+// paddle that sends it at the best brick (through a gap to get above the
+// wall, if there's one), and with several balls in play saves the one that
+// will land first. Scored as in the original: 1, 4 or 7 points a brick, higher
 // rows worth more; three balls a game, then a fresh wall and a new game.
 // When asked to stop, the ball vanishes and the remaining bricks crumble away.
 // Touch: drag to move the paddle; tap to launch a ball waiting on it. The
@@ -28,9 +31,10 @@ static float    over_t;            // counting after the last ball is lost; < 0 
 static uint8_t  bricks[ROWS][MAX_COLS];            // 0 gone, 1 standing
 static Ball     balls[MAX_BALLS];
 static Chip     chips[MAX_CHIPS];
-static float    paddle_x, paddle_target, speed, aim, wait_t, crumble_acc;
-static int      aim_r = -1, aim_c;   // near the end: the brick it's going for
-static bool     waiting, miss_next, stopping, done, oom;
+static float    paddle_x, paddle_target, speed, wait_t, crumble_acc;
+static float    plan_x = -1, plan_t;   // where the ball it's saving comes down, and where on the paddle to take it
+static int      plan_ball = -1;
+static bool     waiting, stopping, done, oom;
 static int      claude_was;   // working Claude sessions before the latest change
 static uint32_t since_touch;
 
@@ -76,13 +80,22 @@ static void serve() {   // the ball sits on the paddle for a moment, then goes
     waiting = true;
     wait_t = 0;
     speed = BASE_SPEED;
-    miss_next = false;
+    plan_ball = -1;
 }
+
+static float shot_value(float x, float a);
 
 static void launch() {
     if (!waiting) return;
     waiting = false;
     float a = scene_randf(-0.5f, 0.5f);
+    if (since_touch >= AUTO_RESUME_MS) {   // the computer serves at the best brick it can
+        float best = -1;
+        for (float t = -0.5f; t <= 0.5f; t += 0.05f) {
+            float v = shot_value(paddle_x, t / 1.05f) - fabsf(t) * 0.5f;
+            if (v > best) { best = v; a = t; }
+        }
+    }
     balls[0].vx = speed * sinf(a);
     balls[0].vy = -speed * cosf(a);
 }
@@ -105,8 +118,6 @@ static void start(lv_obj_t *area, int w, int h) {
     new_wall();
     for (int i = 0; i < MAX_CHIPS; i++) chips[i].alive = false;
     serve();
-    aim = 0;
-    miss_next = false;
     crumble_acc = 0;
     claude_was = scene_ctx().claude_working;
     stopping = false;
@@ -125,35 +136,82 @@ static void shatter(int r, int c) {
     }
 }
 
-// Where will the lowest ball reach the paddle's height? Walls fold the path back.
-static bool predict(float &out_x) {
-    const Ball *b = nullptr;
-    for (int i = 0; i < MAX_BALLS; i++)
-        if (balls[i].alive && balls[i].vy > 0 && (!b || balls[i].y > b->y)) b = &balls[i];
-    if (!b) return false;
-    float t = (paddle_y - BALL - b->y) / b->vy;
-    float x = b->x + BALL / 2.0f + b->vx * t, span = W - BALL;
-    x = fmodf(fabsf(x - BALL / 2.0f), 2 * span);
+// Where and when will a ball on its way down reach the paddle's height?
+// Walls fold the path back.
+static float land_x(const Ball &b, float &t) {
+    t = (paddle_y - BALL - b.y) / b.vy;
+    float x = b.x + b.vx * t, span = W - BALL;
+    x = fmodf(fabsf(x), 2 * span);
     if (x > span) x = 2 * span - x;
-    out_x = x + BALL / 2.0f;
-    return true;
+    return x + BALL / 2.0f;
+}
+
+static int brick_at(float cx, float cy, int &r, int &c) {   // as move_ball sees it
+    c = (int)floorf((cx - wall_x) / (BW + GAP)); r = (int)floorf((cy - wall_y) / (BH + GAP));
+    if (c < 0 || c >= cols || r < 0 || r >= ROWS || !bricks[r][c]) return 0;
+    return cx <= brick_x(c) + BW && cy <= brick_y(r) + BH;
+}
+
+// What a shot off the paddle at x, taken at t (-1 left end .. 1 right end),
+// is worth: follow it up through the walls to the first brick it breaks. A
+// brick reached from above the wall (through a gap) is worth the most: the
+// ball rattles about up there. A shot that comes back down untouched, nothing.
+static float shot_value(float x, float t) {
+    float a = t * 1.05f, dx = sinf(a) * 2, dy = -cosf(a) * 2;
+    float cx = x, cy = paddle_y - BALL / 2.0f, lo = BALL / 2.0f, hi = W - BALL / 2.0f;
+    bool above = false;
+    for (int step = 0; step < 220; step++) {
+        cx += dx; cy += dy;
+        if (cx < lo) { cx = 2 * lo - cx; dx = -dx; }
+        if (cx > hi) { cx = 2 * hi - cx; dx = -dx; }
+        if (cy < lo) { cy = 2 * lo - cy; dy = -dy; }
+        if (dy > 0 && cy > paddle_y) return 0;
+        above |= cy < wall_y;
+        int r, c;
+        if (brick_at(cx, cy, r, c)) return 10 + (r < 2 ? 7 : r < 4 ? 4 : 1) + (above && dy > 0 ? 25 : 0);
+    }
+    return 0;
 }
 
 static void autopilot() {
-    float x;
-    if (predict(x)) {
-        float t = -aim * 0.8f;   // where on the paddle to take the ball, -1 (left end) to 1
-        if (aim_r >= 0 && bricks[aim_r][aim_c]) {
-            // Angle the shot at the chosen brick (ignoring walls, which is close enough)
-            float dx = brick_x(aim_c) + BW / 2.0f - x, dy = paddle_y - brick_y(aim_r);
-            t = fmaxf(-0.9f, fminf(0.9f, atan2f(dx, dy) / 1.05f));
+    // Save the ball that lands first, unless the paddle can't get there in
+    // time: then the next one that it can
+    int pick = -1;
+    float pick_t = 1e9f, pick_x = 0;
+    for (int pass = 0; pass < 2 && pick < 0; pass++)
+        for (int i = 0; i < MAX_BALLS; i++) {
+            if (!balls[i].alive || balls[i].vy <= 0 || waiting) continue;
+            float t, x = land_x(balls[i], t);
+            bool reach = fabsf(x - paddle_x) <= PADDLE_V * t + PW / 2.0f;
+            if ((reach || pass) && t < pick_t) { pick = i; pick_t = t; pick_x = x; }
         }
-        paddle_target = x - t * PW / 2.0f + (miss_next ? PW * 1.1f : 0);
-    }
-    else {
-        float cx = 0; int n = 0;   // drift under the balls on their way up
-        for (int i = 0; i < MAX_BALLS; i++) if (balls[i].alive) { cx += balls[i].x + BALL / 2.0f; n++; }
-        if (n) paddle_target = cx / n;
+    if (pick >= 0) {
+        // Plan the shot when a ball starts down, and again only if its
+        // landing spot moves (a brick turned it)
+        if (pick != plan_ball || fabsf(pick_x - plan_x) > 1.5f) {
+            plan_ball = pick; plan_x = pick_x; plan_t = 0;
+            float best = -1;
+            for (float t = -0.85f; t <= 0.851f; t += 0.085f) {
+                float px = fmaxf(PW / 2.0f, fminf(W - PW / 2.0f, pick_x - t * PW / 2.0f));
+                float tt = (pick_x - px) / (PW / 2.0f);   // against a side wall the paddle can't centre on it
+                if (fabsf(px - paddle_x) > PADDLE_V * pick_t - 2) continue;   // can't get there
+                float v = shot_value(pick_x, tt) - fabsf(tt) * 2;              // all else equal, the safer middle
+                if (v > best) { best = v; plan_t = tt; }
+            }
+        }
+        paddle_target = plan_x - plan_t * PW / 2.0f;
+    } else if (!waiting) {
+        plan_ball = -1;
+        // All on their way up: wait under the one that'll come down first
+        float soon = 1e9f;
+        for (int i = 0; i < MAX_BALLS; i++) {
+            if (!balls[i].alive) continue;
+            Ball b = balls[i];
+            float up = b.vy < 0 ? -b.y / b.vy : 0;   // to the ceiling (roughly: bricks may turn it sooner)
+            if (b.vy < 0) { b.x += b.vx * up; b.y = 0; b.vy = -b.vy; }
+            float t, x = land_x(b, t);
+            if (up + t < soon) { soon = up + t; paddle_target = x; }
+        }
     }
     if (waiting && wait_t > 0.8f) launch();
 }
@@ -165,17 +223,7 @@ static void bounce_off_paddle(Ball &b) {
     b.vx = speed * sinf(a);
     b.vy = -speed * cosf(a);
     b.y = paddle_y - BALL;
-    // Next time: aim at a random spot on the paddle; once in a while, miss
-    aim = scene_randf(-1, 1);
-    miss_next = random(0, 100) < 4;
-    aim_r = -1;
-    int left = bricks_left();
-    if (left <= 10) {   // few left: go for one of them
-        int pick = random(0, left);
-        for (int r = 0; r < ROWS && aim_r < 0; r++)
-            for (int c = 0; c < cols; c++)
-                if (bricks[r][c] && pick-- == 0) { aim_r = r; aim_c = c; break; }
-    }
+    plan_ball = -1;
 }
 
 static void move_ball(Ball &b, float dt) {

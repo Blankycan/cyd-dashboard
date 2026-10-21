@@ -8,8 +8,12 @@
 // send the ball back nearly flat, the ends at a steep angle. The ball speeds
 // up after the 4th and 12th hit of a rally, and, as in the original, the
 // paddles can't quite reach the top of the screen. First to 11 wins; the
-// winning score blinks, then a new game. Both sides play themselves, not
-// perfectly. When asked to stop, the paddles let the ball through and it runs out.
+// winning score blinks, then a new game. Both sides play themselves, and
+// play to win: each reads where the ball will come and picks the segment to
+// take it on that sends it back steepest and hardest to read. A ball can't be
+// read for sure until its last bounce off the wall, so the points come from
+// fast, steep shots that bounce late. When asked to stop, the paddles let the
+// ball through and it runs out.
 // Touch: drag to move the right-hand paddle. The computer takes back over
 // AUTO_RESUME_MS after your last touch.
 // Events: with music playing the net pulses on the beat.
@@ -18,8 +22,14 @@ static const uint32_t AUTO_RESUME_MS = 5000;
 static const int      PAD_W = 3, PAD_H = 16, BALL = 3, TOP_GAP = 4, WIN_SCORE = 11;
 static const float    SPEEDS[3] = { 95, 130, 165 };   // before the 4th hit, to the 12th, after
 static const float    PAD_V = 95;
+static const float    READ_ERR = 0.3f;   // how far off a read can be before the last bounce, per px/s of vy
+static const float    READ_T = 0.18f;    // a moment to take in that last bounce
+static const float    SLOPE[8] = { -0.9f, -0.6f, -0.3f, -0.1f, 0.1f, 0.3f, 0.6f, 0.9f };
 
-struct Paddle { float y, target, aim; };   // y: top; aim: where on the paddle it means to take the ball
+// y: top; aim: where on the paddle it means to take the ball (-1 top .. 1
+// bottom), picked once the ball's path is certain; misread: how far off its
+// read of the ball's path is, -1..1, rolled for each shot
+struct Paddle { float y, target, aim, misread; bool aimed; };
 
 static PixFb  fb;
 static int    W, H, pad_x[2], score[2], hits, serve_to;
@@ -62,7 +72,8 @@ static void launch() {
     float sp = SPEEDS[0];
     vx = serve_to ? sp : -sp;
     vy = scene_randf(-0.35f, 0.35f) * sp;
-    for (int s = 0; s < 2; s++) pad[s].aim = scene_randf(-0.8f, 0.8f);
+    for (int s = 0; s < 2; s++) { pad[s].aim = 0; pad[s].aimed = false; }
+    pad[serve_to].misread = scene_randf(-1, 1);
 }
 
 static void new_game() {
@@ -79,14 +90,77 @@ static void start(lv_obj_t *area, int w, int h) {
     if (oom) return;
     if (!pixfb_bg_save(fb)) { done = oom = true; return; }
     pad_x[0] = 8; pad_x[1] = w - 8 - PAD_W;
-    for (int s = 0; s < 2; s++) pad[s] = { (h - PAD_H) / 2.0f, (h - PAD_H) / 2.0f, 0 };
+    for (int s = 0; s < 2; s++) pad[s] = { (h - PAD_H) / 2.0f, (h - PAD_H) / 2.0f, 0, 0, false };
     new_game();
     beat_t = 0;
     stopping = false;
     since_touch = AUTO_RESUME_MS;
 }
 
-static float speed() { return SPEEDS[hits < 4 ? 0 : hits < 12 ? 1 : 2]; }
+static float speed_at(int n) { return SPEEDS[n < 4 ? 0 : n < 12 ? 1 : 2]; }
+static float speed()        { return speed_at(hits); }
+
+static float face_x(int side) { return side == 0 ? pad_x[0] + PAD_W : pad_x[1] - BALL; }
+
+// The angle a segment sends the ball back at, for a side and a speed
+static void out_vel(int side, int seg, float sp, float &ovx, float &ovy) {
+    ovy = SLOPE[seg] * sp;
+    ovx = (side == 0 ? 1 : -1) * sqrtf(fmaxf(sp * sp - ovy * ovy, sp * sp * 0.4f));
+}
+
+// A ball's way to a side's paddle: how long it takes, where it gets there,
+// how many times it bounces off the top and bottom first, and how long
+// before it arrives the last of those bounces is
+struct Flight { float t, y, since_bounce; int bounces; };
+
+static Flight fly(float x, float y, float fvx, float fvy, int side) {
+    Flight f = { (face_x(side) - x) / fvx, y, 0, 0 };
+    if (f.t <= 0) { f.t = 0; return f; }
+    float span = H - BALL, tt = 0, last = 0;
+    while (fvy != 0) {
+        float to_wall = fmaxf(0, fvy > 0 ? (span - y) / fvy : -y / fvy);
+        if (tt + to_wall >= f.t) break;
+        tt += to_wall; y = fvy > 0 ? span : 0; fvy = -fvy;
+        last = tt; f.bounces++;
+    }
+    f.y = y + fvy * (f.t - tt);
+    f.since_bounce = f.t - last;
+    return f;
+}
+
+// How likely a return is to get past the other side: only a ball that still
+// has a bounce to come can fool them, by more the steeper and faster it is,
+// and the later the bounce, the less time to put it right
+static float miss_chance(float ovy, const Flight &g) {
+    if (!g.bounces) return 0;
+    float err = READ_ERR * fabsf(ovy);
+    if (err <= 0) return 0;
+    float fix = PAD_H / 2.0f + BALL / 2.0f + 1.5f + PAD_V * fmaxf(0, g.since_bounce - READ_T);
+    return fmaxf(0, 1 - fix / err);
+}
+
+// With the ball's path certain: which segment to take it on, the one whose
+// return is hardest for the other side, as long as this paddle can get there
+static float choose_aim(int side, const Flight &f) {
+    const Paddle &p = pad[side];
+    float sp = speed_at(hits + 1), best = -1, best_aim = 0, near = 1e9f;
+    for (int seg = 0; seg < 8; seg++) {
+        float a = (seg + 0.5f) / 4 - 1;
+        float y = f.y + BALL / 2.0f - PAD_H / 2.0f - a * PAD_H / 2.0f;
+        y = fmaxf(TOP_GAP, fminf(H - PAD_H, y));
+        if ((int)((f.y + BALL / 2.0f - y) / PAD_H * 8) != seg) continue;   // can't, against the top or bottom
+        float move = fabsf(y - p.y);
+        if (move > PAD_V * f.t - 2) {   // out of reach: failing all else, the nearest
+            if (best < 0 && move < near) { near = move; best_aim = a; }
+            continue;
+        }
+        float ovx, ovy;
+        out_vel(side, seg, sp, ovx, ovy);
+        float v = miss_chance(ovy, fly(face_x(side), f.y, ovx, ovy, 1 - side)) + fabsf(SLOPE[seg]) * 0.05f;
+        if (v > best) { best = v; best_aim = a; }
+    }
+    return best_aim;
+}
 
 static void bounce(int side) {
     // Which of the paddle's eight segments took it sets the new angle
@@ -94,32 +168,26 @@ static void bounce(int side) {
     int seg = (int)(rel * 8);
     if (seg < 0) seg = 0;
     if (seg > 7) seg = 7;
-    static const float SLOPE[8] = { -0.9f, -0.6f, -0.3f, -0.1f, 0.1f, 0.3f, 0.6f, 0.9f };
     hits++;
-    float sp = speed();
-    vy = SLOPE[seg] * sp;
-    vx = (side == 0 ? 1 : -1) * sqrtf(fmaxf(sp * sp - vy * vy, sp * sp * 0.4f));
-    // The one who has to return it next picks where to take it on the paddle
-    // (and sometimes misjudges it)
-    int other = 1 - side;
-    pad[other].aim = random(0, 100) < 35 ? (random(0, 2) ? 1.6f : -1.6f) : scene_randf(-0.8f, 0.8f);
-}
-
-// Where the ball will be when it reaches this paddle's side, folding it off
-// the top and bottom walls
-static float predict_y(int side) {
-    float x_to = side == 0 ? pad_x[0] + PAD_W : pad_x[1] - BALL;
-    float t = (x_to - bx) / vx;
-    if (t < 0) return by;
-    float span = H - BALL, y = fmodf(fabsf(by + vy * t), 2 * span);
-    return y > span ? 2 * span - y : y;
+    out_vel(side, seg, speed(), vx, vy);
+    // A fresh shot: both sides take a new look at it
+    for (int s = 0; s < 2; s++) { pad[s].aim = 0; pad[s].aimed = false; }
+    pad[1 - side].misread = scene_randf(-1, 1);
 }
 
 static void steer(int side, float dt, bool computer) {
     Paddle &p = pad[side];
     if (computer && !stopping) {   // wrapping up: they stop chasing, so the rally ends
         bool coming = in_play && (side == 0 ? vx < 0 : vx > 0);
-        float y = coming ? predict_y(side) : H / 2.0f;
+        float y = H / 2.0f;   // not coming: back to the middle, ready
+        if (coming) {
+            // Until its last bounce the ball's path is a guess, off by more the
+            // steeper it comes; after it, certain, and time to pick the shot
+            Flight f = fly(bx, by, vx, vy, side);
+            y = f.y;
+            if (f.bounces) y += p.misread * READ_ERR * fabsf(vy);
+            else if (!p.aimed) { p.aim = choose_aim(side, f); p.aimed = true; }
+        }
         p.target = y + BALL / 2.0f - PAD_H / 2.0f - p.aim * PAD_H / 2.0f;
     }
     float d = p.target - p.y, step = PAD_V * dt;
@@ -148,14 +216,16 @@ static void update(float dt) {
         return;
     }
 
+    float was_x = bx;
     bx += vx * dt; by += vy * dt;
     if (by < 0)         { by = 0; vy = fabsf(vy); }
     if (by > H - BALL)  { by = H - BALL; vy = -fabsf(vy); }
     for (int s = 0; s < 2; s++) {
+        // Did it cross the paddle's face this frame? (a fast ball moves several px a frame)
         bool toward = s == 0 ? vx < 0 : vx > 0;
-        float face = s == 0 ? pad_x[0] + PAD_W : pad_x[1] - BALL;
-        bool at_face = s == 0 ? bx <= face && bx > face - 4 : bx >= face && bx < face + 4;
-        if (toward && at_face && !stopping && by + BALL > pad[s].y && by < pad[s].y + PAD_H) { bx = face; bounce(s); }
+        float face = face_x(s);
+        bool crossed = s == 0 ? was_x >= face && bx < face : was_x <= face && bx > face;
+        if (toward && crossed && !stopping && by + BALL > pad[s].y && by < pad[s].y + PAD_H) { bx = face; bounce(s); break; }
     }
     // Past a paddle: a point to the other side
     if (bx < -BALL || bx > W) {
