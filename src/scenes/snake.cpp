@@ -8,8 +8,9 @@
 // the screen edges, grows by one for every bite, and the game ends only when
 // it bites itself. Every fifth bite a bonus critter shows up for a while,
 // worth more the sooner it's eaten (its countdown shows top right). Scored
-// as on the phone at speed level 5: 5 points a bite. It plays itself, well
-// but not perfectly; when it dies it blinks, and a new game starts. When
+// as on the phone at speed level 5: 5 points a bite. It plays itself, never
+// taking a bite it couldn't get back out of, so it usually fills nearly the
+// whole screen; when it dies it blinks, and a new game starts. When
 // asked to stop, the snake shrinks away into its head.
 // Touch: going sideways, tap above or below the snake to turn up or down;
 // going up or down, tap left or right of it. The computer takes back
@@ -37,10 +38,10 @@ static Cell     body[MAX_LEN];                  // ring buffer, head at [head]
 static int      head, len, dir, next_dir;
 static uint8_t  occ[MAX_ROWS][MAX_COLS];        // 1 where the snake is
 static Cell     food, bonus;
-static int      bonus_steps, bonus_kind, bites, score;
+static int      bonus_steps, bonus_kind, bites, score, since_bite;
 static long     hi_score;                       // best since the board started
 static float    step_acc, dead_t, tongue_t, shrink_acc;
-static bool     dead, lapse, stopping, done, oom;
+static bool     dead, stopping, done, oom;
 static int      claude_was;
 static uint32_t since_touch;
 
@@ -81,9 +82,9 @@ static void new_game() {
     int y = rows / 2, x0 = cols / 2 - len;
     for (int i = 0; i < len; i++) { body[i] = { (int8_t)(x0 + i), (int8_t)y }; occ[y][x0 + i] = 1; }
     dir = next_dir = 0;
-    score = bites = 0;
+    score = bites = since_bite = 0;
     bonus_steps = 0;
-    dead = lapse = false;
+    dead = false;
     step_acc = 0;
     place_food();
 }
@@ -121,77 +122,108 @@ static void start(lv_obj_t *area, int w, int h) {
 }
 
 // --- Autopilot ---------------------------------------------------------------
-// Breadth-first search to the food (or the bonus) round the snake, then check
-// the square it would move into still leaves room for the whole snake; if
-// not, take whichever move leaves the most room. Now and then (a "lapse") it
-// skips that check, which is what eventually gets a long snake killed.
+// The classic safe way: find the shortest way to the food (or the critter,
+// if it can get there before it goes), then play the whole trip out on a
+// copy of the snake and only take it if, having eaten, the head can still
+// find its way round to the tail. If not, it follows its own tail the long
+// way round, so the body moves out of the way, until the food is safe to go
+// for. Only when even that's impossible does it settle for the most room.
 
-static uint8_t  seen[MAX_ROWS][MAX_COLS];
-static Cell     queue[MAX_LEN];
+static uint8_t  vocc[MAX_ROWS][MAX_COLS];       // the snake as it would be
+static int16_t  dist[MAX_ROWS][MAX_COLS];
+static int8_t   came[MAX_ROWS][MAX_COLS];       // the step that reached each square
+static Cell     queue[MAX_LEN], path[MAX_LEN], vbody[MAX_LEN + 1];
 
-static int room_from(Cell start) {   // squares reachable from `start`, the tail counted as free
-    memset(seen, 0, sizeof(seen));
-    Cell tail = at(len - 1);
-    int qh = 0, qt = 0, n = 0;
-    queue[qt++] = start; seen[start.y][start.x] = 1;
+static bool same(Cell a, Cell b) { return a.x == b.x && a.y == b.y; }
+
+// Distances from `from` over the squares free in `blk`; `pass` counts as free
+// (the tail, which will have moved on). Returns how many squares it reached.
+static int flood(const uint8_t blk[MAX_ROWS][MAX_COLS], Cell from, Cell pass) {
+    for (int y = 0; y < rows; y++) for (int x = 0; x < cols; x++) dist[y][x] = -1;
+    int qh = 0, qt = 0;
+    queue[qt++] = from; dist[from.y][from.x] = 0;
     while (qh < qt) {
         Cell c = queue[qh++];
-        n++;
+        if (same(c, pass) && qh > 1) continue;   // the tail: can get to it, not past it
         for (int d = 0; d < 4; d++) {
             Cell nb = step_from(c, d);
-            if (seen[nb.y][nb.x]) continue;
-            if (occ[nb.y][nb.x] && !(nb.x == tail.x && nb.y == tail.y)) continue;
-            seen[nb.y][nb.x] = 1;
+            if (dist[nb.y][nb.x] >= 0 || (blk[nb.y][nb.x] && !same(nb, pass))) continue;
+            dist[nb.y][nb.x] = dist[c.y][c.x] + 1; came[nb.y][nb.x] = d;
             queue[qt++] = nb;
         }
     }
-    return n;
+    return qt;
 }
 
-static int first_move_to(Cell goal) {   // direction of the first step of a shortest path, or -1
-    static int8_t first[MAX_ROWS][MAX_COLS];
-    memset(seen, 0, sizeof(seen));
-    Cell h = at(0);
-    int qh = 0, qt = 0;
-    seen[h.y][h.x] = 1;
-    for (int d = 0; d < 4; d++) {
-        if (d == (dir + 2) % 4) continue;
-        Cell nb = step_from(h, d);
-        if (occ[nb.y][nb.x] || seen[nb.y][nb.x]) continue;
-        seen[nb.y][nb.x] = 1; first[nb.y][nb.x] = d;
-        queue[qt++] = nb;
+// After following path[0..n-1] (and growing by one if it eats at the end),
+// can the head still get to the tail?
+static bool safe_trip(int n, bool grows) {
+    int vlen = len + (grows ? 1 : 0), k = 0;
+    for (int i = n - 1; i >= 0 && k < vlen; i--) vbody[k++] = path[i];
+    for (int i = 0; k < vlen; i++) vbody[k++] = at(i);
+    memset(vocc, 0, sizeof(vocc));
+    for (int i = 0; i < vlen; i++) vocc[vbody[i].y][vbody[i].x] = 1;
+    Cell vtail = vbody[vlen - 1];
+    flood(vocc, vbody[0], vtail);
+    return dist[vtail.y][vtail.x] > 0;
+}
+
+// The shortest way from the head to `goal` (or the square beside it, for the
+// critter's second half) without going through the snake; its length, or -1.
+// The way to go first is left in route_dir.
+static int route_dir;
+static int route_to(Cell goal, bool wide) {
+    Cell h = at(0), tail = at(len - 1);
+    flood(occ, h, tail);
+    Cell end = goal;
+    if (wide) {
+        Cell other = { (int8_t)((goal.x + 1) % cols), goal.y };
+        int a = dist[goal.y][goal.x], b = dist[other.y][other.x];
+        if (b >= 0 && (a < 0 || b < a)) end = other;
     }
-    while (qh < qt) {
-        Cell c = queue[qh++];
-        if (c.x == goal.x && c.y == goal.y) return first[c.y][c.x];
-        for (int d = 0; d < 4; d++) {
-            Cell nb = step_from(c, d);
-            if (occ[nb.y][nb.x] || seen[nb.y][nb.x]) continue;
-            seen[nb.y][nb.x] = 1; first[nb.y][nb.x] = first[c.y][c.x];
-            queue[qt++] = nb;
-        }
-    }
-    return -1;
+    int n = dist[end.y][end.x];
+    if (n <= 0) return -1;
+    Cell c = end;
+    for (int i = n - 1; i >= 0; i--) { path[i] = c; c = step_from(c, (came[c.y][c.x] + 2) % 4); }
+    route_dir = came[path[0].y][path[0].x];
+    return route_dir == (dir + 2) % 4 ? -1 : n;   // no turning straight back
 }
 
 static void autopilot() {
-    Cell goal = food;
-    if (bonus_steps > 8) goal = bonus;   // go for the critter while there's time
-    int d = first_move_to(goal);
-    Cell h = at(0);
-    if (d >= 0 && !lapse && room_from(step_from(h, d)) < len) d = -1;   // it would box itself in
-    if (d < 0) {
-        int best = -1, best_room = -1;
-        for (int k = 0; k < 4; k++) {
-            if (k == (dir + 2) % 4) continue;
-            Cell nb = step_from(h, k);
-            if (occ[nb.y][nb.x]) continue;
-            int r = room_from(nb);
-            if (r > best_room) { best_room = r; best = k; }
-        }
-        d = best >= 0 ? best : dir;
+    Cell h = at(0), tail = at(len - 1);
+    // The critter first, if there's time to get there; then the food
+    if (bonus_steps > 0) {
+        int n = route_to(bonus, true);
+        if (n > 0 && n < bonus_steps && safe_trip(n, false)) { next_dir = route_dir; return; }
     }
-    next_dir = d;
+    int n = route_to(food, false);
+    // Safe, or it's been going round so long the board's as good as full: go for it
+    if (n > 0 && (safe_trip(n, true) || since_bite > 2 * cols * rows)) { next_dir = route_dir; return; }
+
+    // Not safe yet: follow the tail, taking the move that keeps it farthest
+    // away (the long way round buys the most time), closer to the food on a tie
+    int best = -1, best_tail = -1, best_food = 1 << 30, best_room = -1, roomiest = -1;
+    for (int k = 0; k < 4; k++) {
+        if (k == (dir + 2) % 4) continue;
+        Cell nb = step_from(h, k);
+        if (same(nb, food)) continue;   // eating here was found unsafe above
+        if (occ[nb.y][nb.x] && !same(nb, tail)) continue;
+        path[0] = nb;
+        bool ok = safe_trip(1, false);
+        int to_tail = dist[vbody[len - 1].y][vbody[len - 1].x];
+        int room = flood(vocc, nb, vbody[len - 1]);
+        if (room > best_room) { best_room = room; roomiest = k; }
+        if (!ok) continue;
+        int dfx = abs(nb.x - food.x), dfy = abs(nb.y - food.y);
+        int to_food = min(dfx, cols - dfx) + min(dfy, rows - dfy);
+        if (to_tail > best_tail || (to_tail == best_tail && to_food < best_food)) { best_tail = to_tail; best_food = to_food; best = k; }
+    }
+    if (best < 0) best = roomiest;
+    if (best < 0) {   // nothing but the food left that doesn't kill it at once
+        for (int k = 0; k < 4 && best < 0; k++)
+            if (k != (dir + 2) % 4 && !occ[step_from(h, k).y][step_from(h, k).x]) best = k;
+    }
+    next_dir = best >= 0 ? best : dir;
 }
 
 // --- Game --------------------------------------------------------------------
@@ -208,10 +240,10 @@ static void step() {
     body[head] = h;
     occ[h.y][h.x] = 1;
     if (eats) len++;
+    since_bite = eats ? 0 : since_bite + 1;
     if (eats) {
         score += LEVEL;
         if (++bites % BONUS_EVERY == 0 && bonus_steps == 0) place_bonus();
-        lapse = random(0, 100) < 3;   // the next approach might be careless
         if (len + 1 >= cols * rows) { dead = true; dead_t = 0; return; }   // no room left: a win, really
         place_food();
     }

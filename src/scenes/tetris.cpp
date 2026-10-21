@@ -62,63 +62,149 @@ static int      touch_y0;
 
 static const int8_t *cell_of(int p, int r, int i) { return SHAPES[p][r % STATES[p]][i]; }
 
-static bool fits(int p, int r, int x, int y) {
+static bool fits_in(const uint8_t g[ROWS][COLS], int p, int r, int x, int y) {
     for (int i = 0; i < 4; i++) {
         const int8_t *c = cell_of(p, r, i);
         int cx = x + c[0], cy = y + c[1];
         if (cx < 0 || cx >= COLS || cy >= ROWS) return false;
-        if (cy >= 0 && well[cy][cx]) return false;
+        if (cy >= 0 && g[cy][cx]) return false;
     }
     return true;
 }
+static bool fits(int p, int r, int x, int y) { return fits_in(well, p, r, x, y); }
 
 // --- The computer ------------------------------------------------------------
-// Tries every rotation and column for the current piece, drops it, and scores
-// the result on the usual four things: total height, lines cleared, holes,
-// and bumpiness. Once in a while it goes for a lesser spot.
+// For every rotation and column it can actually get the piece to in time
+// (tapping as fast as it does, against gravity, with no wall kicks) it drops
+// the piece, clears any lines, and scores the stack the El-Tetris way:
+// landing height, cells cleared, row and column transitions, holes and
+// wells. While the stack is low it keeps the right-hand column open and
+// holds out for Tetrises. The best few spots are then tried with the NEXT
+// piece, and it takes the one that leaves the best follow-up.
 
-static float evaluate(uint8_t g[ROWS][COLS]) {
-    int heights[COLS], holes = 0, full = 0;
-    for (int x = 0; x < COLS; x++) {
-        heights[x] = 0;
-        bool seen = false;
-        for (int y = 0; y < ROWS; y++) {
-            if (g[y][x]) { if (!seen) heights[x] = ROWS - y; seen = true; }
-            else if (seen) holes++;
+static const int MAX_MOVES = 40, LOOKAHEAD = 4, THINK_FRAMES = 5;
+struct Move { int8_t r, x; float v; };
+
+// Plays out the computer's own routine (see frame()) from the spawn: think,
+// then a tap every TAP_FRAMES (rotations first), with gravity pulling all the
+// while. Returns the row it lands on, or -1 if it can't get there.
+static int reach(const uint8_t g[ROWS][COLS], int p, int gr, int gx) {
+    int r = 0, x = 5, y = 0, think = THINK_FRAMES, tap = 0, grav = 0, gmax = GRAVITY[level < 29 ? level : 29];
+    if (!fits_in(g, p, r, x, y)) return -1;
+    while (r != gr || x != gx) {
+        if (think > 0) think--;
+        else {
+            if (tap > 0) tap--;
+            else if (r != gr) {
+                int nr = (gr - r + STATES[p]) % STATES[p] == 3 ? (r + 3) % 4 : (r + 1) % 4;
+                nr %= STATES[p];
+                if (!fits_in(g, p, nr, x, y)) return -1;
+                r = nr;
+                tap = TAP_FRAMES;
+            }
+            if (tap == 0 && x != gx) {
+                int d = gx > x ? 1 : -1;
+                if (!fits_in(g, p, r, x + d, y)) return -1;
+                x += d;
+                tap = TAP_FRAMES;
+            }
+        }
+        if (++grav >= gmax) { grav = 0; if (!fits_in(g, p, r, x, y + 1)) return -1; y++; }   // it would lock on the way
+    }
+    while (fits_in(g, p, r, x, y + 1)) y++;
+    return y;
+}
+
+// Puts piece p at (r, x, y) into g, clears full rows, and scores what's left
+static float place(uint8_t g[ROWS][COLS], int p, int r, int x, int y) {
+    int top = ROWS, bottom = 0;
+    for (int i = 0; i < 4; i++) {
+        const int8_t *c = cell_of(p, r, i);
+        int cy = y + c[1];
+        if (cy < 0) return -1e8f;   // sticking out of the top: that's the game
+        g[cy][x + c[0]] = 1;
+        if (cy < top) top = cy;
+        if (cy > bottom) bottom = cy;
+    }
+    int cleared = 0, eroded = 0;
+    for (int yy = 0; yy < ROWS; yy++) {
+        bool f = true;
+        for (int xx = 0; xx < COLS && f; xx++) f = g[yy][xx];
+        if (!f) continue;
+        if (yy >= top && yy <= bottom)
+            for (int i = 0; i < 4; i++) eroded += y + cell_of(p, r, i)[1] == yy;
+        memmove(&g[1][0], &g[0][0], (size_t)yy * COLS);
+        memset(&g[0][0], 0, COLS);
+        cleared++;
+    }
+    int heights[COLS], holes = 0, row_t = 0, col_t = 0, wells = 0, max_h = 0;
+    for (int xx = 0; xx < COLS; xx++) {
+        heights[xx] = 0;
+        bool prev = false;   // above the stack: empty
+        for (int yy = 0; yy < ROWS; yy++) {
+            bool f = g[yy][xx];
+            if (f && !heights[xx]) heights[xx] = ROWS - yy;
+            if (!f && heights[xx]) holes++;
+            col_t += f != prev;
+            prev = f;
+        }
+        col_t += !prev;   // the floor counts as filled
+        if (heights[xx] > max_h) max_h = heights[xx];
+    }
+    for (int yy = 0; yy < ROWS; yy++) {
+        bool prev = true;   // and so do the walls
+        for (int xx = 0; xx < COLS; xx++) { bool f = g[yy][xx]; row_t += f != prev; prev = f; }
+        row_t += !prev;
+    }
+    // Low and slow enough to build for a Tetris down the last column (any
+    // higher and an I-piece drought, or the speed, gets it into trouble)
+    bool building = max_h <= 10 && level < 13;
+    for (int xx = 0; xx < COLS; xx++) {
+        int depth = 0, spare = building && xx == COLS - 1 ? 4 : 0;   // the Tetris well: four deep is the point
+        for (int yy = 0; yy < ROWS && !g[yy][xx]; yy++) {
+            bool left = xx == 0 || g[yy][xx - 1], right = xx == COLS - 1 || g[yy][xx + 1];
+            if (left && right) { if (++depth > spare) wells += depth - spare; } else depth = 0;
         }
     }
-    for (int y = 0; y < ROWS; y++) {
-        bool f = true;
-        for (int x = 0; x < COLS && f; x++) f = g[y][x];
-        full += f;
-    }
-    int agg = 0, bump = 0;
-    for (int x = 0; x < COLS; x++) { agg += heights[x]; if (x) bump += abs(heights[x] - heights[x - 1]); }
-    return -0.510066f * agg + 0.760666f * full - 0.35663f * holes - 0.184483f * bump;
+    float v = -4.500158825f * (ROWS - (top + bottom) / 2.0f) - 3.217888287f * row_t - 9.348695305f * col_t
+              - 7.899265427f * holes - 3.385597225f * wells;
+    if (!building)          v += 3.418126810f * cleared * eroded;   // up high: every line counts
+    else if (cleared == 4)  v += 100;
+    else                    v -= 15 * cleared + 10 * heights[COLS - 1];   // don't fritter the stack away
+    return v;
+}
+
+static int candidates(const uint8_t g[ROWS][COLS], int p, Move *out) {
+    static uint8_t t[ROWS][COLS];
+    int n = 0;
+    for (int r = 0; r < STATES[p]; r++)
+        for (int x = -2; x < COLS + 2 && n < MAX_MOVES; x++) {
+            int y = reach(g, p, r, x);
+            if (y < 0) continue;
+            memcpy(t, g, sizeof(t));
+            out[n++] = { (int8_t)r, (int8_t)x, place(t, p, r, x, y) };
+        }
+    return n;
 }
 
 static void plan() {
+    static Move first[MAX_MOVES], second[MAX_MOVES];
     static uint8_t g[ROWS][COLS];
-    float best = -1e9f, second = -1e9f;
-    int br = 0, bx = px, sr = 0, sx = px;
-    for (int r = 0; r < STATES[cur]; r++)
-        for (int x = -2; x < COLS + 2; x++) {
-            if (!fits(cur, r, x, 0)) continue;
-            int y = 0;
-            while (fits(cur, r, x, y + 1)) y++;
-            memcpy(g, well, sizeof(g));
-            for (int i = 0; i < 4; i++) {
-                const int8_t *c = cell_of(cur, r, i);
-                if (y + c[1] >= 0) g[y + c[1]][x + c[0]] = 1;
-            }
-            float v = evaluate(g);
-            if (v > best) { second = best; sr = br; sx = bx; best = v; br = r; bx = x; }
-            else if (v > second) { second = v; sr = r; sx = x; }
-        }
-    bool lapse = random(0, 100) < 2 && second > -1e8f;
-    goal_rot = lapse ? sr : br;
-    goal_x = lapse ? sx : bx;
-    think_frames = 5;
+    goal_rot = rot; goal_x = px;
+    think_frames = THINK_FRAMES;
+    int n = candidates(well, cur, first);
+    // The best few spots for this piece, each then tried with the next one
+    for (int i = 0; i < LOOKAHEAD && i < n; i++)
+        for (int j = i + 1; j < n; j++) if (first[j].v > first[i].v) { Move m = first[i]; first[i] = first[j]; first[j] = m; }
+    float best = -1e9f;
+    for (int i = 0; i < LOOKAHEAD && i < n; i++) {
+        memcpy(g, well, sizeof(g));
+        place(g, cur, first[i].r, first[i].x, reach(well, cur, first[i].r, first[i].x));
+        int m = candidates(g, next_piece, second);
+        float follow = -1e8f;
+        for (int j = 0; j < m; j++) if (second[j].v > follow) follow = second[j].v;
+        if (first[i].v + follow > best) { best = first[i].v + follow; goal_rot = first[i].r; goal_x = first[i].x; }
+    }
 }
 
 // --- The game ----------------------------------------------------------------
