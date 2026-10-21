@@ -6,7 +6,10 @@
 // Missile Command — enemy missiles streak down toward six cities, and three
 // bases fire back: each counter-missile bursts into an expanding fireball
 // that takes out anything flying through it (and those go off too, so they
-// chain). Some enemy missiles split in mid-air. It plays itself.
+// chain). Some enemy missiles split in mid-air. It plays itself like a good
+// player: it leads every shot, fires from whichever base gets there in time,
+// catches several missiles with one fireball when it can, and doesn't waste
+// missiles on ones already doomed or headed for ruins.
 //
 // Kept to the arcade rules: each base has 10 missiles a wave (the stack on
 // its hill), and a base that's hit loses what it had left; only so many can
@@ -182,9 +185,9 @@ static int pick_base(float tx) {   // the nearest base with missiles left, or -1
 
 static float shot_speed(int b) { return b == 1 ? SHOT_V_FAST : SHOT_V; }
 
-static bool fire_at(float tx, float ty) {
+static bool fire_at(float tx, float ty, int b = -1) {   // from base b, or the nearest
     if (phase != PH_PLAY) return false;
-    int b = pick_base(tx);
+    if (b < 0) b = pick_base(tx);
     if (b < 0 || shots_in_air() >= MAX_SHOTS) return false;
     if (ty > aim_floor()) ty = aim_floor();
     for (int i = 0; i < MAX_SHOTS; i++) {
@@ -199,42 +202,100 @@ static bool fire_at(float tx, float ty) {
     return false;
 }
 
+// How long after a shot lands its fireball is wide enough to count on
+static const float BLAST_AIM_T = BLAST_GROW * 0.6f;
+
+static bool harmful(const Enemy &e) {   // a missile on a ruin or an empty base does no harm
+    return e.target < CITIES ? city_up[e.target] : ammo[e.target - CITIES] > 0;
+}
+
+// Will this missile run into a fireball that's already there, or one a shot
+// in the air is about to open?
+static bool covered(const Enemy &e) {
+    const float r = BLAST_R * 0.75f;
+    for (int s = 0; s < MAX_SHOTS; s++) {
+        const Shot &sh = shots[s];
+        if (!sh.alive) continue;
+        float rem = sqrtf((sh.tx - sh.x) * (sh.tx - sh.x) + (sh.ty - sh.y) * (sh.ty - sh.y));
+        float t = rem / sqrtf(sh.vx * sh.vx + sh.vy * sh.vy) + BLAST_AIM_T;
+        float dx = sh.tx - (e.x + e.vx * t), dy = sh.ty - (e.y + e.vy * t);
+        if (dx * dx + dy * dy < r * r) return true;
+    }
+    for (int b = 0; b < MAX_BLASTS; b++) {
+        const Blast &bl = blasts[b];
+        if (!bl.alive) continue;
+        float left = BLAST_GROW + BLAST_HOLD - bl.t;   // while it's still at full size
+        for (float t = 0; t <= left; t += 0.15f) {
+            float dx = bl.x - (e.x + e.vx * t), dy = bl.y - (e.y + e.vy * t);
+            if (dx * dx + dy * dy < r * r) return true;
+        }
+    }
+    return false;
+}
+
+// Where to aim from base b so the fireball opens on the missile, and when
+static bool lead(const Enemy &e, int b, float &tx, float &ty, float &t) {
+    tx = e.x; ty = e.y;
+    for (int it = 0; it < 4; it++) {
+        float dx = tx - base_x[b], dy = ty - (hill_top() - 1);
+        t = sqrtf(dx * dx + dy * dy) / shot_speed(b) + BLAST_AIM_T;
+        tx = e.x + e.vx * t; ty = e.y + e.vy * t;
+    }
+    return ty <= aim_floor() && tx > 2 && tx < W - 2;
+}
+
 static void autopilot(float dt) {
-    if ((fire_cool -= dt) > 0) return;
-    // The enemy missile that will land soonest and isn't covered yet
+    if ((fire_cool -= dt) > 0 || shots_in_air() >= MAX_SHOTS) return;
+    // The most urgent missile that isn't already taken care of: soonest to
+    // land, splitters before they split, harmless ones only with ammo to spare
+    int total_ammo = 0, threats = 0;
+    for (int b = 0; b < BASES; b++) total_ammo += ammo[b];
+    for (int i = 0; i < MAX_ENEMY; i++) threats += enemy[i].alive && harmful(enemy[i]);
     int pick = -1;
     float soonest = 1e9f;
     for (int i = 0; i < MAX_ENEMY; i++) {
         const Enemy &e = enemy[i];
-        if (!e.alive || e.y < H * 0.35f) continue;   // let them come a way down first
-        float t = (ground_y - e.y) / e.vy;
-        bool covered = false;
-        for (int s = 0; s < MAX_SHOTS && !covered; s++) {
-            if (!shots[s].alive) continue;
-            float dx = shots[s].tx - e.x, dy = shots[s].ty - e.y;
-            covered = dx * dx + dy * dy < 30 * 30;
+        if (!e.alive) continue;
+        float t = (target_y(e.target) - e.y) / e.vy;
+        if (e.splits) t = fminf(t, (e.split_y - e.y) / e.vy);
+        else if (e.y < H * 0.3f) continue;   // let them come a way down (and bunch up) first
+        if (!harmful(e)) {
+            if (total_ammo < threats + to_launch + 4) continue;
+            t += 100;
         }
-        for (int b = 0; b < MAX_BLASTS && !covered; b++) {
-            if (!blasts[b].alive) continue;
-            float dx = blasts[b].x - e.x, dy = blasts[b].y - e.y;
-            covered = dx * dx + dy * dy < 16 * 16 && blasts[b].t < BLAST_GROW + BLAST_HOLD;
-        }
-        if (!covered && t < soonest) { soonest = t; pick = i; }
+        if (t < soonest && !covered(e)) { soonest = t; pick = i; }
     }
     if (pick < 0) return;
-    // Lead the target: where it will be when a shot gets there and the blast opens
     const Enemy &e = enemy[pick];
-    float tx = e.x, ty = e.y;
-    for (int it = 0; it < 3; it++) {
-        int b = pick_base(tx);
-        if (b < 0) return;
-        float dx = tx - base_x[b], dy = ty - hill_top();
-        float t = sqrtf(dx * dx + dy * dy) / shot_speed(b) + BLAST_GROW * 0.5f;
-        tx = e.x + e.vx * t; ty = e.y + e.vy * t;
+    // The base whose fireball gets there first (the centre one is fast), but
+    // spare the centre base when a side one is comfortably in time
+    int base = -1;
+    float tx = 0, ty = 0, best_t = 1e9f;
+    for (int b = 0; b < BASES; b++) {
+        if (b == 1) continue;
+        float x, y, t;
+        if (ammo[b] > 0 && lead(e, b, x, y, t) && t < best_t) { best_t = t; base = b; tx = x; ty = y; }
     }
-    if (ty > aim_floor()) return;   // too low to reach now; leave it
-    tx += scene_randf(-6, 6); ty += scene_randf(-6, 6);   // not a perfect shot
-    if (fire_at(tx, ty)) fire_cool = scene_randf(0.6f, 1.1f);
+    {
+        float x, y, t;
+        if (ammo[1] > 0 && lead(e, 1, x, y, t) && (base < 0 || best_t > soonest * 0.5f) && t < best_t) {
+            best_t = t; base = 1; tx = x; ty = y;
+        }
+    }
+    if (base < 0) return;
+    // Nudge the aim to catch other missiles that will be close by then as well
+    float cx = tx, cy = ty;
+    int n = 1;
+    for (int i = 0; i < MAX_ENEMY; i++) {
+        const Enemy &o = enemy[i];
+        if (!o.alive || i == pick || covered(o)) continue;
+        float ox = o.x + o.vx * best_t, oy = o.y + o.vy * best_t;
+        float mx = (cx * n + ox) / (n + 1), my = (cy * n + oy) / (n + 1);
+        if (fabsf(mx - tx) > BLAST_R * 0.4f || fabsf(my - ty) > BLAST_R * 0.4f) continue;
+        if (fabsf(mx - ox) > BLAST_R * 0.55f || fabsf(my - oy) > BLAST_R * 0.55f) continue;
+        cx = mx; cy = my; n++;
+    }
+    if (fire_at(cx, cy, base)) fire_cool = 0.2f;
 }
 
 static void update(float dt) {

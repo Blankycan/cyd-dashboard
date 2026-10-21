@@ -18,7 +18,9 @@
 // Arcade points: lander, mutant, swarmer 150; baiter 200; bomber 250; pod
 // 1000. Three ships and three smart bombs, one more of each every 10,000.
 // The ship reverses with the camera sweeping it across the screen, as in the
-// original, so there's room to see ahead. It plays itself. When asked to
+// original, so there's room to see ahead. It plays itself like a good
+// player: saves humanoids first, shoots whatever it lines up with, and steers
+// clear of shots, mines and enemies on a collision course. When asked to
 // stop, a smart bomb clears the screen and the ship jumps to hyperspace.
 // Touch: hold in the play area to fly: up or down toward your finger,
 // thrusting when your finger's ahead of the ship, turning round when it's
@@ -73,7 +75,7 @@ static int   claude_was;
 static uint32_t since_touch;
 static bool  holding;
 static float hold_x, hold_y;
-static int   target_kind; static float target_x, target_y;   // the computer's current aim
+static int   target_kind, target_i; static float target_x, target_y;   // the computer's current aim
 
 static float wrapx(float x) { x = fmodf(x, WORLD); return x < 0 ? x + WORLD : x; }
 static float wrapd(float d) { d = fmodf(d + WORLD / 2.0f, WORLD); if (d < 0) d += WORLD; return d - WORLD / 2.0f; }
@@ -256,77 +258,123 @@ static void drop_mine(const Enemy &e) {
 
 // --- The computer ---------------------------------------------------------------
 
+// Where a falling humanoid will be in t seconds (it falls as update_humans() has it)
+static float fall_y(const Human &h, float t) {
+    float y = h.y + h.vy * t + 12.5f * t * t, gy = ground_y(h.x) - 4;
+    return y < gy ? y : gy;
+}
+
+// How long until something moving at (vx, vy) relative to the ship comes
+// within (rx, ry) of it, looking ahead `horizon` seconds; -1 if it doesn't
+static float time_to_hit(float dx, float dy, float vx, float vy, float rx, float ry, float horizon) {
+    for (float t = 0; t <= horizon; t += 0.05f) {
+        if (fabsf(dx + vx * t) < rx && fabsf(dy + vy * t) < ry) return t;
+    }
+    return -1;
+}
+
 static void autopilot(float dt, float &want_vy, bool &thrust, bool &want_reverse) {
     if ((think_t -= dt) <= 0) {
-        think_t = 0.25f;
-        // Priorities: someone falling, bringing a rescued humanoid down, a lander
-        // making off with someone, then whatever's nearest
-        target_kind = 0;
+        think_t = 0.2f;
+        // Priorities: someone falling we can still catch, bringing a rescued
+        // humanoid down, a lander carrying someone off (or about to), then the
+        // best enemy to hand. Stick with the current one unless another is
+        // clearly better, so the ship doesn't dither between two.
+        int kind = 0, idx = -1;
         float best = 1e9f;
-        for (int i = 0; i < MAX_HUMANS; i++)
-            if (humans[i].state == H_FALLING) {
-                float d = fabsf(wrapd(humans[i].x - ship_x));
-                if (d < best) { best = d; target_kind = 1; target_x = humans[i].x; target_y = humans[i].y - 4; }
-            }
-        for (int i = 0; i < MAX_HUMANS && !target_kind; i++)
-            if (humans[i].state == H_RIDING) { target_kind = 2; target_x = ship_x + facing * 40; target_y = ground_y(ship_x) - 8; }
+        for (int i = 0; i < MAX_HUMANS; i++) {
+            const Human &h = humans[i];
+            if (h.state != H_FALLING) continue;
+            float d = fabsf(wrapd(h.x - ship_x)), t = d / 120 + 0.2f;
+            if (fall_y(h, t) >= ground_y(h.x) - 4 && ground_y(h.x) - h.fall_from > 28) continue;   // too late
+            if (d < best) { best = d; kind = 1; idx = i; }
+        }
+        for (int i = 0; i < MAX_HUMANS && !kind; i++)
+            if (humans[i].state == H_RIDING) { kind = 2; idx = i; }
         best = 1e9f;
-        if (!target_kind)
+        if (!kind)
             for (int i = 0; i < MAX_ENEMY; i++) {
                 const Enemy &e = enemy[i];
                 if (!e.alive) continue;
                 float d = fabsf(wrapd(e.x - ship_x)) + fabsf(e.y - ship_y) * 2;
-                if (e.type == E_LANDER && e.state == L_RISE) d *= 0.3f;   // save them first
-                if (e.type == E_BAITER || e.type == E_MUTANT) d *= 0.7f;
-                if (d < best) { best = d; target_kind = 3; target_x = e.x; target_y = e.y - 2; }
+                if (e.type == E_LANDER && e.state == L_RISE) d = d * 0.2f - 400;   // save them first
+                else if (e.type == E_LANDER && e.state == L_DESCEND) d = d * 0.4f - 200;
+                else if (e.type == E_BAITER || e.type == E_MUTANT) d *= 0.6f;
+                if (e.type == E_POD) d *= 1.3f;   // harmless until it bursts
+                if (target_kind == 3 && i == target_i) d -= 40;
+                if (d < best) { best = d; kind = 3; idx = i; }
             }
+        target_kind = kind;
+        target_i = idx;
     }
-    // Keep refreshing the target's position if it's an enemy
-    if (target_kind == 3) {
-        float best = 1e9f;
-        for (int i = 0; i < MAX_ENEMY; i++) {
-            const Enemy &e = enemy[i];
-            if (!e.alive) continue;
-            float d = fabsf(wrapd(e.x - target_x)) + fabsf(e.y - target_y);
-            if (d < best) { best = d; target_x = e.x; target_y = e.y - 2; }
+    // Follow the target as it moves
+    if (target_kind == 1) {
+        const Human &h = humans[target_i];
+        if (h.state != H_FALLING) { target_kind = 0; think_t = 0; }
+        else {
+            float t = fabsf(wrapd(h.x - ship_x)) / fmaxf(60, fabsf(ship_vx)) + 0.1f;
+            target_x = h.x; target_y = fall_y(h, t) - 3;   // so it drops into the catch
         }
+    } else if (target_kind == 2) {
+        if (humans[target_i].state != H_RIDING) { target_kind = 0; think_t = 0; }
+        else { target_x = ship_x + facing * 40; target_y = H; }   // set them down
+    } else if (target_kind == 3) {
+        const Enemy &e = enemy[target_i];
+        if (!e.alive) { target_kind = 0; think_t = 0; }
+        else { target_x = e.x; target_y = e.y + e.vy * 0.15f - 2; }   // the laser runs 2 below the ship's y
     }
-    if (!target_kind) { thrust = true; want_vy = 0; return; }   // patrol
+    if (!target_kind) { thrust = true; want_vy = ((play_top + H) / 2.0f - ship_y) * 2; }   // patrol mid-height
+    else {
+        float dx = wrapd(target_x - ship_x), dy = target_y - ship_y;
+        int want_dir = dx >= 0 ? 1 : -1;
+        bool shooting = target_kind == 3;
+        float gap = shooting ? 55 : 0;   // enemies: stand off and shoot; humanoids: fly right to them
+        if (want_dir != facing && fabsf(dx) > (shooting ? 20 : 6)) want_reverse = true;
+        // Throttle so the ship coasts to a stop at the gap rather than overshooting
+        float toward = ship_vx * want_dir, brake = toward > 0 ? toward / 1.4f : 0;
+        thrust = want_dir == facing && fabsf(dx) - gap > brake * (shooting ? 0.6f : 1.0f);
+        if (target_kind == 2) thrust = true;
+        want_vy = fmaxf(-SHIP_VY, fminf(SHIP_VY, dy * 6));
+    }
 
-    float dx = wrapd(target_x - ship_x), dy = target_y - ship_y;
-    int want_dir = dx >= 0 ? 1 : -1;
-    bool shooting = target_kind == 3;
-    float gap = shooting ? 55 : 2;   // enemies: stand off and shoot; humanoids: fly right to them
-    if (want_dir != facing && fabsf(dx) > (shooting ? 20 : 6)) want_reverse = true;
-    thrust = fabsf(dx) > gap + 20 || (fabsf(dx) > gap && ship_vx * facing < 40);
-    if (shooting && fabsf(dx) < gap * 0.6f) thrust = false;
-    want_vy = fmaxf(-SHIP_VY, fminf(SHIP_VY, dy * 6));
-    // Keep clear of anything close by: off the throttle and slip past it vertically
+    // Keep out of the way of anything that would hit the ship within the next
+    // moment: enemies, their shots and mines. Off the throttle if it's ahead,
+    // and slip past above or below, whichever is clear
+    float soonest = 1e9f, threat_dy = 0;
+    for (int i = 0; i < MAX_ENEMY; i++) {
+        const Enemy &e = enemy[i];
+        if (!e.alive || !on_screen(e.x, 30)) continue;
+        float edx = wrapd(e.x - ship_x), edy = e.y - (ship_y + 2);
+        if (edx * facing > 4 && fabsf(edy) < 3) continue;   // lined up ahead: it's about to be shot
+        float t = time_to_hit(edx, edy, e.vx - ship_vx, e.vy, 9, 7, 0.6f);
+        if (t >= 0 && t < soonest) { soonest = t; threat_dy = e.y - (ship_y + 2); }
+    }
+    for (int i = 0; i < MAX_SHOTS; i++) {
+        const Shot &sh = shots[i];
+        if (!sh.alive || !on_screen(sh.x, 30)) continue;
+        float t = time_to_hit(wrapd(sh.x - ship_x), sh.y - (ship_y + 2), sh.vx - ship_vx, sh.vy, 7, 5, 0.6f);
+        if (t >= 0 && t < soonest) { soonest = t; threat_dy = sh.y - (ship_y + 2); }
+    }
+    if (soonest < 1e9f) {
+        bool up = threat_dy > 0;
+        if (up && ship_y < play_top + 8) up = false;   // no room above: go under
+        if (!up && ship_y > H - 12) up = true;
+        want_vy = up ? -SHIP_VY : SHIP_VY;
+        thrust = false;
+    }
+
+    // Fire at anything lined up ahead in range, whatever we're after
     for (int i = 0; i < MAX_ENEMY; i++) {
         const Enemy &e = enemy[i];
         if (!e.alive) continue;
-        float edx = wrapd(e.x - ship_x), edy = e.y - (ship_y + 2);
-        if (fabsf(edx) < 34 && fabsf(edy) < 9) {
-            if (edx * facing > -6) thrust = false;
-            if (fabsf(edx) < 22) want_vy = edy > 0 ? -SHIP_VY : SHIP_VY;
-        }
+        float ahead = wrapd(e.x - ship_x) * facing;
+        if (ahead > 4 && ahead < W * 0.7f && fabsf(e.y - (ship_y + 2)) < 3) { fire(); break; }
     }
-    // Dodge anything coming close
-    for (int i = 0; i < MAX_SHOTS; i++) {
-        const Shot &s = shots[i];
-        if (!s.alive) continue;
-        float sdx = wrapd(s.x - ship_x), sdy = s.y - (ship_y + 2);
-        if (fabsf(sdx) < 22 && fabsf(sdy) < 7) want_vy = sdy > 0 ? -SHIP_VY : SHIP_VY;
-    }
-    if (shooting && fabsf(dy) < 3 && dx * facing > 4 && dx * facing < W * 0.7f) fire();
-    // A smart bomb when it's getting crowded, or something's right on top of us
-    int near = 0, close = 0;
-    for (int i = 0; i < MAX_ENEMY; i++) {
-        if (!enemy[i].alive || !on_screen(enemy[i].x)) continue;
-        near++;
-        if (fabsf(wrapd(enemy[i].x - ship_x)) < 16 && fabsf(enemy[i].y - ship_y) < 10) close++;
-    }
-    if (bomb_cool <= 0 && (near >= 6 || close) && bombs > 0) { smart_bomb(); bomb_cool = 6; }
+    // A smart bomb when it's crowded, or something's about to hit us that we
+    // can't get out of the way of
+    int near = 0;
+    for (int i = 0; i < MAX_ENEMY; i++) near += enemy[i].alive && on_screen(enemy[i].x);
+    if (bomb_cool <= 0 && bombs > 0 && (near >= 6 || soonest < 0.12f)) { smart_bomb(); bomb_cool = 5; }
 }
 
 // --- Update -------------------------------------------------------------------

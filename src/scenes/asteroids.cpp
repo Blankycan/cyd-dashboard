@@ -4,8 +4,10 @@
 #include <math.h>
 
 // Asteroids — vector-outline rocks drifting and spinning on a wrapping field,
-// split into smaller rocks when shot. The ship flies itself: turns toward the
-// best target, leads its shots, and thrusts away from rocks that get close.
+// split into smaller rocks when shot. The ship flies itself like a good
+// player: it shoots the rocks on a collision course first, leads every shot to
+// where the rock will be, doesn't waste shots on rocks already as good as hit,
+// and side-steps anything it can't shoot in time.
 // Cleared fields get a fresh, bigger wave. When asked to stop, the ship warps
 // out and the rocks drift off the edges (no more wrapping) until it's done.
 // Touch: the ship turns toward your finger, thrusts if it's far away, and
@@ -138,31 +140,91 @@ static bool steer(float want, float dt) {
     return fabsf(d) < 0.12f;
 }
 
+// Where a shot fired now meets a rock (relative position p, velocity v to the
+// ship): the time, or -1 if it can't catch it
+static float intercept_t(float px, float py, float vx, float vy) {
+    float a = vx * vx + vy * vy - SHOT_SPEED * SHOT_SPEED;   // < 0: shots outrun rocks
+    float b = 2 * (px * vx + py * vy), c = px * px + py * py;
+    float disc = b * b - 4 * a * c;
+    if (disc < 0) return -1;
+    float t = (-b - sqrtf(disc)) / (2 * a);
+    return t > 0 ? t : -1;
+}
+
+// Closest approach of a relative track (p, v): the time and the distance then
+static void closest(float px, float py, float vx, float vy, float &t, float &d) {
+    float vv = vx * vx + vy * vy;
+    t = vv > 0.01f ? -(px * vx + py * vy) / vv : 0;
+    if (t < 0) t = 0;
+    float cx = px + vx * t, cy = py + vy * t;
+    d = sqrtf(cx * cx + cy * cy);
+}
+
 static void autopilot(float dt) {
-    // Nearest rock, measured across the wrap
-    Rock *best = nullptr;
-    float best_d = 1e9f;
+    thrusting = false;
+    // Score every rock: the ones on a collision course come first (soonest
+    // first), the rest by how long it takes to turn and get a shot there.
+    // Rocks a shot already in the air will hit are left alone.
+    Rock *best = nullptr, *threat = nullptr;
+    float best_cost = 1e9f, best_aim = 0, threat_t = 1e9f, threat_px = 0, threat_py = 0;
     for (int i = 0; i < MAX_ROCKS; i++) {
         Rock &k = rocks[i];
         if (!k.alive) continue;
-        float dx = wrap_d(k.x - sx, area_w), dy = wrap_d(k.y - sy, area_h);
-        float d = sqrtf(dx * dx + dy * dy) - ROCK_R[k.size];
-        if (d < best_d) { best_d = d; best = &k; }
+        float R = ROCK_R[k.size];
+        float px = wrap_d(k.x - sx, area_w), py = wrap_d(k.y - sy, area_h);
+        float vx = k.vx - svx, vy = k.vy - svy;
+        float ct, cd;
+        closest(px, py, vx, vy, ct, cd);
+        bool danger = ct < 2.0f && cd < R + SHIP_R + 5;
+
+        bool covered = false;
+        for (int j = 0; j < MAX_SHOTS && !covered; j++) {
+            const Shot &s = shots[j];
+            if (!s.alive) continue;
+            float st, sd;
+            closest(wrap_d(k.x - s.x, area_w), wrap_d(k.y - s.y, area_h), k.vx - s.vx, k.vy - s.vy, st, sd);
+            covered = st < s.life && sd < R - 0.5f;
+        }
+        if (covered) continue;
+        if (danger && ct < threat_t) { threat_t = ct; threat = &k; threat_px = px; threat_py = py; }
+
+        float t = intercept_t(px, py, vx, vy);
+        if (t < 0) continue;
+        float aim = atan2f(py + vy * t, px + vx * t);
+        float cost = fabsf(angle_diff(aim, sa)) / TURN_RATE + t;
+        if (t > SHOT_LIFE_S * 0.9f) cost += 3;   // out of range for now
+        if (danger) cost -= 4 - ct;              // threats first, the soonest most
+        if (cost < best_cost) { best_cost = cost; best = &k; best_aim = aim; }
     }
-    thrusting = false;
+
+    if (threat) {
+        // Can we shoot it before it gets here? If not, get out of its way:
+        // thrust away from where it passes closest, or failing that along
+        // whichever side-step of its track is nearer our nose
+        bool shootable = threat == best && best_cost + 4 - threat_t < threat_t * 0.8f;
+        if (!shootable && threat_t < 1.0f) {
+            float vx = threat->vx - svx, vy = threat->vy - svy;
+            float cx = threat_px + vx * threat_t, cy = threat_py + vy * threat_t;
+            float side = atan2f(vy, vx) + 1.5708f;
+            if (fabsf(angle_diff(side, sa)) > 1.5708f) side += 3.14159f;
+            float away = atan2f(-cy, -cx);
+            if (cx * cx + cy * cy > 4 && fabsf(angle_diff(away, sa)) < 1.6f) side = away;
+            thrusting = fabsf(angle_diff(side, sa)) < 0.9f;
+            steer(side, dt);
+            return;
+        }
+    }
     if (!best) return;
-    float dx = wrap_d(best->x - sx, area_w), dy = wrap_d(best->y - sy, area_h);
-    if (best_d < 14) {
-        // Too close: turn away and burn
-        steer(atan2f(-dy, -dx), dt);
-        thrusting = true;
-        return;
-    }
-    // Lead the target by the shot's travel time
-    float t = sqrtf(dx * dx + dy * dy) / SHOT_SPEED;
-    float lx = dx + (best->vx - svx) * t, ly = dy + (best->vy - svy) * t;
-    if (steer(atan2f(ly, lx), dt)) fire();
-    thrusting = best_d > 70 && (svx * svx + svy * svy) < 200;
+    // Aim to within the rock's apparent size before firing
+    float R = ROCK_R[best->size];
+    float px = wrap_d(best->x - sx, area_w), py = wrap_d(best->y - sy, area_h);
+    float dist = sqrtf(px * px + py * py) + 1;
+    float tol = fmaxf(0.03f, fminf(0.12f, (R - 1) / dist));
+    if (steer(best_aim, dt) && fabsf(angle_diff(best_aim, sa)) < tol && best_cost < 3) fire();
+    // Close in on far-off rocks, slowly, and only with nothing on a collision course
+    float speed2 = svx * svx + svy * svy;
+    thrusting = !threat && dist > SHOT_SPEED * SHOT_LIFE_S * 0.7f && speed2 < 400 &&
+                fabsf(angle_diff(atan2f(py, px), sa)) < 0.5f;
 }
 
 static void wrap_pos(float &x, float &y) {
