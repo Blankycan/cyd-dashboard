@@ -17,6 +17,8 @@
     #include "themes/rainbow.h"
 #elif CYD_THEME == CYD_THEME_COZYFALL
     #include "themes/cozyfall.h"
+#elif CYD_THEME == CYD_THEME_SCARLET_WITCH
+    #include "themes/scarlet-witch.h"
 #else
     #include "themes/forest.h"
 #endif

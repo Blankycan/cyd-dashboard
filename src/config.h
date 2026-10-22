@@ -13,8 +13,9 @@
 #define CYD_THEME_NEON_ROSE     3
 #define CYD_THEME_RAINBOW       4
 #define CYD_THEME_COZYFALL      5
+#define CYD_THEME_SCARLET_WITCH 6
 
-#define CYD_THEME  CYD_THEME_COZYFALL
+#define CYD_THEME  CYD_THEME_SCARLET_WITCH
 
 // Ambient scenes -------------------------------------------------------------
 // Played in the calendar slot whenever no meeting is near. Which scenes play,
