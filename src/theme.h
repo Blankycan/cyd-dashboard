@@ -310,29 +310,31 @@
 #ifndef COL_SCENE_PAC_DOT
 #define COL_SCENE_PAC_DOT COL_TEXT_SEC
 #endif
+// Pac-Man and the ghosts keep their arcade colours whatever the theme, so the
+// four can be told apart (a theme can still override them)
 #ifndef COL_SCENE_PAC_PACMAN
-#define COL_SCENE_PAC_PACMAN COL_WARN
+#define COL_SCENE_PAC_PACMAN lv_color_hex(0xFFFF00)
 #endif
 #ifndef COL_SCENE_PAC_GHOST_1
-#define COL_SCENE_PAC_GHOST_1 COL_ALERT
+#define COL_SCENE_PAC_GHOST_1 lv_color_hex(0xFF0000)   // Blinky
 #endif
 #ifndef COL_SCENE_PAC_GHOST_2
-#define COL_SCENE_PAC_GHOST_2 COL_GLOW
+#define COL_SCENE_PAC_GHOST_2 lv_color_hex(0xFFB8FF)   // Pinky
 #endif
 #ifndef COL_SCENE_PAC_GHOST_3
-#define COL_SCENE_PAC_GHOST_3 COL_OK
+#define COL_SCENE_PAC_GHOST_3 lv_color_hex(0x00FFFF)   // Inky
 #endif
 #ifndef COL_SCENE_PAC_GHOST_4
-#define COL_SCENE_PAC_GHOST_4 COL_TEXT_PRI
+#define COL_SCENE_PAC_GHOST_4 lv_color_hex(0xFFB852)   // Clyde
 #endif
 #ifndef COL_SCENE_PAC_FRIGHT
-#define COL_SCENE_PAC_FRIGHT COL_TEXT_SEC
+#define COL_SCENE_PAC_FRIGHT lv_color_hex(0x2121FF)
 #endif
 #ifndef COL_SCENE_PAC_EYES
 #define COL_SCENE_PAC_EYES COL_SCENE_ARCADE_BG
 #endif
 #ifndef COL_SCENE_PAC_EATEN
-#define COL_SCENE_PAC_EATEN COL_TEXT_PRI
+#define COL_SCENE_PAC_EATEN lv_color_hex(0xDEDEFF)
 #endif
 #ifndef COL_SCENE_PAC_DOOR
 #define COL_SCENE_PAC_DOOR COL_SCENE_PAC_GHOST_2

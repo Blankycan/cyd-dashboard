@@ -25,7 +25,7 @@
 // so it plays each way it could go a couple of seconds ahead, ghosts and
 // all, and takes the one that eats the most without getting caught or
 // boxed in, saving the energizers for when there are ghosts close enough to
-// eat. When asked to stop, the maze flashes and it's done.
+// eat, then hunting the blue ones down in the order that catches the most. When asked to stop, the maze flashes and it's done.
 // Touch: tap or drag on a side of Pac-Man to steer that way. The computer
 // takes back over AUTO_RESUME_MS after your last touch.
 
@@ -139,6 +139,8 @@ struct Work {
     bool     dots[ROWS][COLS];            // the computer's copy of the dots, eaten as it plays ahead
     uint16_t undo[512];                   // ... and the ones to put back
     int16_t  dot_dist[ROWS][COLS];        // tiles to the nearest dot
+    uint8_t  blue_dist[N_GHOSTS][ROWS][COLS];   // tiles to each blue ghost (where it was when planning)
+    bool     blue_ok[N_GHOSTS];                 // ... for the ghosts that were blue then
     uint16_t q[ROWS * COLS];
 };
 
@@ -472,9 +474,72 @@ static void step(World &w, bool (*dots)[COLS], Dir want, int k, Outcome &o, bool
 // worth it when there are ghosts close enough to eat. Where a line ends it's
 // scored by how far it is from the ghosts and from the dots still left (the
 // dots pulling harder the longer he goes without one, so he never just
-// hides).
+// hides), or, while there are blue ghosts to catch, by what they're worth
+// from there. With blue ghosts out it goes straight for them instead (see
+// hunt()), the look ahead only there to keep him from getting caught.
 
-static const int LOOK_F = 150, LOOK_STEP = 3, MAX_DEPTH = 6, BUDGET = 900;
+static const int   LOOK_F = 150, LOOK_STEP = 3, MAX_DEPTH = 6, BUDGET = 900;
+// How much of the fright's time to count on: when weighing up an energizer
+// (it only takes one with ghosts close enough to be worth ENERGIZE_MIN), and
+// when planning the order to eat the blue ghosts in
+static const float ENERGIZE_REACH = 0.4f, ENERGIZE_MIN = 2000, HUNT_MARGIN = 0.85f;
+// Once he's turned back he keeps going for TURN_LOCK tiles before turning
+// back again, unless a ghost that can catch him is within LOCK_SAFE tiles
+static const int   TURN_LOCK = 4, LOCK_SAFE = 6;
+
+static void plan_blue_dist() {   // a search out from each blue ghost
+    for (int i = 0; i < N_GHOSTS; i++) {
+        const Ghost &g = live.ghosts[i];
+        if (!(wk->blue_ok[i] = g.st == G_ACTIVE && g.fright)) continue;
+        uint8_t (*dist)[COLS] = wk->blue_dist[i];
+        memset(dist, 255, sizeof(wk->blue_dist[i]));
+        int head = 0, tail = 0, gc = wrap_c(tile(g.x)), gr = tile(g.y);
+        dist[gr][gc] = 0;
+        wk->q[tail++] = (uint16_t)(gr * COLS + gc);
+        while (head < tail) {
+            int c = wk->q[head] % COLS, r = wk->q[head] / COLS;
+            head++;
+            for (int d = 0; d < 4; d++) {
+                if (!open_tile(c + DX[d], r + DY[d])) continue;
+                int nc = wrap_c(c + DX[d]), nr = r + DY[d];
+                if (dist[nr][nc] != 255) continue;
+                dist[nr][nc] = dist[r][c] + 1;
+                wk->q[tail++] = (uint16_t)(nr * COLS + nc);
+            }
+        }
+    }
+}
+
+// Tiles from (c, r) to ghost i: along the maze if it was blue when planning,
+// otherwise as the crow flies (round the tunnel)
+static int ghost_dist(const World &w, int i, int c, int r) {
+    if (wk->blue_ok[i]) return wk->blue_dist[i][r][c];
+    const Ghost &g = w.ghosts[i];
+    int dx = abs(wrap_c(tile(g.x)) - c);
+    return (dx < COLS - dx ? dx : COLS - dx) + abs(tile(g.y) - r);
+}
+
+// What the blue ghosts are still worth from (c, r): each one he can get to
+// before the fright runs out, nearest first, at the doubling ghost points,
+// counting for less the further it is. Blue ghosts don't run, they wander,
+// so he catches them at about his own speed.
+static float blue_value(const World &w, int c, int r, float reach = 0.8f) {
+    if (w.fright_f <= 0) return 0;
+    float tiles_left = w.fright_f * pac_pct(w) / 100 * FULL_SPEED * reach;
+    int   ds[N_GHOSTS], n = 0;
+    for (int i = 0; i < N_GHOSTS; i++)
+        if (w.ghosts[i].st == G_ACTIVE && w.ghosts[i].fright) {
+            int d = ghost_dist(w, i, c, r);
+            if (d < tiles_left) ds[n++] = d;
+        }
+    for (int i = 1; i < n; i++) for (int j = i; j > 0 && ds[j] < ds[j - 1]; j--) { int t = ds[j]; ds[j] = ds[j - 1]; ds[j - 1] = t; }
+    float v = 0;
+    for (int i = 0, combo = w.combo; i < n; i++) {
+        v += (200 << combo) * (1.0f - ds[i] / tiles_left);
+        if (combo < 3) combo++;
+    }
+    return v;
+}
 
 static void plan_dot_dist() {   // a search out from every dot at once
     int head = 0, tail = 0;
@@ -503,6 +568,8 @@ static float leaf(const World &w) {
         int dx = abs(wrap_c(tile(g.x)) - c), m = (dx < COLS - dx ? dx : COLS - dx) + abs(tile(g.y) - r);
         if (m < near) near = m;
     }
+    float blue = blue_value(w, c, r);
+    if (blue > 0) return blue + near * 15;   // on the hunt: the dots can wait
     int dd = wk->dot_dist[r][c];
     float pull = 4 + hungry_f / 120.0f;
     return -(dd < 0 ? 30 : dd) * (pull < 40 ? pull : 40) + near * 15;
@@ -514,6 +581,7 @@ static float walk(World &w, Dir d, int used, int depth, float gain, int budget) 
     float result;
     for (;;) {
         Outcome o;
+        bool was_blue = w.fright_f > 0;
         step(w, wk->dots, way, LOOK_STEP, o, true);
         used += LOOK_STEP;
         float soon = 1.0f - 0.5f * used / LOOK_F;   // sooner is better
@@ -523,10 +591,11 @@ static float walk(World &w, Dir d, int used, int depth, float gain, int budget) 
         if (o.ghost >= 0) gain += o.pts * soon;
         if (o.fruit) gain += FRUIT_PTS[spec().fruit] * soon;
         if (o.energizers) {
-            int blue = 0;   // worth it with blue ghosts near enough to catch
-            for (const Ghost &g : w.ghosts)
-                blue += g.st == G_ACTIVE && g.fright && abs(wrap_c(tile(g.x)) - pc) + abs(tile(g.y) - pr) <= 10;
-            gain += (blue || w.dots_left <= 4 ? 50 : -300) * soon;
+            // Worth what the ghosts it turns blue can be caught for; wasted
+            // with none in reach, or while they're still blue from the last
+            // (it starts the 200 / 400 / 800 / 1600 over)
+            float blue = was_blue ? 0 : blue_value(w, pc, pr, ENERGIZE_REACH);
+            gain += (blue >= ENERGIZE_MIN ? blue : w.dots_left <= 4 ? 50 : -400) * soon;
         }
         if (used >= LOOK_F || --budget <= 0) { result = gain + leaf(w); break; }
         int c = wrap_c(tile(w.pac.x)), r = tile(w.pac.y);
@@ -554,19 +623,96 @@ static float walk(World &w, Dir d, int used, int depth, float gain, int budget) 
     return result;
 }
 
+// On the hunt: the blue ghost to go for next, or -1. Tries every order of
+// the blue ghosts (four at most: 24 orders) by how far apart they are, and
+// takes the one that catches the most before the fright runs out, the
+// shortest way. Blue ghosts only wander, at about half his speed, so going
+// straight for where one is now catches it. It sticks with the ghost it's
+// after unless another order catches more, so it doesn't swap back and forth.
+static int hunt_target = -1;
+static int hunt(int c, int r) {
+    if (live.fright_f <= 0) return hunt_target = -1;
+    float tiles_left = live.fright_f * pac_pct(live) / 100 * FULL_SPEED * HUNT_MARGIN;
+    int   ids[N_GHOSTS], gc[N_GHOSTS], gr[N_GHOSTS], n = 0;
+    for (int i = 0; i < N_GHOSTS; i++)
+        if (wk->blue_ok[i]) { ids[n] = i; gc[n] = wrap_c(tile(live.ghosts[i].x)); gr[n] = tile(live.ghosts[i].y); n++; }
+    int perm[N_GHOSTS] = { 0, 1, 2, 3 }, best_n = 0, best_first = -1, keep_n = -1;
+    float best_d = 1e9f;
+    auto try_order = [&]() {
+        int caught = 0, pc = c, pr = r;
+        float d = 0;
+        for (int k = 0; k < n; k++) {
+            int i = perm[k];
+            d += wk->blue_dist[ids[i]][pr][pc];
+            if (d > tiles_left) break;
+            caught++;
+            pc = gc[i]; pr = gr[i];
+        }
+        if (caught && ids[perm[0]] == hunt_target && caught > keep_n) keep_n = caught;
+        if (caught > best_n || (caught == best_n && caught && d < best_d)) { best_n = caught; best_d = d; best_first = ids[perm[0]]; }
+    };
+    // every order of n things, by Heap's algorithm
+    int cnt[N_GHOSTS] = { 0 };
+    try_order();
+    for (int i = 1; i < n;) {
+        if (cnt[i] < i) {
+            int j = i % 2 ? cnt[i] : 0, t = perm[j];
+            perm[j] = perm[i]; perm[i] = t;
+            try_order();
+            cnt[i]++;
+            i = 1;
+        } else cnt[i++] = 0;
+    }
+    if (keep_n >= best_n && keep_n > 0) return hunt_target;
+    return hunt_target = best_first;
+}
+
+// Tiles gone since he last turned back (see plan())
+static int since_turn, turn_c, turn_r;
+
 static void plan() {
     memcpy(wk->dots, dot, sizeof(dot));
     undo_n = 0;
     plan_dot_dist();
+    plan_blue_dist();
     int c = wrap_c(tile(live.pac.x)), r = tile(live.pac.y), n = exits(c, r);
+    int prey = hunt(c, r);
+    if (c != turn_c || r != turn_r) { since_turn++; turn_c = c; turn_r = r; }
+    int near = 99;   // tiles to the nearest ghost that can catch him
+    for (const Ghost &g : live.ghosts) {
+        if (g.st != G_ACTIVE || g.fright) continue;
+        int dx = abs(wrap_c(tile(g.x)) - c), m = (dx < COLS - dx ? dx : COLS - dx) + abs(tile(g.y) - r);
+        if (m < near) near = m;
+    }
+    float ahead = 0;   // what going on is worth
+    if (live.pac.d != NONE && open_tile(c + DX[live.pac.d], r + DY[live.pac.d])) {
+        World w = live;
+        ahead = walk(w, live.pac.d, 0, 0, 0, BUDGET / n);
+    }
     Dir best = NONE;
     float best_v = 0;
     for (int d = 0; d < 4; d++) {
         if (!open_tile(c + DX[d], r + DY[d])) continue;
-        World w = live;
-        float v = walk(w, (Dir)d, 0, 0, 0, BUDGET / n) + ((Dir)d == live.pac.d ? 5 : 0);   // a little loyalty, so he doesn't dither
+        float v = ahead;
+        if ((Dir)d != live.pac.d) { World w = live; v = walk(w, (Dir)d, 0, 0, 0, BUDGET / n); }
+        if (prey >= 0 && v > -50000) {   // hunting: the way that closes in on it, if it doesn't get him caught
+            v = 100000.0f - wk->blue_dist[prey][r + DY[d]][wrap_c(c + DX[d])] * 1000.0f + v * 0.01f;
+            if (best == NONE || v > best_v) { best = (Dir)d; best_v = v; }
+            continue;
+        }
+        // Loyalty, so he doesn't dither: going on wins ties, and turning back
+        // has to be clearly better, and not again within a few tiles of the
+        // last time, unless going on gets him caught. Otherwise he'd rock
+        // back and forth across a tile edge, between two close calls that
+        // each look better from the other side.
+        if ((Dir)d == live.pac.d) v += 5;
+        else if ((Dir)d == reverse(live.pac.d)) {
+            if (since_turn < TURN_LOCK && near > LOCK_SAFE) continue;
+            v -= 150;
+        }
         if (best == NONE || v > best_v) { best = (Dir)d; best_v = v; }
     }
+    if (best != NONE && best == reverse(live.pac.d)) since_turn = 0;
     if (best != NONE) want = best;
 }
 
