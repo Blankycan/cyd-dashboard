@@ -5,6 +5,7 @@ Works on Wayland/Hyprland via D-Bus without an X server.
 Requires playerctl: sudo pacman -S playerctl
 """
 
+import json
 import subprocess
 import threading
 import time
@@ -54,13 +55,18 @@ class MediaMonitor:
             time.sleep(MEDIA_POLL_INTERVAL)
 
     def _query(self, player: str) -> dict | None:
-        raw = subprocess.check_output(
-            ["playerctl", "-p", player, "metadata", "--format", FORMAT_STR],
-            stderr=subprocess.DEVNULL,
-            timeout=2,
-        ).decode().strip()
-
-        parts = raw.split(FIELD_SEP)
+        try:
+            raw = subprocess.check_output(
+                ["playerctl", "-p", player, "metadata", "--format", FORMAT_STR],
+                stderr=subprocess.DEVNULL,
+                timeout=2,
+            ).decode().strip()
+            parts = raw.split(FIELD_SEP)
+        except subprocess.CalledProcessError:
+            # playerctl rejects players whose mpris:trackid isn't a D-Bus
+            # object path (Spotify 1.3+ sends a plain string), so read the
+            # properties straight off the bus instead.
+            parts = self._query_dbus(player)
         if len(parts) < 5:
             return None
 
@@ -76,6 +82,38 @@ class MediaMonitor:
             "art_url": art_url,
         }
 
+    @staticmethod
+    def _is_shadow(player: str, players: list[str]) -> bool:
+        """Electron/CEF apps (Spotify 1.3+) also expose their embedded
+        Chromium as "chromium.instance<pid>", with worse metadata (artist
+        folded into the title, art as a temp file). Skip it when the process
+        behind it already has a player of its own name in the list."""
+        name, _, inst = player.partition(".instance")
+        if name != "chromium" or not inst.isdigit():
+            return False
+        try:
+            with open(f"/proc/{inst}/comm") as f:
+                comm = f.read().strip()
+        except OSError:
+            return False
+        return comm != name and comm in players
+
+    def _query_dbus(self, player: str) -> list[str]:
+        out = subprocess.check_output(
+            ["busctl", "--user", "-j", "get-property",
+             f"org.mpris.MediaPlayer2.{player}", "/org/mpris/MediaPlayer2",
+             "org.mpris.MediaPlayer2.Player", "Metadata", "PlaybackStatus"],
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        ).decode().strip().splitlines()
+        meta   = {k: v["data"] for k, v in json.loads(out[0])["data"].items()}
+        status = json.loads(out[1])["data"]
+        artist = meta.get("xesam:artist", [])
+        if isinstance(artist, list):
+            artist = ", ".join(artist)
+        return [meta.get("xesam:title", ""), artist, status,
+                meta.get("xesam:album", ""), meta.get("mpris:artUrl", "")]
+
     def _poll(self) -> tuple[dict | None, str | None]:
         try:
             players = subprocess.check_output(
@@ -84,6 +122,7 @@ class MediaMonitor:
                 timeout=2,
             ).decode().strip().splitlines()
             players = [p.strip() for p in players if p.strip()]
+            players = [p for p in players if not self._is_shadow(p, players)]
             if not players:
                 return None, None
 
