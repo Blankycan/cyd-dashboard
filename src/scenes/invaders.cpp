@@ -163,6 +163,29 @@ static bool path_safe(float x) {
     return true;
 }
 
+// The soonest a shot can meet column c's lowest alien (row r): walk the march
+// ahead one step at a time and take the first stretch it stands still long
+// enough for the cannon to get under it and the shot to climb up. Late in a
+// wave the march outruns the cannon, so this waits ahead rather than chasing
+static bool intercept(int c, int r, int minc, int maxc, float &sx, float &t_hit) {
+    float x = fx, y = fy, t0 = 0, t1 = (float)step_ms - (float)step_acc;
+    float y0 = area_h - CANNON_H - 3, half = CANNON_W / 2.0f;
+    int d = dir;
+    while (t0 < 6000) {
+        float ax = (int)x + c * COL_PITCH + AW / 2.0f;
+        sx = fminf(fmaxf(ax, half), area_w - half);
+        float climb = (y0 - (y + r * ROW_PITCH + AH - 1)) / SHOT_V * 1000;
+        float hit = fmaxf(fabsf(sx - cannon_x) / CANNON_V * 1000 + climb, t0);
+        if (fabsf(sx - ax) < 2 && hit + 10 < t1) { t_hit = hit; return true; }
+        int left = (int)x + minc * COL_PITCH, right = (int)x + maxc * COL_PITCH + AW;
+        if ((d > 0 && right + 2 >= area_w - 2) || (d < 0 && left - 2 <= 2)) { y += 3; d = -d; }
+        else x += 2 * d;
+        t0 = t1;
+        t1 += step_ms;
+    }
+    return false;
+}
+
 static void autopilot() {
     int lowest[MAX_COLS], minc = cols, maxc = -1;
     for (int c = 0; c < cols; c++) {
@@ -173,19 +196,14 @@ static void autopilot() {
     float half = CANNON_W / 2.0f, want = cannon_x;
     if (maxc >= 0) {
         if (shot_hits(cannon_x, minc, maxc, lowest)) fire();
-        // Pick a column: the quickest to line up under, but the outer ones
-        // count as closer, and so do the lowest aliens once they're getting near
+        // Pick a column: the soonest to hit, but the outer ones count as
+        // sooner, and so do the lowest aliens once they're getting near
         float best = 1e9f, danger = fy + ROWS * ROW_PITCH > area_h * 0.55f ? 0.4f : 0;
         for (int c = minc; c <= maxc; c++) {
             if (lowest[c] < 0) continue;
-            // Where to stand to meet it, after getting there and the shot's climb
-            float x = alien_x(c) + AW / 2.0f, px, py;
-            for (int k = 0; k < 2; k++) {
-                float ms = fabsf(x - cannon_x) / CANNON_V * 1000 + shot_time(lowest[c], minc, maxc, px, py);
-                predict(ms, minc, maxc, px, py);
-                x = fminf(fmaxf(px + c * COL_PITCH + AW / 2.0f, half), area_w - half);
-            }
-            float cost = fabsf(x - cannon_x) / CANNON_V - danger * lowest[c];
+            float x, t;
+            if (!intercept(c, lowest[c], minc, maxc, x, t)) continue;
+            float cost = t / 1000 - danger * lowest[c];
             if (c == minc || c == maxc) cost -= 0.35f;
             if (cost < best) { best = cost; want = x; }
         }
@@ -208,9 +226,10 @@ static void update(uint32_t dt_ms) {
     // Formation march; it speeds up as it thins out and with each wave
     int alive = alive_count();
     step_ms = 60 + (uint32_t)(340.0f * alive / (ROWS * cols)) - (wave > 5 ? 50 : wave * 10);
+    // Leftover time carries over, so the march keeps the pace autopilot predicts
     step_acc += dt_ms;
-    if (step_acc >= step_ms && alive > 0) {
-        step_acc = 0;
+    while (step_acc >= step_ms && alive > 0) {
+        step_acc -= step_ms;
         frame ^= 1;
         int minc = cols, maxc = -1;
         for (int r = 0; r < ROWS; r++) for (int c = 0; c < cols; c++)
