@@ -7,7 +7,9 @@
 // split into smaller rocks when shot. The ship flies itself like a good
 // player: it shoots the rocks on a collision course first, leads every shot to
 // where the rock will be, doesn't waste shots on rocks already as good as hit,
-// and side-steps anything it can't shoot in time.
+// and side-steps anything it can't shoot in time. A new wave comes in from
+// the side edges, so with the field nearly clear it flies back to the middle
+// before finishing off the last rock.
 // Cleared fields get a fresh, bigger wave. When asked to stop, the ship warps
 // out and the rocks drift off the edges (no more wrapping) until it's done.
 // Touch: the ship turns toward your finger, thrusts if it's far away, and
@@ -24,6 +26,9 @@ static const float    THRUST      = 60.0f;     // px/s²
 static const float    SHOT_SPEED  = 110.0f;
 static const float    SHOT_LIFE_S = 1.1f;
 static const float    ROCK_R[3]   = { 12.0f, 7.0f, 4.0f };
+static const int      ENDGAME_HITS = 2;     // hits left to clear the field: time to head home
+static const float    HOME_R      = 14.0f;  // parked within this of the middle...
+static const float    HOME_LEAVE  = 28.0f;  // ...until drifting this far out
 
 struct Rect  { int x, y, w, h; };
 struct Rock  { bool alive; int size; float x, y, vx, vy, a, spin; float r[ROCK_VERTS]; Rect prev; };
@@ -41,6 +46,7 @@ static float  ship_timer, invuln, fire_cd, warp;   // warp: 1 → 0 while warpin
 static float  finger_x, finger_y;
 static uint32_t since_touch;
 static bool   stopping, done, oom;
+static bool   parked;                        // endgame: settled in the middle
 static Rect   prev_ship;
 
 static float wrap_d(float d, float span) {   // shortest signed distance on a wrapping axis
@@ -103,7 +109,7 @@ static void start(lv_obj_t *area, int w, int h) {
     wave = 0;
     reset_ship();
     new_wave();
-    stopping = holding = thrusting = false;
+    stopping = holding = thrusting = parked = false;
     fire_cd = ship_timer = 0;
     warp = 1.0f;
     since_touch = AUTO_RESUME_MS;
@@ -167,9 +173,11 @@ static void autopilot(float dt) {
     // Rocks a shot already in the air will hit are left alone.
     Rock *best = nullptr, *threat = nullptr;
     float best_cost = 1e9f, best_aim = 0, threat_t = 1e9f, threat_px = 0, threat_py = 0;
+    int hits_left = 0;
     for (int i = 0; i < MAX_ROCKS; i++) {
         Rock &k = rocks[i];
         if (!k.alive) continue;
+        hits_left += (8 >> k.size) - 1;          // big 7, medium 3, small 1
         float R = ROCK_R[k.size];
         float px = wrap_d(k.x - sx, area_w), py = wrap_d(k.y - sy, area_h);
         float vx = k.vx - svx, vy = k.vy - svy;
@@ -214,6 +222,27 @@ static void autopilot(float dt) {
             return;
         }
     }
+    // Nearly cleared: the next wave spawns at the side edges, so get back to
+    // the middle (and slow down there) before taking the last shot
+    float speed2 = svx * svx + svy * svy;
+    float hx = wrap_d(area_w / 2.0f - sx, area_w), hy = wrap_d(area_h / 2.0f - sy, area_h);
+    float home_d = sqrtf(hx * hx + hy * hy);
+    bool endgame = hits_left <= ENDGAME_HITS;
+    if (!endgame || home_d > HOME_LEAVE) parked = false;
+    else if (home_d < HOME_R && speed2 < 64) parked = true;
+    if (endgame && !parked) {
+        // Steer the velocity toward one that eases into the middle
+        float k = fminf(35.0f, home_d * 1.2f) / (home_d + 0.01f);
+        float ex = hx * k - svx, ey = hy * k - svy;
+        if (ex * ex + ey * ey > 9) {
+            float want = atan2f(ey, ex);
+            steer(want, dt);
+            thrusting = fabsf(angle_diff(want, sa)) < 0.5f;
+        }
+        // A shot that isn't the last one is fine if the nose happens to be on it
+        if (best && hits_left > 1 && best_cost < 3 && fabsf(angle_diff(best_aim, sa)) < 0.05f) fire();
+        return;
+    }
     if (!best) return;
     // Aim to within the rock's apparent size before firing
     float R = ROCK_R[best->size];
@@ -221,9 +250,9 @@ static void autopilot(float dt) {
     float dist = sqrtf(px * px + py * py) + 1;
     float tol = fmaxf(0.03f, fminf(0.12f, (R - 1) / dist));
     if (steer(best_aim, dt) && fabsf(angle_diff(best_aim, sa)) < tol && best_cost < 3) fire();
-    // Close in on far-off rocks, slowly, and only with nothing on a collision course
-    float speed2 = svx * svx + svy * svy;
-    thrusting = !threat && dist > SHOT_SPEED * SHOT_LIFE_S * 0.7f && speed2 < 400 &&
+    // Close in on far-off rocks, slowly, and only with nothing on a collision
+    // course (and not once parked in the middle for the end of the wave)
+    thrusting = !threat && !endgame && dist > SHOT_SPEED * SHOT_LIFE_S * 0.7f && speed2 < 400 &&
                 fabsf(angle_diff(atan2f(py, px), sa)) < 0.5f;
 }
 
