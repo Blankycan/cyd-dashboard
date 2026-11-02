@@ -155,7 +155,10 @@ static int brick_at(float cx, float cy, int &r, int &c) {   // as move_ball sees
 // What a shot off the paddle at x, taken at t (-1 left end .. 1 right end),
 // is worth: follow it up through the walls to the first brick it breaks. A
 // brick reached from above the wall (through a gap) is worth the most: the
-// ball rattles about up there. A shot that comes back down untouched, nothing.
+// ball rattles about up there. A shot that comes back down untouched is worth
+// a little for landing nearer the bricks that are left, so with no brick in
+// reach the ball still works its way over to them instead of going straight
+// up and down in the same spot forever.
 static float shot_value(float x, float t) {
     float a = t * 1.05f, dx = sinf(a) * 2, dy = -cosf(a) * 2;
     float cx = x, cy = paddle_y - BALL / 2.0f, lo = BALL / 2.0f, hi = W - BALL / 2.0f;
@@ -165,7 +168,12 @@ static float shot_value(float x, float t) {
         if (cx < lo) { cx = 2 * lo - cx; dx = -dx; }
         if (cx > hi) { cx = 2 * hi - cx; dx = -dx; }
         if (cy < lo) { cy = 2 * lo - cy; dy = -dy; }
-        if (dy > 0 && cy > paddle_y) return 0;
+        if (dy > 0 && cy > paddle_y) {
+            float sum = 0; int n = 0;
+            for (int r = 0; r < ROWS; r++)
+                for (int c = 0; c < cols; c++) if (bricks[r][c]) { sum += brick_x(c) + BW / 2.0f; n++; }
+            return n ? 5 - 5 * fabsf(cx - sum / n) / W : 0;
+        }
         above |= cy < wall_y;
         int r, c;
         if (brick_at(cx, cy, r, c)) return 10 + (r < 2 ? 7 : r < 4 ? 4 : 1) + (above && dy > 0 ? 25 : 0);
