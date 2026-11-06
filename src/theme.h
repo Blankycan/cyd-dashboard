@@ -19,6 +19,8 @@
     #include "themes/cozyfall.h"
 #elif CYD_THEME == CYD_THEME_SCARLET_WITCH
     #include "themes/scarlet-witch.h"
+#elif CYD_THEME == CYD_THEME_AFTERGLOW
+    #include "themes/afterglow.h"
 #else
     #include "themes/forest.h"
 #endif
